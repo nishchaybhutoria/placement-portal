@@ -1,0 +1,62 @@
+{
+  "templates": [
+    {
+      "event_key": "offer_extended",
+      "variables": ["student", "job", "company", "deadline"],
+      "global": {
+        "id": "00000000-0000-0000-0000-000000009001",
+        "cycle_id": null,
+        "cycle_name": null,
+        "subject": "Offer extended: {job} at {company}",
+        "body": "Dear {student},\n\nCongratulations! {company} has extended you an offer for {job}.\n\nPlease review and respond through the CDS Portal.\nResponse deadline: {deadline}\n\nRegards,\nCareer Development Services",
+        "enabled": true,
+        "updated_at": "2026-08-22T10:00:00+00:00"
+      },
+      "overrides": [
+        {
+          "id": "00000000-0000-0000-0000-000000009002",
+          "cycle_id": "00000000-0000-0000-0000-000000000001",
+          "cycle_name": "Placement 2026",
+          "subject": "Placement offer: {job}",
+          "body": "Dear {student}, your offer from {company} is ready. Deadline: {deadline}",
+          "enabled": true,
+          "updated_at": "2026-08-22T11:00:00+00:00"
+        }
+      ]
+    },
+    {
+      "event_key": "deadline_reminder",
+      "variables": ["student", "job", "company", "hours_left"],
+      "global": {
+        "id": "00000000-0000-0000-0000-000000009003",
+        "cycle_id": null,
+        "cycle_name": null,
+        "subject": "Application deadline reminder: {job}",
+        "body": "Dear {student}, the deadline is {hours_left} hours away.",
+        "enabled": true,
+        "updated_at": "2026-08-22T10:00:00+00:00"
+      },
+      "overrides": []
+    }
+  ],
+  "cycles": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "name": "Placement 2026",
+      "kind": "placement",
+      "archived_at": null
+    }
+  ],
+  "dead_letters": [
+    {
+      "id": "00000000-0000-0000-0000-000000009004",
+      "recipient": "asha.mehta@example.edu",
+      "event_key": "offer_extended",
+      "subject": "Offer extended: Backend Engineer at Northwind Systems",
+      "attempts": 5,
+      "last_error": "ServiceUnavailable: SES is unavailable",
+      "created_at": "2026-08-22T10:00:00+00:00",
+      "updated_at": "2026-08-22T10:05:00+00:00"
+    }
+  ]
+}

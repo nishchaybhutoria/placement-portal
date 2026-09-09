@@ -1,0 +1,29 @@
+:4173 {
+	encode zstd gzip
+
+	handle /api/* {
+		reverse_proxy e2e-api:8000
+	}
+
+	handle /auth/* {
+		reverse_proxy e2e-api:8000
+	}
+
+	handle /me {
+		reverse_proxy e2e-api:8000
+	}
+
+	handle /healthz {
+		reverse_proxy e2e-api:8000
+	}
+
+	handle /readyz {
+		reverse_proxy e2e-api:8000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

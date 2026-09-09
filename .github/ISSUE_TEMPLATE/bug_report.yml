@@ -1,0 +1,45 @@
+name: Bug report
+description: Report reproducible incorrect behavior using synthetic data
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Do not include credentials, production records, or personal data. Report
+        security vulnerabilities privately through the Security tab.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened, and what should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Give minimal steps using the synthetic seed where possible.
+    validations:
+      required: true
+  - type: input
+    id: revision
+    attributes:
+      label: Revision
+      description: Commit SHA or release tag
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser, operating system, and deployment mode
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Data safety
+      options:
+        - label: I removed credentials and personal data from this report.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

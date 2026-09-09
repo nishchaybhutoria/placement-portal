@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source /opt/backup/bin/common.sh
+
+# /backups is a named volume shared by the scheduled service and one-off
+# `docker compose run` containers. A /tmp lock only serializes processes inside
+# one container and allows two rclone operations to race on the same objects.
+exec 9>/backups/cds-wal-maintenance.lock
+if ! flock -n 9; then
+    log "another WAL sync or retention pass is already running; skipping"
+    exit 75
+fi
+
+ensure_backup_directories
+if ! remote_enabled; then
+    log "remote copy is disabled; archived WAL remains local only"
+    exit 0
+fi
+
+# Current PostgreSQL instances archive compressed segments directly. Convert
+# legacy native segments in place during rollout. Each source is immutable; an
+# atomic rename makes the compressed copy visible only after gzip verification,
+# and the native source is removed only after that durable replacement exists.
+while IFS= read -r source; do
+    segment="$(basename "$source")"
+    compressed="/wal_archive/${segment}.gz"
+    tmp="${compressed}.tmp.$$"
+    trap 'rm -f "${tmp:-}"' EXIT
+    gzip -c -6 -- "$source" >"$tmp"
+    gzip -t "$tmp"
+    mv -f "$tmp" "$compressed"
+    rm -f -- "$source"
+    trap - EXIT
+done < <(find /wal_archive -maxdepth 1 -type f -regextype posix-extended \
+    -regex '.*/[0-9A-F]{24}' -print | sort)
+
+root="$(remote_root)"
+log "syncing compressed archived WAL to ${root}/wal"
+# rclone does not delete destination files when source traversal or transfer
+# fails. The first compressed sync therefore removes legacy remote raw objects
+# only after all compressed replacements upload successfully.
+rclone sync /wal_archive "${root}/wal"
+CDS_WAL_MAINTENANCE_LOCK_HELD=1 /opt/backup/bin/prune-retention
+log "WAL sync completed"

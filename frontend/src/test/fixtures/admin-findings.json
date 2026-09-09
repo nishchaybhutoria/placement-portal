@@ -1,0 +1,140 @@
+{
+  "findings": [
+    {
+      "id": "ce87aaad-ed59-5583-b674-3602c4db4105",
+      "invariant": "offer_expiry_auto_accept_gate_failed",
+      "description": "An auto-accepting offer fell back to declining because a gate failed",
+      "subject": {
+        "job_id": "3b52c8ed-6505-49eb-a1e2-b329307e8df6",
+        "cycle_id": "628043b6-37b4-4727-98c6-227ef9256ce3",
+        "offer_id": "773e89d6-61a2-5cfd-a446-2f55cffd138d",
+        "application_id": "aa18444a-db16-5b12-bd66-2393697be045",
+        "expected_status": "declined"
+      },
+      "subject_labels": {
+        "job_id": "Winter Research Intern \u00b7 Helios Analytics",
+        "cycle_id": "Winter Internship 2026",
+        "offer_id": "Farhan Khan \u2014 Winter Research Intern",
+        "application_id": "Farhan Khan \u2014 Winter Research Intern"
+      },
+      "detail": "Auto-accept fell back to decline because gates failed: membership_not_active",
+      "status": "open",
+      "created_at": "2026-08-22T23:21:45.061919+00:00",
+      "resolved_at": null,
+      "suggested_fix": {
+        "command": "re_extend_offer",
+        "input": {
+          "cycle_id": "628043b6-37b4-4727-98c6-227ef9256ce3",
+          "job_id": "3b52c8ed-6505-49eb-a1e2-b329307e8df6",
+          "application_id": "aa18444a-db16-5b12-bd66-2393697be045",
+          "offer_id": "773e89d6-61a2-5cfd-a446-2f55cffd138d",
+          "expected_status": "declined",
+          "reason": "Consistency finding: re-offering after the auto-accept fallback"
+        }
+      },
+      "actions": {
+        "resolve": {
+          "allowed": true,
+          "reason": null,
+          "human": null
+        },
+        "dismiss": {
+          "allowed": true,
+          "reason": null,
+          "human": null
+        }
+      }
+    }
+  ],
+  "filters": {
+    "status": "open",
+    "invariant": null
+  },
+  "statuses": [
+    "open",
+    "resolved",
+    "dismissed"
+  ],
+  "invariants": [
+    {
+      "id": "application_status_matches_latest_event",
+      "description": "An application's stored status is the one its latest event moved it to"
+    },
+    {
+      "id": "one_active_application_per_pair",
+      "description": "A student holds at most one active application per job"
+    },
+    {
+      "id": "one_current_enrollment_per_user",
+      "description": "A user has at most one current enrollment"
+    },
+    {
+      "id": "one_current_roll_number",
+      "description": "A roll number belongs to at most one current enrollment"
+    },
+    {
+      "id": "one_default_resume_per_enrollment",
+      "description": "An enrollment has at most one default resume"
+    },
+    {
+      "id": "one_primary_contact_per_company",
+      "description": "A company has at most one primary contact"
+    },
+    {
+      "id": "accepted_offers_within_cycle_cap",
+      "description": "Accepted offers in a cycle stay within the cycle's cap where one is set"
+    },
+    {
+      "id": "one_accepted_placement_offer_globally",
+      "description": "A student holds at most one accepted, unterminated placement offer across the whole portal"
+    },
+    {
+      "id": "placement_derivation_matches_accepted_rows",
+      "description": "An application marked accepted has an accepted, unterminated offer behind it"
+    },
+    {
+      "id": "no_open_offer_on_unoffered_application",
+      "description": "An unresponded, unterminated offer exists only on an application that is offered"
+    },
+    {
+      "id": "converted_penalties_keep_their_strikes",
+      "description": "A penalty converted from strikes is supported by at least the global threshold of consumed strikes"
+    },
+    {
+      "id": "no_live_application_without_active_membership",
+      "description": "A live application belongs to an active cycle membership"
+    },
+    {
+      "id": "round_states_exist_up_to_current_round",
+      "description": "A live application has a round state for every round up to the one it is sitting in, and none beyond it"
+    },
+    {
+      "id": "external_attachments_match_cycle_kind",
+      "description": "An external offer is attached only to a cycle of its own kind"
+    },
+    {
+      "id": "dedicated_cycle_jobs_carry_an_application_deadline",
+      "description": "Only an open-cycle job may have no application deadline"
+    },
+    {
+      "id": "open_cycle_jobs_carry_no_acceptance_deadline",
+      "description": "An open-cycle job has no offer-acceptance deadline"
+    },
+    {
+      "id": "no_override_credited_after_expiry",
+      "description": "No decision credits an override after that override expired"
+    }
+  ],
+  "counts": {
+    "open": 1,
+    "resolved": 0,
+    "dismissed": 0
+  },
+  "actions": {
+    "run_checker": {
+      "allowed": true,
+      "reason": null,
+      "human": null
+    }
+  }
+}

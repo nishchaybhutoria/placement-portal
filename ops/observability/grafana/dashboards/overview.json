@@ -1,0 +1,250 @@
+{
+  "annotations": {"list": []},
+  "description": "Current availability, HTTP golden signals, command execution, alerts, and correlated logs for the CDS Portal.",
+  "editable": false,
+  "graphTooltip": 1,
+  "links": [{"asDropdown": true, "includeVars": false, "keepTime": true, "tags": ["cds"], "title": "CDS dashboards", "type": "dashboards"}],
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Firing alerts",
+      "description": "Number of Prometheus alerts currently firing.",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "count(ALERTS{alertstate=\"firing\"}) or vector(0)", "instant": true, "refId": "A"}],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}
+        },
+        "overrides": []
+      },
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0}
+    },
+    {
+      "type": "stat",
+      "title": "API target",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "max(up{job=\"cds-api\"}) or vector(0)", "instant": true, "refId": "A"}],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{"options": {"0": {"text": "Down"}, "1": {"text": "Up"}}, "type": "value"}],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+        },
+        "overrides": []
+      },
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0}
+    },
+    {
+      "type": "stat",
+      "title": "Worker target",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "max(up{job=\"cds-worker\"}) or vector(0)", "instant": true, "refId": "A"}],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{"options": {"0": {"text": "Down"}, "1": {"text": "Up"}}, "type": "value"}],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+        },
+        "overrides": []
+      },
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0}
+    },
+    {
+      "type": "stat",
+      "title": "PostgreSQL target",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "max(up{job=\"postgres\"}) or vector(0)", "instant": true, "refId": "A"}],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{"options": {"0": {"text": "Down"}, "1": {"text": "Up"}}, "type": "value"}],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+        },
+        "overrides": []
+      },
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0}
+    },
+    {
+      "type": "stat",
+      "title": "Public probes",
+      "description": "Minimum success across the public health and readiness probes.",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "min(probe_success{job=\"blackbox\"}) or vector(0)", "instant": true, "refId": "A"}],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{"options": {"0": {"text": "Failing"}, "1": {"text": "Passing"}}, "type": "value"}],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+        },
+        "overrides": []
+      },
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 0}
+    },
+    {
+      "type": "stat",
+      "title": "TLS days remaining",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "(min(probe_ssl_earliest_cert_expiry{job=\"blackbox\"}) - time()) / 86400", "instant": true, "refId": "A"}],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1,
+          "unit": "d",
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "orange", "value": 14}, {"color": "green", "value": 45}]}
+        },
+        "overrides": []
+      },
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 0}
+    },
+    {
+      "type": "stat",
+      "title": "Backup target",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "max(up{job=\"backup\"}) or vector(0)", "instant": true, "refId": "A"}],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{"options": {"0": {"text": "Down"}, "1": {"text": "Up"}}, "type": "value"}],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+        },
+        "overrides": []
+      },
+      "options": {"colorMode": "background", "graphMode": "none", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 5, "w": 4, "x": 0, "y": 4}
+    },
+    {
+      "type": "table",
+      "title": "Active alerts",
+      "description": "Pending and firing Prometheus alerts. Expand a row to inspect its labels and annotations.",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "ALERTS{alertstate=~\"pending|firing\"}", "format": "table", "instant": true, "refId": "A"}],
+      "options": {"showHeader": true},
+      "gridPos": {"h": 5, "w": 20, "x": 4, "y": 4}
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP request rate",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (status_class) (rate(cds_http_requests_total[5m]))", "legendFormat": "{{status_class}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 9}
+    },
+    {
+      "type": "stat",
+      "title": "HTTP 5xx percentage",
+      "description": "Server errors as a percentage of measured API traffic over five minutes.",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "100 * sum(rate(cds_http_requests_total{status_class=\"5xx\"}[5m])) / clamp_min(sum(rate(cds_http_requests_total[5m])), 0.001)", "refId": "A"}],
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 2,
+          "unit": "percent",
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 1}, {"color": "red", "value": 5}]}
+        },
+        "overrides": []
+      },
+      "options": {"colorMode": "background", "graphMode": "area", "justifyMode": "center", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 8, "w": 4, "x": 8, "y": 9}
+    },
+    {
+      "type": "timeseries",
+      "title": "API latency quantiles",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum by (le) (rate(cds_http_request_duration_seconds_bucket[5m])))", "legendFormat": "p50", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, sum by (le) (rate(cds_http_request_duration_seconds_bucket[5m])))", "legendFormat": "p95", "refId": "B"},
+        {"expr": "histogram_quantile(0.99, sum by (le) (rate(cds_http_request_duration_seconds_bucket[5m])))", "legendFormat": "p99", "refId": "C"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 9}
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP errors by route",
+      "description": "Measured 4xx and 5xx traffic split by bounded route template and method.",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (route, method, status_class) (rate(cds_http_requests_total{status_class=~\"4xx|5xx\"}[5m]))", "legendFormat": "{{status_class}} {{method}} {{route}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 17}
+    },
+    {
+      "type": "timeseries",
+      "title": "Slowest API routes (p95)",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "topk(10, histogram_quantile(0.95, sum by (route, le) (rate(cds_http_request_duration_seconds_bucket[5m]))))", "legendFormat": "{{route}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 17}
+    },
+    {
+      "type": "timeseries",
+      "title": "Command execution rate",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (command, outcome, dry_run) (rate(cds_command_executions_total[5m]))", "legendFormat": "{{outcome}} {{command}} preview={{dry_run}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "ops"}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 25}
+    },
+    {
+      "type": "timeseries",
+      "title": "Command p95 duration",
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (command, outcome, le) (rate(cds_command_duration_seconds_bucket[5m])))", "legendFormat": "{{outcome}} {{command}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 25}
+    },
+    {
+      "type": "logs",
+      "title": "Errors and warnings",
+      "description": "Structured error/warning logs plus failures emitted by the shell-based backup service.",
+      "datasource": {"type": "loki", "uid": "loki"},
+      "targets": [
+        {"expr": "{compose_project=\"cds-portal\", level=~\"(?i)error|critical|warning|warn\"}", "refId": "A"},
+        {"expr": "{compose_project=\"cds-portal\", service=\"backup\"} |~ \"(?i)error|failed|quota exceeded\"", "refId": "B"}
+      ],
+      "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true},
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 33}
+    },
+    {
+      "type": "logs",
+      "title": "Service logs",
+      "description": "Routine readiness, metrics, and Caddy-admin probes are hidden from this view. Use Explore for an unfiltered stream.",
+      "datasource": {"type": "loki", "uid": "loki"},
+      "targets": [{"expr": "{compose_project=\"cds-portal\", service=~\"$service\"} !~ \"GET /(readyz|healthz|metrics)|GET /config/\"", "refId": "A"}],
+      "options": {"dedupStrategy": "none", "enableLogDetails": true, "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true},
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 42}
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 40,
+  "tags": ["cds", "operations"],
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "query",
+        "datasource": {"type": "loki", "uid": "loki"},
+        "definition": "label_values({compose_project=\"cds-portal\"}, service)",
+        "query": "label_values({compose_project=\"cds-portal\"}, service)",
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "refresh": 1,
+        "sort": 1,
+        "current": {"selected": true, "text": ["All"], "value": ["$__all"]}
+      }
+    ]
+  },
+  "time": {"from": "now-6h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "CDS Portal Overview",
+  "uid": "cds-overview",
+  "version": 2
+}

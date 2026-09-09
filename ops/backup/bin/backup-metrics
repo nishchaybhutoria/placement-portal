@@ -1,0 +1,305 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+metrics_dir="${BACKUP_METRICS_DIR:-/backups/metrics}"
+state_dir="${metrics_dir}/state"
+web_dir="${metrics_dir}/web"
+backup_base_dir="${BACKUP_BASE_DIR:-/backups/base}"
+wal_archive_dir="${WAL_ARCHIVE_DIR:-/wal_archive}"
+metrics_file="${web_dir}/metrics"
+kinds=(wal_sync logical_dump base_backup)
+
+is_kind() {
+    local candidate="$1" kind
+    for kind in "${kinds[@]}"; do
+        [[ "$candidate" == "$kind" ]] && return 0
+    done
+    return 1
+}
+
+reset_state() {
+    LAST_ATTEMPT=0
+    LAST_SUCCESS=0
+    LAST_ATTEMPT_SUCCESS=0
+    CONSECUTIVE_FAILURES=0
+    LAST_DURATION_SECONDS=0
+    IN_PROGRESS=0
+    ATTEMPTS_TOTAL=0
+    FAILURES_TOTAL=0
+    SKIPPED_TOTAL=0
+}
+
+load_state() {
+    local kind="$1" value
+    reset_state
+    if [[ -f "${state_dir}/${kind}.state" ]]; then
+        # This file is written only by this script and contains numeric assignments.
+        # shellcheck disable=SC1090
+        source "${state_dir}/${kind}.state"
+    fi
+    for value in \
+        "$LAST_ATTEMPT" \
+        "$LAST_SUCCESS" \
+        "$LAST_ATTEMPT_SUCCESS" \
+        "$CONSECUTIVE_FAILURES" \
+        "$LAST_DURATION_SECONDS" \
+        "$IN_PROGRESS" \
+        "$ATTEMPTS_TOTAL" \
+        "$FAILURES_TOTAL" \
+        "$SKIPPED_TOTAL"; do
+        [[ "$value" =~ ^[0-9]+$ ]] || {
+            printf 'invalid backup metric state for %s\n' "$kind" >&2
+            return 1
+        }
+    done
+}
+
+write_state() {
+    local kind="$1" temporary
+    temporary="$(mktemp "${state_dir}/.${kind}.XXXXXX")"
+    cat >"$temporary" <<EOF
+LAST_ATTEMPT=${LAST_ATTEMPT}
+LAST_SUCCESS=${LAST_SUCCESS}
+LAST_ATTEMPT_SUCCESS=${LAST_ATTEMPT_SUCCESS}
+CONSECUTIVE_FAILURES=${CONSECUTIVE_FAILURES}
+LAST_DURATION_SECONDS=${LAST_DURATION_SECONDS}
+IN_PROGRESS=${IN_PROGRESS}
+ATTEMPTS_TOTAL=${ATTEMPTS_TOTAL}
+FAILURES_TOTAL=${FAILURES_TOTAL}
+SKIPPED_TOTAL=${SKIPPED_TOTAL}
+EOF
+    chmod 0600 "$temporary"
+    mv -f "$temporary" "${state_dir}/${kind}.state"
+}
+
+count_files() {
+    local directory="$1" pattern="$2"
+    if [[ -d "$directory" ]]; then
+        find "$directory" -maxdepth 1 -type f -name "$pattern" -printf '.\n' | wc -l | tr -d ' '
+    else
+        printf '0'
+    fi
+}
+
+sum_file_bytes() {
+    local directory="$1" pattern="$2"
+    if [[ -d "$directory" ]]; then
+        find "$directory" -maxdepth 1 -type f -name "$pattern" -printf '%s\n' \
+            | awk '{ total += $1 } END { print total + 0 }'
+    else
+        printf '0'
+    fi
+}
+
+render_metrics_locked() {
+    local temporary kind base_count wal_count wal_bytes remote
+    mkdir -p "$web_dir"
+    temporary="$(mktemp "${web_dir}/.metrics.XXXXXX")"
+    base_count="$(count_files "$backup_base_dir" 'base-*.tar.gz')"
+    wal_count="$(count_files "$wal_archive_dir" '[0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F]')"
+    wal_bytes="$(sum_file_bytes "$wal_archive_dir" '[0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F]')"
+    remote=0
+    [[ "${BACKUP_REMOTE_ENABLED:-1}" == "1" ]] && remote=1
+
+    cat >"$temporary" <<EOF
+# HELP cds_backup_last_attempt_timestamp_seconds Unix time when the latest real backup attempt started.
+# TYPE cds_backup_last_attempt_timestamp_seconds gauge
+# HELP cds_backup_last_success_timestamp_seconds Unix time when the latest successful backup attempt completed.
+# TYPE cds_backup_last_success_timestamp_seconds gauge
+# HELP cds_backup_last_attempt_success Whether the latest completed real attempt succeeded.
+# TYPE cds_backup_last_attempt_success gauge
+# HELP cds_backup_consecutive_failures Number of consecutive failed real attempts.
+# TYPE cds_backup_consecutive_failures gauge
+# HELP cds_backup_duration_seconds Duration of the latest completed real attempt.
+# TYPE cds_backup_duration_seconds gauge
+# HELP cds_backup_in_progress Whether a backup attempt is currently running.
+# TYPE cds_backup_in_progress gauge
+# HELP cds_backup_attempts_total Number of real backup attempts started.
+# TYPE cds_backup_attempts_total counter
+# HELP cds_backup_failures_total Number of failed real backup attempts.
+# TYPE cds_backup_failures_total counter
+# HELP cds_backup_skipped_total Number of schedules skipped because the same backup was already running.
+# TYPE cds_backup_skipped_total counter
+EOF
+    for kind in "${kinds[@]}"; do
+        load_state "$kind"
+        cat >>"$temporary" <<EOF
+cds_backup_last_attempt_timestamp_seconds{kind="${kind}"} ${LAST_ATTEMPT}
+cds_backup_last_success_timestamp_seconds{kind="${kind}"} ${LAST_SUCCESS}
+cds_backup_last_attempt_success{kind="${kind}"} ${LAST_ATTEMPT_SUCCESS}
+cds_backup_consecutive_failures{kind="${kind}"} ${CONSECUTIVE_FAILURES}
+cds_backup_duration_seconds{kind="${kind}"} ${LAST_DURATION_SECONDS}
+cds_backup_in_progress{kind="${kind}"} ${IN_PROGRESS}
+cds_backup_attempts_total{kind="${kind}"} ${ATTEMPTS_TOTAL}
+cds_backup_failures_total{kind="${kind}"} ${FAILURES_TOTAL}
+cds_backup_skipped_total{kind="${kind}"} ${SKIPPED_TOTAL}
+EOF
+    done
+    cat >>"$temporary" <<EOF
+# HELP cds_backup_remote_enabled Whether remote backup copying is configured.
+# TYPE cds_backup_remote_enabled gauge
+cds_backup_remote_enabled ${remote}
+# HELP cds_backup_base_archives Number of complete local physical base-backup archives.
+# TYPE cds_backup_base_archives gauge
+cds_backup_base_archives ${base_count}
+# HELP cds_backup_wal_archive_files Number of local archived WAL segment files awaiting or retained after sync.
+# TYPE cds_backup_wal_archive_files gauge
+cds_backup_wal_archive_files ${wal_count}
+# HELP cds_backup_wal_archive_bytes Bytes used by local archived WAL segment files.
+# TYPE cds_backup_wal_archive_bytes gauge
+cds_backup_wal_archive_bytes ${wal_bytes}
+EOF
+    chmod 0644 "$temporary"
+    mv -f "$temporary" "$metrics_file"
+}
+
+with_metrics_lock() (
+    mkdir -p "$metrics_dir" "$state_dir" "$web_dir"
+    exec 8>"${metrics_dir}/.lock"
+    flock 8
+    "$@"
+)
+
+initialize_locked() {
+    local kind
+    for kind in "${kinds[@]}"; do
+        if [[ ! -f "${state_dir}/${kind}.state" ]]; then
+            reset_state
+            write_state "$kind"
+        fi
+    done
+    render_metrics_locked
+}
+
+start_attempt_locked() {
+    local kind="$1" started="$2"
+    load_state "$kind"
+    LAST_ATTEMPT="$started"
+    IN_PROGRESS=1
+    ATTEMPTS_TOTAL=$((ATTEMPTS_TOTAL + 1))
+    write_state "$kind"
+    render_metrics_locked
+}
+
+finish_attempt_locked() {
+    local kind="$1" started="$2" finished="$3" status="$4"
+    local duration=$((finished - started))
+    (( duration < 0 )) && duration=0
+    load_state "$kind"
+    IN_PROGRESS=0
+    LAST_DURATION_SECONDS="$duration"
+    if (( status == 0 )); then
+        LAST_SUCCESS="$finished"
+        LAST_ATTEMPT_SUCCESS=1
+        CONSECUTIVE_FAILURES=0
+    else
+        LAST_ATTEMPT_SUCCESS=0
+        CONSECUTIVE_FAILURES=$((CONSECUTIVE_FAILURES + 1))
+        FAILURES_TOTAL=$((FAILURES_TOTAL + 1))
+    fi
+    write_state "$kind"
+    render_metrics_locked
+}
+
+finish_skip_locked() {
+    local kind="$1" previous_state="$2"
+    load_state "$kind"
+    local skipped=$((SKIPPED_TOTAL + 1))
+    # Restore the operation state that existed before this schedule. This path
+    # handles an uninstrumented one-off command holding the script's own lock;
+    # instrumented overlap is rejected by the per-kind lock before an attempt.
+    # shellcheck disable=SC1090
+    source "$previous_state"
+    SKIPPED_TOTAL="$skipped"
+    write_state "$kind"
+    render_metrics_locked
+}
+
+record_skip_locked() {
+    local kind="$1"
+    load_state "$kind"
+    SKIPPED_TOTAL=$((SKIPPED_TOTAL + 1))
+    write_state "$kind"
+    render_metrics_locked
+}
+
+run_instrumented() {
+    local kind="$1"
+    shift
+    is_kind "$kind" || {
+        printf 'unknown backup metric kind: %s\n' "$kind" >&2
+        return 64
+    }
+    (( $# > 0 )) || {
+        printf 'backup-metrics run requires a command\n' >&2
+        return 64
+    }
+
+    mkdir -p "$metrics_dir" "$state_dir"
+    with_metrics_lock initialize_locked
+
+    # Hold this for the full operation. A duplicate schedule records a skip
+    # without disturbing the attempt currently represented by the metrics.
+    exec 7>"${metrics_dir}/.${kind}.operation.lock"
+    if ! flock -n 7; then
+        with_metrics_lock record_skip_locked "$kind"
+        exec 7>&-
+        return 0
+    fi
+
+    local previous_state
+    previous_state="$(mktemp)"
+    chmod 0600 "$previous_state"
+    (
+        exec 8>"${metrics_dir}/.lock"
+        flock 8
+        load_state "$kind"
+        declare -p \
+            LAST_ATTEMPT LAST_SUCCESS LAST_ATTEMPT_SUCCESS \
+            CONSECUTIVE_FAILURES LAST_DURATION_SECONDS IN_PROGRESS \
+            ATTEMPTS_TOTAL FAILURES_TOTAL SKIPPED_TOTAL
+    ) >"$previous_state"
+
+    local started finished status
+    started="$(date +%s)"
+    with_metrics_lock start_attempt_locked "$kind" "$started"
+    set +e
+    "$@"
+    status=$?
+    set -e
+    finished="$(date +%s)"
+
+    if (( status == 75 )); then
+        with_metrics_lock finish_skip_locked "$kind" "$previous_state"
+        rm -f "$previous_state"
+        flock -u 7
+        exec 7>&-
+        return 0
+    fi
+    rm -f "$previous_state"
+    with_metrics_lock finish_attempt_locked "$kind" "$started" "$finished" "$status"
+    flock -u 7
+    exec 7>&-
+    return "$status"
+}
+
+case "${1:-}" in
+    init)
+        with_metrics_lock initialize_locked
+        ;;
+    render)
+        with_metrics_lock render_metrics_locked
+        ;;
+    run)
+        shift
+        (( $# >= 2 )) || {
+            printf 'usage: backup-metrics run KIND COMMAND [ARG...]\n' >&2
+            exit 64
+        }
+        run_instrumented "$@"
+        ;;
+    *)
+        printf 'usage: backup-metrics {init|render|run KIND COMMAND [ARG...]}\n' >&2
+        exit 64
+        ;;
+esac

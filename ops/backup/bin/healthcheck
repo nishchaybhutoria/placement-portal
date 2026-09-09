@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source /opt/backup/bin/common.sh
+
+pidof crond >/dev/null
+pg_isready --quiet
+if remote_enabled; then
+    rclone lsd "$(remote_root)" >/dev/null
+fi

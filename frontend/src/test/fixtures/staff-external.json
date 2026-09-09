@@ -1,0 +1,78 @@
+{
+  "actions": {
+    "create": {
+      "allowed": true,
+      "human": null,
+      "reason": null
+    }
+  },
+  "companies": [
+    {
+      "id": "55e5aa9c-8eb4-4511-9523-035cb9cf8e3e",
+      "name": "Acme Corp"
+    }
+  ],
+  "enrollments": [
+    {
+      "email": "asha@example.edu",
+      "full_name": "Asha Screen",
+      "id": "810dcd00-c4ed-41d0-83e3-e949908775f6",
+      "roll_number": "c1d3dfdb"
+    },
+    {
+      "email": "admin@example.edu",
+      "full_name": "Screen Admin",
+      "id": "f9bb1d96-90f1-4bf9-acc6-45f22864c14a",
+      "roll_number": "3b1e27b3"
+    },
+    {
+      "email": "coord@example.edu",
+      "full_name": "Screen Coordinator",
+      "id": "ec6f9cad-46e9-4ea0-9806-d1e4417340f5",
+      "roll_number": "abf72180"
+    }
+  ],
+  "filters": {
+    "attached": null,
+    "outcome": null,
+    "q": null,
+    "status": null
+  },
+  "offers": [
+    {
+      "actions": {
+        "delete": {
+          "allowed": true,
+          "human": null,
+          "reason": null
+        },
+        "update": {
+          "allowed": true,
+          "human": null,
+          "reason": null
+        }
+      },
+      "attached_cycle": null,
+      "company": {
+        "id": "55e5aa9c-8eb4-4511-9523-035cb9cf8e3e",
+        "name": "Acme Corp"
+      },
+      "ctc_lpa": null,
+      "email": "asha@example.edu",
+      "enrollment_id": "810dcd00-c4ed-41d0-83e3-e949908775f6",
+      "id": "694bbf31-558f-41e5-8fcf-c96308823112",
+      "notes": null,
+      "offered_on": "2026-08-22",
+      "outcome": "placement",
+      "read_only": false,
+      "responded_on": null,
+      "restoration_candidates": [],
+      "roll_number": "c1d3dfdb",
+      "source": "ppo",
+      "source_application_id": null,
+      "status": "offered",
+      "stipend_month": null,
+      "student": "Asha Screen"
+    }
+  ]
+}

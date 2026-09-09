@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source /opt/backup/bin/common.sh
+
+umask 077
+wait_for_postgres
+ensure_backup_directories
+
+if remote_enabled; then
+    log "backup remote ready at $(remote_root)"
+else
+    log "WARNING: BACKUP_REMOTE_ENABLED=0; this mode is only for local development"
+fi
+
+/opt/backup/bin/backup-metrics init
+if [[ "${1:-}" == "crond" ]]; then
+    httpd -f -p 9100 -h "${BACKUP_METRICS_DIR:-/backups/metrics}/web" &
+    log "backup metrics listening on internal port 9100"
+fi
+
+exec "$@"

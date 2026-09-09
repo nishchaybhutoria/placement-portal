@@ -1,0 +1,131 @@
+{
+  "annotations": {"list": []},
+  "description": "Durable backup attempt, freshness, retention, and local WAL telemetry from the backup service.",
+  "editable": false,
+  "graphTooltip": 1,
+  "links": [{"asDropdown": true, "includeVars": false, "keepTime": true, "tags": ["cds"], "title": "CDS dashboards", "type": "dashboards"}],
+  "panels": [
+    {
+      "type": "stat", "title": "Backup metrics target", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "max(up{job=\"backup\"}) or vector(0)", "instant": true, "refId": "A"}],
+      "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"text": "Down"}, "1": {"text": "Up"}}, "type": "value"}], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0}
+    },
+    {
+      "type": "stat", "title": "Remote copying", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "cds_backup_remote_enabled", "instant": true, "refId": "A"}],
+      "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"text": "Disabled"}, "1": {"text": "Enabled"}}, "type": "value"}], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0}
+    },
+    {
+      "type": "stat", "title": "Local base backups", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "cds_backup_base_archives", "refId": "A"}],
+      "fieldConfig": {"defaults": {"decimals": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "orange", "value": 1}, {"color": "green", "value": 2}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0}
+    },
+    {
+      "type": "stat", "title": "Archived WAL files", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "cds_backup_wal_archive_files", "refId": "A"}],
+      "fieldConfig": {"defaults": {"decimals": 0, "unit": "short"}, "overrides": []},
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0}
+    },
+    {
+      "type": "stat", "title": "Archived WAL bytes", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "cds_backup_wal_archive_bytes", "refId": "A"}],
+      "fieldConfig": {"defaults": {"decimals": 2, "unit": "bytes"}, "overrides": []},
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 0}
+    },
+    {
+      "type": "stat", "title": "Consecutive failures", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(cds_backup_consecutive_failures)", "refId": "A"}],
+      "fieldConfig": {"defaults": {"decimals": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 0}
+    },
+    {
+      "type": "stat", "title": "WAL sync age", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "time() - cds_backup_last_success_timestamp_seconds{kind=\"wal_sync\"}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 600}, {"color": "red", "value": 900}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 5, "w": 8, "x": 0, "y": 4}
+    },
+    {
+      "type": "stat", "title": "Logical dump age", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "time() - cds_backup_last_success_timestamp_seconds{kind=\"logical_dump\"}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 86400}, {"color": "red", "value": 93600}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 5, "w": 8, "x": 8, "y": 4}
+    },
+    {
+      "type": "stat", "title": "Base backup age", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "time() - cds_backup_last_success_timestamp_seconds{kind=\"base_backup\"}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "s", "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 604800}, {"color": "red", "value": 691200}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 5, "w": 8, "x": 16, "y": 4}
+    },
+    {
+      "type": "state-timeline", "title": "Attempt state", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "cds_backup_last_attempt_success", "legendFormat": "{{kind}} last result", "refId": "A"},
+        {"expr": "2 * cds_backup_in_progress", "legendFormat": "{{kind}} in progress", "refId": "B"}
+      ],
+      "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"color": "red", "text": "Failed / not run"}, "1": {"color": "green", "text": "Succeeded"}, "2": {"color": "blue", "text": "Running"}}, "type": "value"}]}, "overrides": []},
+      "options": {"alignValue": "left", "mergeValues": true, "rowHeight": 0.8, "showValue": "auto", "tooltip": {"mode": "single", "sort": "none"}},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 9}
+    },
+    {
+      "type": "timeseries", "title": "Last backup duration", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "cds_backup_duration_seconds", "legendFormat": "{{kind}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 9}
+    },
+    {
+      "type": "timeseries", "title": "Backup attempts and failures", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum by (kind) (increase(cds_backup_attempts_total[$__range]))", "legendFormat": "{{kind}} attempts", "refId": "A"},
+        {"expr": "sum by (kind) (increase(cds_backup_failures_total[$__range]))", "legendFormat": "{{kind}} failures", "refId": "B"},
+        {"expr": "sum by (kind) (increase(cds_backup_skipped_total[$__range]))", "legendFormat": "{{kind}} skipped", "refId": "C"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 17}
+    },
+    {
+      "type": "timeseries", "title": "Local WAL archive growth", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "cds_backup_wal_archive_bytes", "legendFormat": "bytes", "refId": "A"},
+        {"expr": "cds_backup_wal_archive_files", "legendFormat": "files", "refId": "B"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0}, "overrides": [{"matcher": {"id": "byName", "options": "bytes"}, "properties": [{"id": "unit", "value": "bytes"}]}]},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 17}
+    },
+    {
+      "type": "logs", "title": "Backup errors and warnings", "datasource": {"type": "loki", "uid": "loki"},
+      "targets": [{"expr": "{compose_project=\"cds-portal\", service=\"backup\"} |~ \"(?i)error|failed|warning|quota exceeded|fewer than two\"", "refId": "A"}],
+      "options": {"dedupStrategy": "none", "enableLogDetails": true, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true},
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 25}
+    },
+    {
+      "type": "logs", "title": "Backup activity", "datasource": {"type": "loki", "uid": "loki"},
+      "targets": [{"expr": "{compose_project=\"cds-portal\", service=\"backup\"}", "refId": "A"}],
+      "options": {"dedupStrategy": "none", "enableLogDetails": true, "showCommonLabels": false, "showLabels": false, "showTime": true, "sortOrder": "Descending", "wrapLogMessage": true},
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 25}
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 40,
+  "tags": ["cds", "backup"],
+  "templating": {"list": []},
+  "time": {"from": "now-24h", "to": "now"},
+  "timezone": "browser",
+  "title": "CDS Backups",
+  "uid": "cds-backups",
+  "version": 1
+}

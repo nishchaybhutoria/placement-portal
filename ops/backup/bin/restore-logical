@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source /opt/backup/bin/common.sh
+
+require_env RCLONE_ROOT PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
+root="$(remote_root)"
+latest="$(rclone lsf --files-only --include 'dump-*.dump' "${root}/dumps" | sort | tail -n 1)"
+if [[ -z "$latest" ]]; then
+    log "no logical dump found at ${root}/dumps"
+    exit 1
+fi
+
+work="$(mktemp -d /tmp/cds-dump-restore.XXXXXX)"
+trap 'rm -rf "$work"' EXIT
+rclone copyto "${root}/dumps/${latest}" "${work}/${latest}"
+rclone copyto "${root}/dumps/${latest}.sha256" "${work}/${latest}.sha256"
+(
+    cd "$work"
+    sha256sum -c "${latest}.sha256"
+)
+
+log "restoring logical fallback ${latest} into ${PGDATABASE}"
+pg_restore \
+    --host "$PGHOST" \
+    --port "$PGPORT" \
+    --username "$PGUSER" \
+    --dbname "$PGDATABASE" \
+    --clean \
+    --if-exists \
+    --no-owner \
+    --no-password \
+    "${work}/${latest}"
+
+# The restore just recreated application_events and audit_log from an ACL the
+# dump could only express as GRANTs; see assert_append_only_grants. Re-assert
+# and prove before anyone is told the restore succeeded.
+log "re-asserting append-only history grants after the logical restore"
+assert_append_only_grants
+
+log "logical fallback restore completed"

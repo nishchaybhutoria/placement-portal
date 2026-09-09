@@ -1,0 +1,1890 @@
+{
+ "enrollment": {
+  "id": "a985a336-aac6-4afd-8a9c-2b283e755b65",
+  "user_id": "9b64697e-61a5-4675-a093-9aec6c3610b6",
+  "full_name": "Asha Mehta",
+  "email": "asha.mehta@example.edu",
+  "role": "student",
+  "is_active": true,
+  "roll_number": "21110001",
+  "is_current": true
+ },
+ "enrollments": [
+  {
+   "id": "a985a336-aac6-4afd-8a9c-2b283e755b65",
+   "roll_number": "21110001",
+   "is_current": true,
+   "created_at": "2026-08-22T23:21:42.854113+00:00",
+   "selected": true
+  }
+ ],
+ "memberships": [
+  {
+   "id": "e1b0a41d-cab0-49ec-b9bb-096f6e62e150",
+   "cycle": {
+    "id": "fac95135-8285-4f51-95cd-c94f52709c11",
+    "name": "Open Opportunities",
+    "kind": "open",
+    "archived": false
+   },
+   "status": "active",
+   "consented_at": "2026-08-22T23:21:43.427848+00:00",
+   "decided_at": null,
+   "decided_by": null,
+   "rejection_reason": null,
+   "outcome_tag": null,
+   "auto_created": false,
+   "actions": {
+    "set_outcome_tag": {
+     "allowed": true,
+     "reason": null,
+     "human": null
+    },
+    "remove_membership": {
+     "allowed": true,
+     "reason": null,
+     "human": null
+    },
+    "restore_membership": {
+     "allowed": false,
+     "reason": "invalid_transition",
+     "human": "Only a withdrawn or removed membership can be restored"
+    }
+   }
+  },
+  {
+   "id": "72e5a6c5-6f2a-4e32-84e4-5caaafa47de3",
+   "cycle": {
+    "id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+    "name": "Placement 2026",
+    "kind": "placement",
+    "archived": false
+   },
+   "status": "active",
+   "consented_at": "2026-08-22T23:21:43.174834+00:00",
+   "decided_at": "2026-08-22T23:21:43.299659+00:00",
+   "decided_by": "Priya Coordinator",
+   "rejection_reason": null,
+   "outcome_tag": null,
+   "auto_created": false,
+   "actions": {
+    "set_outcome_tag": {
+     "allowed": true,
+     "reason": null,
+     "human": null
+    },
+    "remove_membership": {
+     "allowed": true,
+     "reason": null,
+     "human": null
+    },
+    "restore_membership": {
+     "allowed": false,
+     "reason": "invalid_transition",
+     "human": "Only a withdrawn or removed membership can be restored"
+    }
+   }
+  }
+ ],
+ "applications": [
+  {
+   "id": "a4910db6-b355-5d48-8c53-94f5703f5557",
+   "job_id": "31704876-f0b4-4e59-a797-9a4b62023997",
+   "job_title": "Campus Ambassador",
+   "company_name": "Meridian Consulting",
+   "outcome": "internship",
+   "cycle": {
+    "id": "fac95135-8285-4f51-95cd-c94f52709c11",
+    "name": "Open Opportunities",
+    "kind": "open",
+    "archived": false
+   },
+   "status": "withdrawn",
+   "applied_at": "2026-08-22T23:21:44.108044+00:00",
+   "resume_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view",
+   "current_round": null,
+   "rounds": [],
+   "round_states": [],
+   "events": [
+    {
+     "id": "f4627b82-a9a4-4a92-a5e2-1a32005c0de8",
+     "event_type": "created",
+     "from_status": null,
+     "to_status": "in_progress",
+     "from_round": null,
+     "to_round": null,
+     "actor": "Asha Mehta",
+     "actor_role": "student",
+     "reason": null,
+     "payload": {
+      "job_id": "31704876-f0b4-4e59-a797-9a4b62023997",
+      "cycle_id": "fac95135-8285-4f51-95cd-c94f52709c11",
+      "resume_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view",
+      "answer_count": 0,
+      "applied_override_ids": []
+     },
+     "created_at": "2026-08-22T23:21:44.108044+00:00",
+     "payload_labels": {
+      "applied_override_ids": []
+     }
+    },
+    {
+     "id": "d8439a9a-c206-4d14-9b16-6a43065f060b",
+     "event_type": "withdrawn",
+     "from_status": "in_progress",
+     "to_status": "withdrawn",
+     "from_round": null,
+     "to_round": null,
+     "actor": "Asha Mehta",
+     "actor_role": "student",
+     "reason": null,
+     "payload": {
+      "job_id": "31704876-f0b4-4e59-a797-9a4b62023997",
+      "applied_override_ids": []
+     },
+     "created_at": "2026-08-22T23:21:44.134426+00:00",
+     "payload_labels": {
+      "applied_override_ids": []
+     }
+    }
+   ],
+   "offers": [],
+   "snapshot_diff": [
+    {
+     "key": "full_name",
+     "label": "Full name",
+     "owner": "admin",
+     "snapshot": "Asha Mehta",
+     "live": "Asha Mehta",
+     "state": "unchanged"
+    },
+    {
+     "key": "roll_number",
+     "label": "Roll number",
+     "owner": "admin",
+     "snapshot": "21110001",
+     "live": "21110001",
+     "state": "unchanged"
+    },
+    {
+     "key": "program_id",
+     "label": "Program",
+     "owner": "admin",
+     "snapshot": "b0b4d586-6307-4693-8369-109b8d5a08de",
+     "live": "b0b4d586-6307-4693-8369-109b8d5a08de",
+     "state": "unchanged"
+    },
+    {
+     "key": "primary_branch_id",
+     "label": "Primary branch",
+     "owner": "admin",
+     "snapshot": "8c5a88fe-3b7a-490e-b3de-56a4fcc3f845",
+     "live": "8c5a88fe-3b7a-490e-b3de-56a4fcc3f845",
+     "state": "unchanged"
+    },
+    {
+     "key": "secondary_branch_id",
+     "label": "Secondary branch",
+     "owner": "admin",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    },
+    {
+     "key": "graduating_year",
+     "label": "Graduating year",
+     "owner": "admin",
+     "snapshot": 2026,
+     "live": 2026,
+     "state": "unchanged"
+    },
+    {
+     "key": "cpi",
+     "label": "CPI",
+     "owner": "admin",
+     "snapshot": "9.10",
+     "live": "9.12",
+     "state": "changed"
+    },
+    {
+     "key": "active_backlogs",
+     "label": "Active backlog count",
+     "owner": "admin",
+     "snapshot": 0,
+     "live": 0,
+     "state": "unchanged"
+    },
+    {
+     "key": "total_backlogs",
+     "label": "Total backlog count",
+     "owner": "admin",
+     "snapshot": 0,
+     "live": 0,
+     "state": "unchanged"
+    },
+    {
+     "key": "gender",
+     "label": "Gender",
+     "owner": "admin",
+     "snapshot": "female",
+     "live": "female",
+     "state": "unchanged"
+    },
+    {
+     "key": "personal_email",
+     "label": "Personal email",
+     "owner": "student",
+     "snapshot": "asha.mehta@example.com",
+     "live": "asha.mehta@example.com",
+     "state": "unchanged"
+    },
+    {
+     "key": "contact_number",
+     "label": "Contact number",
+     "owner": "student",
+     "snapshot": "+1 202-555-0101",
+     "live": "+1 202-555-0101",
+     "state": "unchanged"
+    },
+    {
+     "key": "nationality",
+     "label": "Nationality",
+     "owner": "student",
+     "snapshot": "IN",
+     "live": "IN",
+     "state": "unchanged"
+    },
+    {
+     "key": "tenth_percent",
+     "label": "10th percentage",
+     "owner": "student",
+     "snapshot": "92.00",
+     "live": "92.00",
+     "state": "unchanged"
+    },
+    {
+     "key": "tenth_year",
+     "label": "10th year",
+     "owner": "student",
+     "snapshot": 2019,
+     "live": 2019,
+     "state": "unchanged"
+    },
+    {
+     "key": "twelfth_percent",
+     "label": "12th percentage",
+     "owner": "student",
+     "snapshot": "94.00",
+     "live": "94.00",
+     "state": "unchanged"
+    },
+    {
+     "key": "twelfth_year",
+     "label": "12th year",
+     "owner": "student",
+     "snapshot": 2021,
+     "live": 2021,
+     "state": "unchanged"
+    },
+    {
+     "key": "minor1_id",
+     "label": "Minor 1",
+     "owner": "student",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    },
+    {
+     "key": "minor2_id",
+     "label": "Minor 2",
+     "owner": "student",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    },
+    {
+     "key": "github_url",
+     "label": "GitHub URL",
+     "owner": "student",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    },
+    {
+     "key": "linkedin_url",
+     "label": "LinkedIn URL",
+     "owner": "student",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    },
+    {
+     "key": "portfolio_url",
+     "label": "Portfolio URL",
+     "owner": "student",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    }
+   ],
+   "actions": {
+    "reinstate": {
+     "allowed": true,
+     "reason": null,
+     "human": null
+    },
+    "force_transition": {
+     "allowed": true,
+     "reason": null,
+     "human": null
+    }
+   }
+  },
+  {
+   "id": "94f83745-8d0e-5f4d-bae3-27ee96c84b40",
+   "job_id": "81975d16-0df0-4cee-aea0-2ee9eddb6a5b",
+   "job_title": "Quantitative Researcher",
+   "company_name": "Helios Analytics",
+   "outcome": "placement",
+   "cycle": {
+    "id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+    "name": "Placement 2026",
+    "kind": "placement",
+    "archived": false
+   },
+   "status": "rejected",
+   "applied_at": "2026-08-22T23:21:43.958964+00:00",
+   "resume_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view",
+   "current_round": {
+    "id": "e4b7d8c8-1efa-4656-b54a-230f3077b36e",
+    "name": "Quant Test",
+    "ord": 1
+   },
+   "rounds": [
+    {
+     "id": "e4b7d8c8-1efa-4656-b54a-230f3077b36e",
+     "name": "Quant Test",
+     "ord": 1
+    },
+    {
+     "id": "8433512f-ec92-4a77-88f0-198931c3a149",
+     "name": "Maths Interview",
+     "ord": 2
+    }
+   ],
+   "round_states": [
+    {
+     "round_id": "e4b7d8c8-1efa-4656-b54a-230f3077b36e",
+     "round_name": "Quant Test",
+     "ord": 1,
+     "result": "eliminated",
+     "attendance": "absent",
+     "venue_override": null,
+     "scheduled_at_override": null
+    }
+   ],
+   "events": [
+    {
+     "id": "5ed2a4af-a78d-4f30-9935-e15da8d24fcd",
+     "event_type": "created",
+     "from_status": null,
+     "to_status": "in_progress",
+     "from_round": null,
+     "to_round": "Quant Test",
+     "actor": "Asha Mehta",
+     "actor_role": "student",
+     "reason": null,
+     "payload": {
+      "job_id": "81975d16-0df0-4cee-aea0-2ee9eddb6a5b",
+      "cycle_id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+      "resume_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view",
+      "answer_count": 0,
+      "applied_override_ids": []
+     },
+     "created_at": "2026-08-22T23:21:43.958964+00:00",
+     "payload_labels": {
+      "applied_override_ids": []
+     }
+    },
+    {
+     "id": "45e75e77-7df7-4b4e-96ee-37517eef02d3",
+     "event_type": "attendance_marked",
+     "from_status": "in_progress",
+     "to_status": "in_progress",
+     "from_round": "Quant Test",
+     "to_round": "Quant Test",
+     "actor": "Priya Coordinator",
+     "actor_role": "student",
+     "reason": null,
+     "payload": {
+      "job_id": "81975d16-0df0-4cee-aea0-2ee9eddb6a5b",
+      "previous": "pending",
+      "attendance": "absent"
+     },
+     "created_at": "2026-08-22T23:21:44.181761+00:00",
+     "payload_labels": {
+      "applied_override_ids": []
+     }
+    },
+    {
+     "id": "b9d4632a-5330-47d4-9cd1-f9463e2442d3",
+     "event_type": "round_finalized",
+     "from_status": "in_progress",
+     "to_status": "rejected",
+     "from_round": "Quant Test",
+     "to_round": "Quant Test",
+     "actor": "Priya Coordinator",
+     "actor_role": "student",
+     "reason": "absence",
+     "payload": {
+      "round": "Quant Test",
+      "job_id": "81975d16-0df0-4cee-aea0-2ee9eddb6a5b",
+      "attendance": "absent",
+      "strike_awarded": true
+     },
+     "created_at": "2026-08-22T23:21:44.256461+00:00",
+     "payload_labels": {
+      "applied_override_ids": []
+     }
+    }
+   ],
+   "offers": [],
+   "snapshot_diff": [
+    {
+     "key": "full_name",
+     "label": "Full name",
+     "owner": "admin",
+     "snapshot": "Asha Mehta",
+     "live": "Asha Mehta",
+     "state": "unchanged"
+    },
+    {
+     "key": "roll_number",
+     "label": "Roll number",
+     "owner": "admin",
+     "snapshot": "21110001",
+     "live": "21110001",
+     "state": "unchanged"
+    },
+    {
+     "key": "program_id",
+     "label": "Program",
+     "owner": "admin",
+     "snapshot": "b0b4d586-6307-4693-8369-109b8d5a08de",
+     "live": "b0b4d586-6307-4693-8369-109b8d5a08de",
+     "state": "unchanged"
+    },
+    {
+     "key": "primary_branch_id",
+     "label": "Primary branch",
+     "owner": "admin",
+     "snapshot": "8c5a88fe-3b7a-490e-b3de-56a4fcc3f845",
+     "live": "8c5a88fe-3b7a-490e-b3de-56a4fcc3f845",
+     "state": "unchanged"
+    },
+    {
+     "key": "secondary_branch_id",
+     "label": "Secondary branch",
+     "owner": "admin",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    },
+    {
+     "key": "graduating_year",
+     "label": "Graduating year",
+     "owner": "admin",
+     "snapshot": 2026,
+     "live": 2026,
+     "state": "unchanged"
+    },
+    {
+     "key": "cpi",
+     "label": "CPI",
+     "owner": "admin",
+     "snapshot": "9.10",
+     "live": "9.12",
+     "state": "changed"
+    },
+    {
+     "key": "active_backlogs",
+     "label": "Active backlog count",
+     "owner": "admin",
+     "snapshot": 0,
+     "live": 0,
+     "state": "unchanged"
+    },
+    {
+     "key": "total_backlogs",
+     "label": "Total backlog count",
+     "owner": "admin",
+     "snapshot": 0,
+     "live": 0,
+     "state": "unchanged"
+    },
+    {
+     "key": "gender",
+     "label": "Gender",
+     "owner": "admin",
+     "snapshot": "female",
+     "live": "female",
+     "state": "unchanged"
+    },
+    {
+     "key": "personal_email",
+     "label": "Personal email",
+     "owner": "student",
+     "snapshot": "asha.mehta@example.com",
+     "live": "asha.mehta@example.com",
+     "state": "unchanged"
+    },
+    {
+     "key": "contact_number",
+     "label": "Contact number",
+     "owner": "student",
+     "snapshot": "+1 202-555-0101",
+     "live": "+1 202-555-0101",
+     "state": "unchanged"
+    },
+    {
+     "key": "nationality",
+     "label": "Nationality",
+     "owner": "student",
+     "snapshot": "IN",
+     "live": "IN",
+     "state": "unchanged"
+    },
+    {
+     "key": "tenth_percent",
+     "label": "10th percentage",
+     "owner": "student",
+     "snapshot": "92.00",
+     "live": "92.00",
+     "state": "unchanged"
+    },
+    {
+     "key": "tenth_year",
+     "label": "10th year",
+     "owner": "student",
+     "snapshot": 2019,
+     "live": 2019,
+     "state": "unchanged"
+    },
+    {
+     "key": "twelfth_percent",
+     "label": "12th percentage",
+     "owner": "student",
+     "snapshot": "94.00",
+     "live": "94.00",
+     "state": "unchanged"
+    },
+    {
+     "key": "twelfth_year",
+     "label": "12th year",
+     "owner": "student",
+     "snapshot": 2021,
+     "live": 2021,
+     "state": "unchanged"
+    },
+    {
+     "key": "minor1_id",
+     "label": "Minor 1",
+     "owner": "student",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    },
+    {
+     "key": "minor2_id",
+     "label": "Minor 2",
+     "owner": "student",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    },
+    {
+     "key": "github_url",
+     "label": "GitHub URL",
+     "owner": "student",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    },
+    {
+     "key": "linkedin_url",
+     "label": "LinkedIn URL",
+     "owner": "student",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    },
+    {
+     "key": "portfolio_url",
+     "label": "Portfolio URL",
+     "owner": "student",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    }
+   ],
+   "actions": {
+    "reinstate": {
+     "allowed": true,
+     "reason": null,
+     "human": null
+    },
+    "force_transition": {
+     "allowed": true,
+     "reason": null,
+     "human": null
+    }
+   }
+  },
+  {
+   "id": "bda9429f-030c-5243-b888-2cad56c0b463",
+   "job_id": "3464c74f-0959-46ae-8290-3d2beb60a8c4",
+   "job_title": "Backend Engineer",
+   "company_name": "Northwind Systems",
+   "outcome": "placement",
+   "cycle": {
+    "id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+    "name": "Placement 2026",
+    "kind": "placement",
+    "archived": false
+   },
+   "status": "offer_terminated",
+   "applied_at": "2026-08-22T23:21:43.842172+00:00",
+   "resume_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view",
+   "current_round": {
+    "id": "45b27e63-b7ce-47a2-8db4-54f6f4d897c5",
+    "name": "Systems Interview",
+    "ord": 2
+   },
+   "rounds": [
+    {
+     "id": "f60521aa-5295-4c2e-933f-f7c58dacba5c",
+     "name": "Online Assessment",
+     "ord": 1
+    },
+    {
+     "id": "45b27e63-b7ce-47a2-8db4-54f6f4d897c5",
+     "name": "Systems Interview",
+     "ord": 2
+    },
+    {
+     "id": "80f2cdf8-ed9b-455c-b30d-c13467f66a12",
+     "name": "Hiring Manager",
+     "ord": 3
+    }
+   ],
+   "round_states": [
+    {
+     "round_id": "f60521aa-5295-4c2e-933f-f7c58dacba5c",
+     "round_name": "Online Assessment",
+     "ord": 1,
+     "result": "advanced",
+     "attendance": "pending",
+     "venue_override": null,
+     "scheduled_at_override": null
+    },
+    {
+     "round_id": "45b27e63-b7ce-47a2-8db4-54f6f4d897c5",
+     "round_name": "Systems Interview",
+     "ord": 2,
+     "result": "pending",
+     "attendance": "pending",
+     "venue_override": "AB 5 / 204",
+     "scheduled_at_override": "2026-09-16T05:00:00+00:00"
+    }
+   ],
+   "events": [
+    {
+     "id": "c74f21f3-de2c-45ff-b2bb-c82258cc2b83",
+     "event_type": "created",
+     "from_status": null,
+     "to_status": "in_progress",
+     "from_round": null,
+     "to_round": "Online Assessment",
+     "actor": "Asha Mehta",
+     "actor_role": "student",
+     "reason": null,
+     "payload": {
+      "job_id": "3464c74f-0959-46ae-8290-3d2beb60a8c4",
+      "cycle_id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+      "resume_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view",
+      "answer_count": 4,
+      "applied_override_ids": [
+       "6d2b5f10-4c5c-4c31-9a2e-1f5f0d6b0a41"
+      ]
+     },
+     "created_at": "2026-08-22T23:21:43.842172+00:00",
+     "payload_labels": {
+      "applied_override_ids": [
+       {
+        "id": "6d2b5f10-4c5c-4c31-9a2e-1f5f0d6b0a41",
+        "rule_domain": "eligibility",
+        "allow": true,
+        "reason": "Development seed: company asked for this student by name",
+        "granted_by": "CDS Administrator",
+        "granted_at": "2026-08-22T23:21:44.100000+00:00"
+       }
+      ]
+     }
+    },
+    {
+     "id": "3dd4845d-d3a3-4d67-a913-050319896e88",
+     "event_type": "advanced",
+     "from_status": "in_progress",
+     "to_status": "in_progress",
+     "from_round": "Online Assessment",
+     "to_round": "Systems Interview",
+     "actor": "Priya Coordinator",
+     "actor_role": "student",
+     "reason": null,
+     "payload": {
+      "job_id": "3464c74f-0959-46ae-8290-3d2beb60a8c4",
+      "operation": "advance",
+      "round_result": "advanced"
+     },
+     "created_at": "2026-08-22T23:21:44.050278+00:00",
+     "payload_labels": {
+      "applied_override_ids": []
+     }
+    },
+    {
+     "id": "5e5c22a5-2518-49ac-8961-2367d2a5bf51",
+     "event_type": "venue_assigned",
+     "from_status": "in_progress",
+     "to_status": "in_progress",
+     "from_round": "Systems Interview",
+     "to_round": "Systems Interview",
+     "actor": "Priya Coordinator",
+     "actor_role": "student",
+     "reason": null,
+     "payload": {
+      "round": "Systems Interview",
+      "venue": "AB 5 / 204",
+      "job_id": "3464c74f-0959-46ae-8290-3d2beb60a8c4",
+      "is_update": false,
+      "scheduled_at": "2026-09-16T05:00:00+00:00"
+     },
+     "created_at": "2026-08-22T23:21:44.235853+00:00",
+     "payload_labels": {
+      "applied_override_ids": []
+     }
+    },
+    {
+     "id": "610f237c-6c64-477f-a749-585a745c2213",
+     "event_type": "auto_withdrawn",
+     "from_status": "in_progress",
+     "to_status": "auto_withdrawn",
+     "from_round": "Systems Interview",
+     "to_round": "Systems Interview",
+     "actor": "CDS Administrator",
+     "actor_role": "admin",
+     "reason": "Accepted another offer",
+     "payload": {
+      "trigger": "acceptance",
+      "acceptance_offer_id": "3a6a682c-c9d6-584f-8979-c9c8da8a5a41",
+      "accepted_application_id": "3a6a682c-c9d6-584f-8979-c9c8da8a5a41"
+     },
+     "created_at": "2026-08-22T23:21:44.365863+00:00",
+     "payload_labels": {
+      "applied_override_ids": []
+     }
+    },
+    {
+     "id": "dc1be0cb-31cb-4594-918c-9707f0182b11",
+     "event_type": "reinstated",
+     "from_status": "auto_withdrawn",
+     "to_status": "in_progress",
+     "from_round": "Systems Interview",
+     "to_round": "Systems Interview",
+     "actor": "CDS Administrator",
+     "actor_role": "admin",
+     "reason": "Development seed correction with restoration",
+     "payload": {
+      "trigger": "external_offer_restoration",
+      "external_offer_id": "3a6a682c-c9d6-584f-8979-c9c8da8a5a41"
+     },
+     "created_at": "2026-08-22T23:21:44.417683+00:00",
+     "payload_labels": {
+      "applied_override_ids": []
+     }
+    },
+    {
+     "id": "98f715ff-15bd-4bdd-9f3d-f1b8f77ef0e6",
+     "event_type": "offer_extended",
+     "from_status": "in_progress",
+     "to_status": "offered",
+     "from_round": "Systems Interview",
+     "to_round": "Systems Interview",
+     "actor": "Priya Coordinator",
+     "actor_role": "student",
+     "reason": null,
+     "payload": {
+      "job_id": "3464c74f-0959-46ae-8290-3d2beb60a8c4",
+      "cycle_id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+      "offer_id": "3c010061-11e8-51b7-9147-efc310c41266",
+      "deadline_at": null
+     },
+     "created_at": "2026-08-22T23:21:44.462377+00:00",
+     "payload_labels": {
+      "applied_override_ids": []
+     }
+    },
+    {
+     "id": "3228a9cd-ca59-4c39-a063-2fa02ea0dfa9",
+     "event_type": "offer_terminated",
+     "from_status": "offered",
+     "to_status": "offer_terminated",
+     "from_round": "Systems Interview",
+     "to_round": "Systems Interview",
+     "actor": "Priya Coordinator",
+     "actor_role": "student",
+     "reason": "Development seed: company withdrew the role",
+     "payload": {
+      "offer_id": "3c010061-11e8-51b7-9147-efc310c41266",
+      "termination_kind": "company_revoked",
+      "restored_application_ids": []
+     },
+     "created_at": "2026-08-22T23:21:44.496803+00:00",
+     "payload_labels": {
+      "applied_override_ids": []
+     }
+    }
+   ],
+   "offers": [
+    {
+     "id": "3c010061-11e8-51b7-9147-efc310c41266",
+     "application_id": "bda9429f-030c-5243-b888-2cad56c0b463",
+     "job_title": "Backend Engineer",
+     "company_name": "Northwind Systems",
+     "outcome": "placement",
+     "cycle_id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+     "cycle_name": "Placement 2026",
+     "extended_at": "2026-08-22T23:21:44.462377+00:00",
+     "deadline_at": null,
+     "response": null,
+     "responded_at": null,
+     "terminated_at": "2026-08-22T23:21:44.496803+00:00",
+     "termination_kind": "company_revoked",
+     "termination_reason": "Development seed: company withdrew the role",
+     "terminated_by": "Priya Coordinator"
+    }
+   ],
+   "snapshot_diff": [
+    {
+     "key": "full_name",
+     "label": "Full name",
+     "owner": "admin",
+     "snapshot": "Asha Mehta",
+     "live": "Asha Mehta",
+     "state": "unchanged"
+    },
+    {
+     "key": "roll_number",
+     "label": "Roll number",
+     "owner": "admin",
+     "snapshot": "21110001",
+     "live": "21110001",
+     "state": "unchanged"
+    },
+    {
+     "key": "program_id",
+     "label": "Program",
+     "owner": "admin",
+     "snapshot": "b0b4d586-6307-4693-8369-109b8d5a08de",
+     "live": "b0b4d586-6307-4693-8369-109b8d5a08de",
+     "state": "unchanged"
+    },
+    {
+     "key": "primary_branch_id",
+     "label": "Primary branch",
+     "owner": "admin",
+     "snapshot": "8c5a88fe-3b7a-490e-b3de-56a4fcc3f845",
+     "live": "8c5a88fe-3b7a-490e-b3de-56a4fcc3f845",
+     "state": "unchanged"
+    },
+    {
+     "key": "secondary_branch_id",
+     "label": "Secondary branch",
+     "owner": "admin",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    },
+    {
+     "key": "graduating_year",
+     "label": "Graduating year",
+     "owner": "admin",
+     "snapshot": 2026,
+     "live": 2026,
+     "state": "unchanged"
+    },
+    {
+     "key": "cpi",
+     "label": "CPI",
+     "owner": "admin",
+     "snapshot": "9.10",
+     "live": "9.12",
+     "state": "changed"
+    },
+    {
+     "key": "active_backlogs",
+     "label": "Active backlog count",
+     "owner": "admin",
+     "snapshot": 0,
+     "live": 0,
+     "state": "unchanged"
+    },
+    {
+     "key": "total_backlogs",
+     "label": "Total backlog count",
+     "owner": "admin",
+     "snapshot": 0,
+     "live": 0,
+     "state": "unchanged"
+    },
+    {
+     "key": "gender",
+     "label": "Gender",
+     "owner": "admin",
+     "snapshot": "female",
+     "live": "female",
+     "state": "unchanged"
+    },
+    {
+     "key": "personal_email",
+     "label": "Personal email",
+     "owner": "student",
+     "snapshot": "asha.mehta@example.com",
+     "live": "asha.mehta@example.com",
+     "state": "unchanged"
+    },
+    {
+     "key": "contact_number",
+     "label": "Contact number",
+     "owner": "student",
+     "snapshot": "+1 202-555-0101",
+     "live": "+1 202-555-0101",
+     "state": "unchanged"
+    },
+    {
+     "key": "nationality",
+     "label": "Nationality",
+     "owner": "student",
+     "snapshot": "IN",
+     "live": "IN",
+     "state": "unchanged"
+    },
+    {
+     "key": "tenth_percent",
+     "label": "10th percentage",
+     "owner": "student",
+     "snapshot": "92.00",
+     "live": "92.00",
+     "state": "unchanged"
+    },
+    {
+     "key": "tenth_year",
+     "label": "10th year",
+     "owner": "student",
+     "snapshot": 2019,
+     "live": 2019,
+     "state": "unchanged"
+    },
+    {
+     "key": "twelfth_percent",
+     "label": "12th percentage",
+     "owner": "student",
+     "snapshot": "94.00",
+     "live": "94.00",
+     "state": "unchanged"
+    },
+    {
+     "key": "twelfth_year",
+     "label": "12th year",
+     "owner": "student",
+     "snapshot": 2021,
+     "live": 2021,
+     "state": "unchanged"
+    },
+    {
+     "key": "minor1_id",
+     "label": "Minor 1",
+     "owner": "student",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    },
+    {
+     "key": "minor2_id",
+     "label": "Minor 2",
+     "owner": "student",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    },
+    {
+     "key": "github_url",
+     "label": "GitHub URL",
+     "owner": "student",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    },
+    {
+     "key": "linkedin_url",
+     "label": "LinkedIn URL",
+     "owner": "student",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    },
+    {
+     "key": "portfolio_url",
+     "label": "Portfolio URL",
+     "owner": "student",
+     "snapshot": null,
+     "live": null,
+     "state": "unchanged"
+    }
+   ],
+   "actions": {
+    "reinstate": {
+     "allowed": false,
+     "reason": "invalid_transition",
+     "human": "An application that is offer terminated cannot be reinstated"
+    },
+    "force_transition": {
+     "allowed": true,
+     "reason": null,
+     "human": null
+    }
+   }
+  }
+ ],
+ "offers": [
+  {
+   "id": "3c010061-11e8-51b7-9147-efc310c41266",
+   "application_id": "bda9429f-030c-5243-b888-2cad56c0b463",
+   "job_title": "Backend Engineer",
+   "company_name": "Northwind Systems",
+   "outcome": "placement",
+   "cycle_id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+   "cycle_name": "Placement 2026",
+   "extended_at": "2026-08-22T23:21:44.462377+00:00",
+   "deadline_at": null,
+   "response": null,
+   "responded_at": null,
+   "terminated_at": "2026-08-22T23:21:44.496803+00:00",
+   "termination_kind": "company_revoked",
+   "termination_reason": "Development seed: company withdrew the role",
+   "terminated_by": "Priya Coordinator"
+  }
+ ],
+ "external_offers": [
+  {
+   "id": "3a6a682c-c9d6-584f-8979-c9c8da8a5a41",
+   "company_name": "Northwind Systems",
+   "outcome": "placement",
+   "source": "ppo",
+   "status": "declined",
+   "ctc_lpa": null,
+   "stipend_month": null,
+   "offered_on": null,
+   "responded_on": null,
+   "attached_cycle_id": null,
+   "attached_cycle_name": null,
+   "source_application_id": null,
+   "notes": "seed: accepted PPO cascade then corrected",
+   "created_by": "CDS Administrator",
+   "created_at": "2026-08-22T23:21:44.365863+00:00"
+  }
+ ],
+ "discipline": {
+  "strikes": [
+   {
+    "id": "1038cf81-6190-4504-b5b7-58b07c1132bd",
+    "reason": "Absent from Quant Test (Quantitative Researcher)",
+    "source": "auto_absence",
+    "is_active": true,
+    "awarded_by": "Priya Coordinator",
+    "created_at": "2026-08-22T23:21:44.256461+00:00",
+    "consumed_by_penalty_id": "af11052e-5c43-44ed-9881-a561f6290b21",
+    "revocation": null
+   },
+   {
+    "id": "7e45613f-f94b-4ccb-b7c9-22dd92e309f2",
+    "reason": "Missed the coordinator follow-up",
+    "source": "manual",
+    "is_active": true,
+    "awarded_by": "CDS Administrator",
+    "created_at": "2026-08-22T23:21:44.287569+00:00",
+    "consumed_by_penalty_id": "af11052e-5c43-44ed-9881-a561f6290b21",
+    "revocation": null
+   }
+  ],
+  "penalties": [
+   {
+    "id": "af11052e-5c43-44ed-9881-a561f6290b21",
+    "reasons": "Absent from Quant Test (Quantitative Researcher); Missed the coordinator follow-up",
+    "from_strikes": true,
+    "is_active": true,
+    "created_by": "CDS Administrator",
+    "created_at": "2026-08-22T23:21:44.287569+00:00",
+    "revoked_at": null,
+    "revoked_by": null
+   }
+  ],
+  "revoker_source": {
+   "strikes": "audit_log",
+   "penalties": "penalties.revoked_by"
+  }
+ },
+ "audit": [
+  {
+   "id": "437a4e6f-e474-4ba3-92a0-26d0d75ecd67",
+   "action": "admin_update_profile",
+   "subject_type": "enrollment",
+   "subject_id": "a985a336-aac6-4afd-8a9c-2b283e755b65",
+   "actor": "CDS Administrator",
+   "actor_role": "admin",
+   "details": {
+    "after": {
+     "cpi": "9.12"
+    },
+    "before": {
+     "cpi": "9.10"
+    }
+   },
+   "created_at": "2026-08-22T23:21:45.077981+00:00"
+  },
+  {
+   "id": "67f80f6c-5609-4786-a32f-acdf01dc2ab5",
+   "action": "terminate_offer",
+   "subject_type": "application",
+   "subject_id": "bda9429f-030c-5243-b888-2cad56c0b463",
+   "actor": "Priya Coordinator",
+   "actor_role": "student",
+   "details": {
+    "notify": true,
+    "reason": "Development seed: company withdrew the role",
+    "offer_id": "3c010061-11e8-51b7-9147-efc310c41266",
+    "operation": "terminate_offer",
+    "discipline": null,
+    "termination_kind": "company_revoked",
+    "restored_application_ids": []
+   },
+   "created_at": "2026-08-22T23:21:44.496803+00:00"
+  },
+  {
+   "id": "45f77830-d682-418b-ad0c-671bfeaaa11e",
+   "action": "update_external_offer",
+   "subject_type": "enrollment",
+   "subject_id": "a985a336-aac6-4afd-8a9c-2b283e755b65",
+   "actor": "CDS Administrator",
+   "actor_role": "admin",
+   "details": {
+    "reason": "Development seed correction with restoration",
+    "operation": "update_external_offer",
+    "to_status": "declined",
+    "from_status": "accepted",
+    "external_offer_id": "3a6a682c-c9d6-584f-8979-c9c8da8a5a41",
+    "restored_application_ids": [
+     "bda9429f-030c-5243-b888-2cad56c0b463"
+    ]
+   },
+   "created_at": "2026-08-22T23:21:44.417683+00:00"
+  },
+  {
+   "id": "876c485e-5dde-4542-91f0-07ab42027c02",
+   "action": "create_external_offer",
+   "subject_type": "enrollment",
+   "subject_id": "a985a336-aac6-4afd-8a9c-2b283e755b65",
+   "actor": "CDS Administrator",
+   "actor_role": "admin",
+   "details": {
+    "reason": "Development seed: seed: accepted PPO cascade then corrected",
+    "operation": "create_external_offer",
+    "external_offer_id": "3a6a682c-c9d6-584f-8979-c9c8da8a5a41"
+   },
+   "created_at": "2026-08-22T23:21:44.365863+00:00"
+  },
+  {
+   "id": "0867d9e9-0be9-4d33-805d-04874fe892c2",
+   "action": "award_strike",
+   "subject_type": "enrollment",
+   "subject_id": "a985a336-aac6-4afd-8a9c-2b283e755b65",
+   "actor": "CDS Administrator",
+   "actor_role": "admin",
+   "details": {
+    "action": "award_strike",
+    "reason": "Missed the coordinator follow-up",
+    "source": "manual",
+    "strike_total": 2,
+    "penalties_created": 1
+   },
+   "created_at": "2026-08-22T23:21:44.287569+00:00"
+  },
+  {
+   "id": "da5dd849-7f96-4f48-beff-6c736ad96eb0",
+   "action": "mark_attendance",
+   "subject_type": "application",
+   "subject_id": "94f83745-8d0e-5f4d-bae3-27ee96c84b40",
+   "actor": "Priya Coordinator",
+   "actor_role": "student",
+   "details": {
+    "reason": null,
+    "previous": "pending",
+    "round_id": "e4b7d8c8-1efa-4656-b54a-230f3077b36e",
+    "attendance": "absent"
+   },
+   "created_at": "2026-08-22T23:21:44.181761+00:00"
+  },
+  {
+   "id": "e1824df8-c2bd-4db2-9131-969b6f4e6d9d",
+   "action": "withdraw_application",
+   "subject_type": "application",
+   "subject_id": "a4910db6-b355-5d48-8c53-94f5703f5557",
+   "actor": "Asha Mehta",
+   "actor_role": "student",
+   "details": {
+    "job_id": "31704876-f0b4-4e59-a797-9a4b62023997",
+    "from_status": "in_progress",
+    "actor_user_id": "9b64697e-61a5-4675-a093-9aec6c3610b6"
+   },
+   "created_at": "2026-08-22T23:21:44.134426+00:00"
+  },
+  {
+   "id": "d4817b4d-95e2-4f72-acb8-b08758195199",
+   "action": "apply",
+   "subject_type": "application",
+   "subject_id": "a4910db6-b355-5d48-8c53-94f5703f5557",
+   "actor": "Asha Mehta",
+   "actor_role": "student",
+   "details": {
+    "job_id": "31704876-f0b4-4e59-a797-9a4b62023997",
+    "cycle_id": "fac95135-8285-4f51-95cd-c94f52709c11",
+    "actor_user_id": "9b64697e-61a5-4675-a093-9aec6c3610b6",
+    "enrollment_id": "a985a336-aac6-4afd-8a9c-2b283e755b65"
+   },
+   "created_at": "2026-08-22T23:21:44.108044+00:00"
+  },
+  {
+   "id": "357546e5-9018-42b0-aedd-284c6c0aed4e",
+   "action": "apply",
+   "subject_type": "application",
+   "subject_id": "94f83745-8d0e-5f4d-bae3-27ee96c84b40",
+   "actor": "Asha Mehta",
+   "actor_role": "student",
+   "details": {
+    "job_id": "81975d16-0df0-4cee-aea0-2ee9eddb6a5b",
+    "cycle_id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+    "actor_user_id": "9b64697e-61a5-4675-a093-9aec6c3610b6",
+    "enrollment_id": "a985a336-aac6-4afd-8a9c-2b283e755b65"
+   },
+   "created_at": "2026-08-22T23:21:43.958964+00:00"
+  },
+  {
+   "id": "77642a1a-c12f-4401-913d-462a7623dd1f",
+   "action": "apply",
+   "subject_type": "application",
+   "subject_id": "bda9429f-030c-5243-b888-2cad56c0b463",
+   "actor": "Asha Mehta",
+   "actor_role": "student",
+   "details": {
+    "job_id": "3464c74f-0959-46ae-8290-3d2beb60a8c4",
+    "cycle_id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+    "actor_user_id": "9b64697e-61a5-4675-a093-9aec6c3610b6",
+    "enrollment_id": "a985a336-aac6-4afd-8a9c-2b283e755b65"
+   },
+   "created_at": "2026-08-22T23:21:43.842172+00:00"
+  },
+  {
+   "id": "dc9c2edb-7612-4aa1-b7a0-083cffdf8d2d",
+   "action": "join_cycle",
+   "subject_type": "cycle_membership",
+   "subject_id": "e1b0a41d-cab0-49ec-b9bb-096f6e62e150",
+   "actor": "Asha Mehta",
+   "actor_role": "student",
+   "details": {
+    "status": "active",
+    "cycle_id": "fac95135-8285-4f51-95cd-c94f52709c11",
+    "actor_user_id": "9b64697e-61a5-4675-a093-9aec6c3610b6",
+    "enrollment_id": "a985a336-aac6-4afd-8a9c-2b283e755b65",
+    "requires_approval": false
+   },
+   "created_at": "2026-08-22T23:21:43.427848+00:00"
+  },
+  {
+   "id": "fdef1fe1-b4eb-4734-8dd3-45b9e6e974d1",
+   "action": "join_cycle",
+   "subject_type": "cycle_membership",
+   "subject_id": "72e5a6c5-6f2a-4e32-84e4-5caaafa47de3",
+   "actor": "Asha Mehta",
+   "actor_role": "student",
+   "details": {
+    "status": "pending",
+    "cycle_id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+    "actor_user_id": "9b64697e-61a5-4675-a093-9aec6c3610b6",
+    "enrollment_id": "a985a336-aac6-4afd-8a9c-2b283e755b65",
+    "requires_approval": true
+   },
+   "created_at": "2026-08-22T23:21:43.174834+00:00"
+  },
+  {
+   "id": "171180ae-14dc-42ee-991d-58efe55130bc",
+   "action": "declare_profile",
+   "subject_type": "enrollment",
+   "subject_id": "a985a336-aac6-4afd-8a9c-2b283e755b65",
+   "actor": "Asha Mehta",
+   "actor_role": "student",
+   "details": {
+    "after": {
+     "cpi": "9.10",
+     "gender": "female",
+     "minor1_id": null,
+     "minor2_id": null,
+     "github_url": null,
+     "program_id": "b0b4d586-6307-4693-8369-109b8d5a08de",
+     "tenth_year": 2019,
+     "nationality": "IN",
+     "roll_number": "21110001",
+     "linkedin_url": null,
+     "twelfth_year": 2021,
+     "portfolio_url": null,
+     "tenth_percent": "92.00",
+     "contact_number": "+1 202-555-0101",
+     "personal_email": "asha.mehta@example.com",
+     "total_backlogs": 0,
+     "active_backlogs": 0,
+     "graduating_year": 2026,
+     "twelfth_percent": "94.00",
+     "primary_branch_id": "8c5a88fe-3b7a-490e-b3de-56a4fcc3f845",
+     "secondary_branch_id": null
+    },
+    "before": {
+     "cpi": null,
+     "gender": null,
+     "minor1_id": null,
+     "minor2_id": null,
+     "github_url": null,
+     "program_id": null,
+     "tenth_year": null,
+     "nationality": null,
+     "roll_number": null,
+     "linkedin_url": null,
+     "twelfth_year": null,
+     "portfolio_url": null,
+     "tenth_percent": null,
+     "contact_number": null,
+     "personal_email": null,
+     "total_backlogs": null,
+     "active_backlogs": null,
+     "graduating_year": null,
+     "twelfth_percent": null,
+     "primary_branch_id": null,
+     "secondary_branch_id": null
+    },
+    "retained": []
+   },
+   "created_at": "2026-08-22T23:21:42.868460+00:00"
+  }
+ ],
+ "timeline": [
+  {
+   "id": "c74f21f3-de2c-45ff-b2bb-c82258cc2b83",
+   "event_type": "created",
+   "from_status": null,
+   "to_status": "in_progress",
+   "from_round": null,
+   "to_round": "Online Assessment",
+   "actor": "Asha Mehta",
+   "actor_role": "student",
+   "reason": null,
+   "payload": {
+    "job_id": "3464c74f-0959-46ae-8290-3d2beb60a8c4",
+    "cycle_id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+    "resume_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view",
+    "answer_count": 4,
+    "applied_override_ids": [
+     "6d2b5f10-4c5c-4c31-9a2e-1f5f0d6b0a41"
+    ]
+   },
+   "created_at": "2026-08-22T23:21:43.842172+00:00",
+   "application_id": "bda9429f-030c-5243-b888-2cad56c0b463",
+   "payload_labels": {
+    "applied_override_ids": [
+     {
+      "id": "6d2b5f10-4c5c-4c31-9a2e-1f5f0d6b0a41",
+      "rule_domain": "eligibility",
+      "allow": true,
+      "reason": "Development seed: company asked for this student by name",
+      "granted_by": "CDS Administrator",
+      "granted_at": "2026-08-22T23:21:44.100000+00:00"
+     }
+    ]
+   }
+  },
+  {
+   "id": "5ed2a4af-a78d-4f30-9935-e15da8d24fcd",
+   "event_type": "created",
+   "from_status": null,
+   "to_status": "in_progress",
+   "from_round": null,
+   "to_round": "Quant Test",
+   "actor": "Asha Mehta",
+   "actor_role": "student",
+   "reason": null,
+   "payload": {
+    "job_id": "81975d16-0df0-4cee-aea0-2ee9eddb6a5b",
+    "cycle_id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+    "resume_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view",
+    "answer_count": 0,
+    "applied_override_ids": []
+   },
+   "created_at": "2026-08-22T23:21:43.958964+00:00",
+   "application_id": "94f83745-8d0e-5f4d-bae3-27ee96c84b40",
+   "payload_labels": {
+    "applied_override_ids": []
+   }
+  },
+  {
+   "id": "3dd4845d-d3a3-4d67-a913-050319896e88",
+   "event_type": "advanced",
+   "from_status": "in_progress",
+   "to_status": "in_progress",
+   "from_round": "Online Assessment",
+   "to_round": "Systems Interview",
+   "actor": "Priya Coordinator",
+   "actor_role": "student",
+   "reason": null,
+   "payload": {
+    "job_id": "3464c74f-0959-46ae-8290-3d2beb60a8c4",
+    "operation": "advance",
+    "round_result": "advanced"
+   },
+   "created_at": "2026-08-22T23:21:44.050278+00:00",
+   "application_id": "bda9429f-030c-5243-b888-2cad56c0b463",
+   "payload_labels": {
+    "applied_override_ids": []
+   }
+  },
+  {
+   "id": "f4627b82-a9a4-4a92-a5e2-1a32005c0de8",
+   "event_type": "created",
+   "from_status": null,
+   "to_status": "in_progress",
+   "from_round": null,
+   "to_round": null,
+   "actor": "Asha Mehta",
+   "actor_role": "student",
+   "reason": null,
+   "payload": {
+    "job_id": "31704876-f0b4-4e59-a797-9a4b62023997",
+    "cycle_id": "fac95135-8285-4f51-95cd-c94f52709c11",
+    "resume_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view",
+    "answer_count": 0,
+    "applied_override_ids": []
+   },
+   "created_at": "2026-08-22T23:21:44.108044+00:00",
+   "application_id": "a4910db6-b355-5d48-8c53-94f5703f5557",
+   "payload_labels": {
+    "applied_override_ids": []
+   }
+  },
+  {
+   "id": "d8439a9a-c206-4d14-9b16-6a43065f060b",
+   "event_type": "withdrawn",
+   "from_status": "in_progress",
+   "to_status": "withdrawn",
+   "from_round": null,
+   "to_round": null,
+   "actor": "Asha Mehta",
+   "actor_role": "student",
+   "reason": null,
+   "payload": {
+    "job_id": "31704876-f0b4-4e59-a797-9a4b62023997",
+    "applied_override_ids": []
+   },
+   "created_at": "2026-08-22T23:21:44.134426+00:00",
+   "application_id": "a4910db6-b355-5d48-8c53-94f5703f5557",
+   "payload_labels": {
+    "applied_override_ids": []
+   }
+  },
+  {
+   "id": "45e75e77-7df7-4b4e-96ee-37517eef02d3",
+   "event_type": "attendance_marked",
+   "from_status": "in_progress",
+   "to_status": "in_progress",
+   "from_round": "Quant Test",
+   "to_round": "Quant Test",
+   "actor": "Priya Coordinator",
+   "actor_role": "student",
+   "reason": null,
+   "payload": {
+    "job_id": "81975d16-0df0-4cee-aea0-2ee9eddb6a5b",
+    "previous": "pending",
+    "attendance": "absent"
+   },
+   "created_at": "2026-08-22T23:21:44.181761+00:00",
+   "application_id": "94f83745-8d0e-5f4d-bae3-27ee96c84b40",
+   "payload_labels": {
+    "applied_override_ids": []
+   }
+  },
+  {
+   "id": "5e5c22a5-2518-49ac-8961-2367d2a5bf51",
+   "event_type": "venue_assigned",
+   "from_status": "in_progress",
+   "to_status": "in_progress",
+   "from_round": "Systems Interview",
+   "to_round": "Systems Interview",
+   "actor": "Priya Coordinator",
+   "actor_role": "student",
+   "reason": null,
+   "payload": {
+    "round": "Systems Interview",
+    "venue": "AB 5 / 204",
+    "job_id": "3464c74f-0959-46ae-8290-3d2beb60a8c4",
+    "is_update": false,
+    "scheduled_at": "2026-09-16T05:00:00+00:00"
+   },
+   "created_at": "2026-08-22T23:21:44.235853+00:00",
+   "application_id": "bda9429f-030c-5243-b888-2cad56c0b463",
+   "payload_labels": {
+    "applied_override_ids": []
+   }
+  },
+  {
+   "id": "b9d4632a-5330-47d4-9cd1-f9463e2442d3",
+   "event_type": "round_finalized",
+   "from_status": "in_progress",
+   "to_status": "rejected",
+   "from_round": "Quant Test",
+   "to_round": "Quant Test",
+   "actor": "Priya Coordinator",
+   "actor_role": "student",
+   "reason": "absence",
+   "payload": {
+    "round": "Quant Test",
+    "job_id": "81975d16-0df0-4cee-aea0-2ee9eddb6a5b",
+    "attendance": "absent",
+    "strike_awarded": true
+   },
+   "created_at": "2026-08-22T23:21:44.256461+00:00",
+   "application_id": "94f83745-8d0e-5f4d-bae3-27ee96c84b40",
+   "payload_labels": {
+    "applied_override_ids": []
+   }
+  },
+  {
+   "id": "610f237c-6c64-477f-a749-585a745c2213",
+   "event_type": "auto_withdrawn",
+   "from_status": "in_progress",
+   "to_status": "auto_withdrawn",
+   "from_round": "Systems Interview",
+   "to_round": "Systems Interview",
+   "actor": "CDS Administrator",
+   "actor_role": "admin",
+   "reason": "Accepted another offer",
+   "payload": {
+    "trigger": "acceptance",
+    "acceptance_offer_id": "3a6a682c-c9d6-584f-8979-c9c8da8a5a41",
+    "accepted_application_id": "3a6a682c-c9d6-584f-8979-c9c8da8a5a41"
+   },
+   "created_at": "2026-08-22T23:21:44.365863+00:00",
+   "application_id": "bda9429f-030c-5243-b888-2cad56c0b463",
+   "payload_labels": {
+    "applied_override_ids": []
+   }
+  },
+  {
+   "id": "dc1be0cb-31cb-4594-918c-9707f0182b11",
+   "event_type": "reinstated",
+   "from_status": "auto_withdrawn",
+   "to_status": "in_progress",
+   "from_round": "Systems Interview",
+   "to_round": "Systems Interview",
+   "actor": "CDS Administrator",
+   "actor_role": "admin",
+   "reason": "Development seed correction with restoration",
+   "payload": {
+    "trigger": "external_offer_restoration",
+    "external_offer_id": "3a6a682c-c9d6-584f-8979-c9c8da8a5a41"
+   },
+   "created_at": "2026-08-22T23:21:44.417683+00:00",
+   "application_id": "bda9429f-030c-5243-b888-2cad56c0b463",
+   "payload_labels": {
+    "applied_override_ids": []
+   }
+  },
+  {
+   "id": "98f715ff-15bd-4bdd-9f3d-f1b8f77ef0e6",
+   "event_type": "offer_extended",
+   "from_status": "in_progress",
+   "to_status": "offered",
+   "from_round": "Systems Interview",
+   "to_round": "Systems Interview",
+   "actor": "Priya Coordinator",
+   "actor_role": "student",
+   "reason": null,
+   "payload": {
+    "job_id": "3464c74f-0959-46ae-8290-3d2beb60a8c4",
+    "cycle_id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+    "offer_id": "3c010061-11e8-51b7-9147-efc310c41266",
+    "deadline_at": null
+   },
+   "created_at": "2026-08-22T23:21:44.462377+00:00",
+   "application_id": "bda9429f-030c-5243-b888-2cad56c0b463",
+   "payload_labels": {
+    "applied_override_ids": []
+   }
+  },
+  {
+   "id": "3228a9cd-ca59-4c39-a063-2fa02ea0dfa9",
+   "event_type": "offer_terminated",
+   "from_status": "offered",
+   "to_status": "offer_terminated",
+   "from_round": "Systems Interview",
+   "to_round": "Systems Interview",
+   "actor": "Priya Coordinator",
+   "actor_role": "student",
+   "reason": "Development seed: company withdrew the role",
+   "payload": {
+    "offer_id": "3c010061-11e8-51b7-9147-efc310c41266",
+    "termination_kind": "company_revoked",
+    "restored_application_ids": []
+   },
+   "created_at": "2026-08-22T23:21:44.496803+00:00",
+   "application_id": "bda9429f-030c-5243-b888-2cad56c0b463",
+   "payload_labels": {
+    "applied_override_ids": []
+   }
+  }
+ ],
+ "profile": {
+  "fields": [
+   {
+    "key": "full_name",
+    "label": "Full name",
+    "owner": "admin",
+    "admin_editable": true
+   },
+   {
+    "key": "roll_number",
+    "label": "Roll number",
+    "owner": "admin",
+    "admin_editable": true
+   },
+   {
+    "key": "program_id",
+    "label": "Program",
+    "owner": "admin",
+    "admin_editable": true
+   },
+   {
+    "key": "primary_branch_id",
+    "label": "Primary branch",
+    "owner": "admin",
+    "admin_editable": true
+   },
+   {
+    "key": "is_dual_major",
+    "label": "Dual major",
+    "owner": "admin",
+    "admin_editable": true
+   },
+   {
+    "key": "is_dual_degree",
+    "label": "Dual degree",
+    "owner": "admin",
+    "admin_editable": true
+   },
+   {
+    "key": "secondary_program_id",
+    "label": "Secondary program",
+    "owner": "admin",
+    "admin_editable": true
+   },
+   {
+    "key": "secondary_branch_id",
+    "label": "Secondary branch",
+    "owner": "admin",
+    "admin_editable": true
+   },
+   {
+    "key": "graduating_year",
+    "label": "Graduating year",
+    "owner": "admin",
+    "admin_editable": true
+   },
+   {
+    "key": "cpi",
+    "label": "CPI",
+    "owner": "admin",
+    "admin_editable": true
+   },
+   {
+    "key": "active_backlogs",
+    "label": "Active backlog count",
+    "owner": "admin",
+    "admin_editable": true
+   },
+   {
+    "key": "total_backlogs",
+    "label": "Total backlog count",
+    "owner": "admin",
+    "admin_editable": true
+   },
+   {
+    "key": "gender",
+    "label": "Gender",
+    "owner": "admin",
+    "admin_editable": true
+   },
+   {
+    "key": "personal_email",
+    "label": "Personal email",
+    "owner": "student",
+    "admin_editable": false
+   },
+   {
+    "key": "contact_number",
+    "label": "Contact number",
+    "owner": "student",
+    "admin_editable": false
+   },
+   {
+    "key": "nationality",
+    "label": "Nationality",
+    "owner": "student",
+    "admin_editable": false
+   },
+   {
+    "key": "tenth_percent",
+    "label": "10th percentage",
+    "owner": "student",
+    "admin_editable": false
+   },
+   {
+    "key": "tenth_year",
+    "label": "10th year",
+    "owner": "student",
+    "admin_editable": false
+   },
+   {
+    "key": "twelfth_percent",
+    "label": "12th percentage",
+    "owner": "student",
+    "admin_editable": false
+   },
+   {
+    "key": "twelfth_year",
+    "label": "12th year",
+    "owner": "student",
+    "admin_editable": false
+   },
+   {
+    "key": "minor1_id",
+    "label": "Minor 1",
+    "owner": "student",
+    "admin_editable": false
+   },
+   {
+    "key": "minor2_id",
+    "label": "Minor 2",
+    "owner": "student",
+    "admin_editable": false
+   },
+   {
+    "key": "github_url",
+    "label": "GitHub URL",
+    "owner": "student",
+    "admin_editable": false
+   },
+   {
+    "key": "linkedin_url",
+    "label": "LinkedIn URL",
+    "owner": "student",
+    "admin_editable": false
+   },
+   {
+    "key": "portfolio_url",
+    "label": "Portfolio URL",
+    "owner": "student",
+    "admin_editable": false
+   }
+  ],
+  "live": {
+   "full_name": "Asha Mehta",
+   "roll_number": "21110001",
+   "program_id": "b0b4d586-6307-4693-8369-109b8d5a08de",
+   "primary_branch_id": "8c5a88fe-3b7a-490e-b3de-56a4fcc3f845",
+   "secondary_branch_id": null,
+   "graduating_year": 2026,
+   "cpi": "9.12",
+   "active_backlogs": 0,
+   "total_backlogs": 0,
+   "gender": "female",
+   "personal_email": "asha.mehta@example.com",
+   "contact_number": "+1 202-555-0101",
+   "nationality": "IN",
+   "tenth_percent": "92.00",
+   "tenth_year": 2019,
+   "twelfth_percent": "94.00",
+   "twelfth_year": 2021,
+   "minor1_id": null,
+   "minor2_id": null,
+   "github_url": null,
+   "linkedin_url": null,
+   "portfolio_url": null,
+   "is_dual_major": false,
+   "is_dual_degree": false,
+   "secondary_program_id": null
+  },
+  "taxonomies": {
+   "programs": [
+    {
+     "id": "b0b4d586-6307-4693-8369-109b8d5a08de",
+     "name": "BTech"
+    },
+    {
+     "id": "6f1d1c2e-8d0a-4a11-9a6e-2f39b1b2c001",
+     "name": "MTech"
+    }
+   ],
+   "branches": [
+    {
+     "id": "8c5a88fe-3b7a-490e-b3de-56a4fcc3f845",
+     "name": "CSE"
+    },
+    {
+     "id": "6f1d1c2e-8d0a-4a11-9a6e-2f39b1b2c002",
+     "name": "Electrical Engineering"
+    }
+   ],
+   "minors": []
+  },
+  "program_branches": [
+   {
+    "program_id": "b0b4d586-6307-4693-8369-109b8d5a08de",
+    "branch_id": "8c5a88fe-3b7a-490e-b3de-56a4fcc3f845"
+   },
+   {
+    "program_id": "b0b4d586-6307-4693-8369-109b8d5a08de",
+    "branch_id": "6f1d1c2e-8d0a-4a11-9a6e-2f39b1b2c002"
+   }
+  ]
+ },
+ "actions": {
+  "edit_profile": {
+   "allowed": true,
+   "reason": null,
+   "human": null
+  }
+ }
+}

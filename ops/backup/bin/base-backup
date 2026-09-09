@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source /opt/backup/bin/common.sh
+
+# Use the shared backup volume so cron and one-off Compose containers cannot
+# create/upload physical backups concurrently.
+exec 9>/backups/cds-base-backup.lock
+if ! flock -n 9; then
+    log "another base backup is already running; skipping"
+    exit 75
+fi
+
+wait_for_postgres
+ensure_backup_directories
+
+tmp="$(mktemp -d /tmp/cds-base.XXXXXX)"
+trap 'rm -rf "$tmp"' EXIT
+
+log "starting physical base backup"
+pg_basebackup \
+    --host "$PGHOST" \
+    --port "$PGPORT" \
+    --username "$PGUSER" \
+    --pgdata "$tmp/data" \
+    --format plain \
+    --wal-method stream \
+    --checkpoint fast \
+    --manifest-checksums SHA256 \
+    --no-password \
+    --progress
+
+wal_start="$(awk '/^START WAL LOCATION:/ { gsub(/[()]/, "", $6); print $6; exit }' "$tmp/data/backup_label")"
+if [[ ! "$wal_start" =~ ^[0-9A-F]{24}$ ]]; then
+    log "could not read the starting WAL segment from backup_label"
+    exit 1
+fi
+
+# The filename is the completion time. Restore selection can therefore safely
+# choose the newest filename at or before its PITR target.
+stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+name="base-${stamp}.tar.gz"
+archive="/backups/base/${name}"
+tar -C "$tmp/data" -czf "$archive" .
+sha256sum "$archive" | sed 's#  /backups/base/#  #' >"${archive}.sha256"
+cat >"${archive}.meta" <<EOF
+created_at=${stamp}
+wal_start=${wal_start}
+postgres_version=16
+format=plain-tar-gzip
+EOF
+
+if remote_enabled; then
+    root="$(remote_root)"
+    rclone copyto "$archive" "${root}/base/${name}"
+    rclone copyto "${archive}.sha256" "${root}/base/${name}.sha256"
+    rclone copyto "${archive}.meta" "${root}/base/${name}.meta"
+fi
+
+/opt/backup/bin/prune-retention
+log "completed physical base backup ${name} (WAL starts at ${wal_start})"

@@ -1,0 +1,168 @@
+{
+ "cycle": {
+  "id": "95d3965f-6fb6-4399-92cf-de4f1c34a0a6",
+  "name": "Placement 2026",
+  "kind": "placement",
+  "archived": false
+ },
+ "filters": {
+  "status": "pending"
+ },
+ "rows": [
+  {
+   "membership_id": "fadc1d32-bcf7-4190-8254-df5497b47ced",
+   "enrollment_id": "065b0a93-9937-4ce6-a0a6-b1d3a82aaa9f",
+   "status": "pending",
+   "email": "esha.nair@example.edu",
+   "full_name": "Esha Nair",
+   "roll_number": "22120005",
+   "program": "MTech",
+   "branch": "Computer Science and Engineering",
+   "cpi": "8.80",
+   "graduating_year": 2026,
+   "consented_at": "2026-08-21T14:35:39.729522+00:00",
+   "decided_at": null,
+   "rejection_reason": null,
+   "resume": {
+    "label": "Primary resume",
+    "drive_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view"
+   },
+   "outcome_tag": null,
+   "actions": {
+    "set_outcome_tag": {
+     "allowed": true,
+     "reason": null,
+     "human": null
+    },
+    "remove_membership": {
+     "allowed": false,
+     "reason": "invalid_transition",
+     "human": "Only an active membership can be removed"
+    },
+    "restore_membership": {
+     "allowed": false,
+     "reason": "invalid_transition",
+     "human": "Only a withdrawn or removed membership can be restored"
+    }
+   }
+  },
+  {
+   "membership_id": "37585a89-b8b4-473d-a985-fd4891d0ad67",
+   "enrollment_id": "643dddd0-f1df-485b-ba35-4a65e260f37c",
+   "status": "pending",
+   "email": "farhan.khan@example.edu",
+   "full_name": "Farhan Khan",
+   "roll_number": "22120006",
+   "program": "MTech",
+   "branch": "Electrical Engineering",
+   "cpi": "8.05",
+   "graduating_year": 2026,
+   "consented_at": "2026-08-21T14:35:39.761408+00:00",
+   "decided_at": null,
+   "rejection_reason": null,
+   "resume": {
+    "label": "Primary resume",
+    "drive_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view"
+   },
+   "outcome_tag": null,
+   "actions": {
+    "set_outcome_tag": {
+     "allowed": true,
+     "reason": null,
+     "human": null
+    },
+    "remove_membership": {
+     "allowed": false,
+     "reason": "invalid_transition",
+     "human": "Only an active membership can be removed"
+    },
+    "restore_membership": {
+     "allowed": false,
+     "reason": "invalid_transition",
+     "human": "Only a withdrawn or removed membership can be restored"
+    }
+   }
+  },
+  {
+   "membership_id": "3006a1bc-960a-5995-ade2-45bc0f215b5e",
+   "enrollment_id": "30d19219-5ac7-5bdb-ac42-b43739ed6aea",
+   "status": "active",
+   "email": "ishaan.bose@example.edu",
+   "full_name": "Ishaan Bose",
+   "roll_number": "22120011",
+   "program": "MTech",
+   "branch": "Computer Science and Engineering",
+   "cpi": "8.80",
+   "graduating_year": 2026,
+   "consented_at": "2026-08-21T14:35:39.729522+00:00",
+   "decided_at": null,
+   "rejection_reason": null,
+   "resume": {
+    "label": "Primary resume",
+    "drive_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view"
+   },
+   "outcome_tag": null,
+   "actions": {
+    "set_outcome_tag": {
+     "allowed": true,
+     "reason": null,
+     "human": null
+    },
+    "remove_membership": {
+     "allowed": true,
+     "reason": null,
+     "human": null
+    },
+    "restore_membership": {
+     "allowed": false,
+     "reason": "invalid_transition",
+     "human": "Only a withdrawn or removed membership can be restored"
+    }
+   }
+  },
+  {
+   "membership_id": "86f12bf1-e8e4-5a1a-9cac-60442eb1dbc2",
+   "enrollment_id": "da05b1db-d842-530f-911f-42a60619e890",
+   "status": "removed",
+   "email": "juhi.malhotra@example.edu",
+   "full_name": "Juhi Malhotra",
+   "roll_number": "22120012",
+   "program": "MTech",
+   "branch": "Computer Science and Engineering",
+   "cpi": "8.80",
+   "graduating_year": 2026,
+   "consented_at": "2026-08-21T14:35:39.729522+00:00",
+   "decided_at": null,
+   "rejection_reason": null,
+   "resume": {
+    "label": "Primary resume",
+    "drive_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view"
+   },
+   "outcome_tag": null,
+   "actions": {
+    "set_outcome_tag": {
+     "allowed": true,
+     "reason": null,
+     "human": null
+    },
+    "remove_membership": {
+     "allowed": false,
+     "reason": "invalid_transition",
+     "human": "Only an active membership can be removed"
+    },
+    "restore_membership": {
+     "allowed": true,
+     "reason": null,
+     "human": null
+    }
+   }
+  }
+ ],
+ "statuses": [
+  "pending",
+  "active",
+  "rejected",
+  "withdrawn",
+  "removed"
+ ]
+}

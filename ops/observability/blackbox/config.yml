@@ -1,0 +1,11 @@
+modules:
+  http_2xx:
+    prober: http
+    timeout: 10s
+    http:
+      preferred_ip_protocol: ip4
+      follow_redirects: true
+      fail_if_not_ssl: true
+      valid_status_codes: [200]
+      tls_config:
+        ca_file: /etc/blackbox_exporter/ca-bundle.crt

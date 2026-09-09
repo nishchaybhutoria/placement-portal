@@ -1,0 +1,153 @@
+@import "tailwindcss";
+
+/* Tailwind 4 reads its theme from CSS, but this project's theme is doctrine:
+   `tailwind.config.ts` is transcribed from docs/design/DESIGN.md token by
+   token, and `make forbid` polices where colours may live. The config is kept
+   as the single source and loaded here rather than being scattered into a
+   second dialect. */
+@config "../tailwind.config.ts";
+
+/* ============================================================================
+ * DESIGN TOKENS — transcribed from docs/design/DESIGN.md
+ *
+ * THIS IS THE ONLY FILE IN frontend/src PERMITTED TO CONTAIN COLOUR LITERALS.
+ * `make forbid` fails the build on a #hex / rgb() / hsl() anywhere else under
+ * frontend/src. To change a colour, change docs/design/DESIGN.md first, then
+ * this file, and never a component.
+ *
+ * Values are shadcn-convention HSL triplets (no hsl() wrapper) so Tailwind can
+ * compose them with an alpha channel: hsl(var(--primary) / 0.9).
+ * The trailing comment on each line is the source hex from DESIGN.md.
+ * ==========================================================================*/
+
+@layer base {
+  /* Light — DESIGN.md §2 / §3 (light tables) */
+  :root {
+    /* core roles — DESIGN.md §2 */
+    --background: 0.0 7.7% 97.5%; /* #f9f8f8 */
+    --foreground: 240.0 3.6% 11.0%; /* #1b1b1d */
+    --card: 0.0 0.0% 100.0%; /* #ffffff */
+    --card-foreground: 240.0 3.6% 11.0%; /* #1b1b1d */
+    --popover: 0.0 0.0% 100.0%; /* #ffffff */
+    --popover-foreground: 240.0 3.6% 11.0%; /* #1b1b1d */
+    --primary: 218.7 15.6% 39.0%; /* #545f73 */
+    --primary-foreground: 0.0 0.0% 100.0%; /* #ffffff */
+    --secondary: 330.0 5.3% 92.5%; /* #edebec */
+    --secondary-foreground: 240.0 3.6% 11.0%; /* #1b1b1d */
+    --muted: 330.0 7.1% 94.5%; /* #f2f0f1 */
+    --muted-foreground: 222.9 4.8% 28.4%; /* #45474c */
+    --accent: 238.2 47.6% 41.2%; /* #373a9b */
+    --accent-foreground: 0.0 0.0% 100.0%; /* #ffffff */
+    --destructive: 0.0 75.5% 41.6%; /* #ba1a1a */
+    --destructive-foreground: 0.0 0.0% 100.0%; /* #ffffff */
+    --border: 232.5 7.4% 78.8%; /* #c5c6cd */
+    /* WCAG 1.4.11 wants 3:1 for a control's boundary, not for every line on
+       the page. `border` stays decorative; this carries anything operable, at
+       the lightest lightness that clears 3:1 on card, background and muted
+       (3.44 / 3.25 / 3.03) so the outline is no heavier than the rule needs. */
+    --border-strong: 232.5 7.4% 56.4%; /* #888a98 */
+    --input: 232.5 7.4% 56.4%; /* #888a98 */
+    --ring: 218.7 15.6% 39.0%; /* #545f73 */
+
+    /* semantic status layer — DESIGN.md §3 (DRAFT) */
+    --success: 162.9 93.5% 24.3%; /* #047857 */
+    --success-subtle: 160.8 53.2% 90.8%; /* #dbf4ec */
+    --success-border: 160.0 54.8% 81.8%; /* #b7ead9 */
+    --warning: 22.7 82.5% 31.4%; /* #92400e */
+    --warning-subtle: 36.7 94.7% 92.5%; /* #fef0da */
+    --warning-border: 37.7 92.1% 85.1%; /* #fce2b6 */
+    --danger: 0.0 75.5% 41.6%; /* #ba1a1a */
+    --danger-subtle: 0.0 86.7% 94.1%; /* #fde3e3 */
+    --danger-border: 0.0 83.6% 88.0%; /* #fac7c7 */
+    --info: 201.3 96.3% 32.2%; /* #0369a1 */
+    --info-subtle: 198.2 84.6% 92.4%; /* #dbf2fc */
+    --info-border: 198.5 82.3% 84.5%; /* #b7e4f8 */
+    --neutral: 222.9 4.8% 28.4%; /* #45474c */
+    --neutral-subtle: 240.0 1.8% 89.2%; /* #e3e3e4 */
+    --neutral-border: 210.0 1.8% 78.4%; /* #c7c8c9 */
+    --brand: 218.7 15.6% 39.0%; /* #545f73 */
+    --brand-subtle: 216.0 10.6% 90.8%; /* #e5e7ea */
+    --brand-border: 220.0 9.7% 81.8%; /* #cccfd5 */
+
+    /* shape — DESIGN.md §7. 4px is the system default. */
+    --radius: 0.25rem;
+  }
+
+  /* Dark — DESIGN.md §2 / §3 (dark tables). The canonical, designed mode. */
+  .dark {
+    /* core roles — DESIGN.md §2 */
+    --background: 240.0 5.0% 7.8%; /* #131315 */
+    --foreground: 330.0 3.6% 89.0%; /* #e4e2e3 */
+    --card: 240.0 3.6% 11.0%; /* #1b1b1d */
+    --card-foreground: 330.0 3.6% 89.0%; /* #e4e2e3 */
+    --popover: 240.0 3.1% 12.5%; /* #1f1f21 */
+    --popover-foreground: 330.0 3.6% 89.0%; /* #e4e2e3 */
+    --primary: 220.6 34.0% 80.4%; /* #bcc7de */
+    --primary-foreground: 217.2 27.6% 20.6%; /* #263143 */
+    --secondary: 240.0 1.2% 16.7%; /* #2a2a2b */
+    --secondary-foreground: 330.0 3.6% 89.0%; /* #e4e2e3 */
+    --muted: 240.0 3.1% 12.5%; /* #1f1f21 */
+    --muted-foreground: 232.5 7.4% 78.8%; /* #c5c6cd */
+    --accent: 239.0 100.0% 87.6%; /* #c0c1ff */
+    --accent-foreground: 238.8 63.0% 31.8%; /* #1e2084 */
+    --destructive: 355.9 100.0% 28.8%; /* #93000a */
+    --destructive-foreground: 5.9 100.0% 92.0%; /* #ffdad6 */
+    --border: 222.9 4.8% 28.4%; /* #45474c */
+    /* Darkest lightness clearing 3:1 on card, background and popover
+       (3.16 / 3.41 / 3.03). Same hue and saturation as `border`, moved only in
+       lightness, so it reads as the same grey. */
+    --border-strong: 222.9 4.8% 42.3%; /* #676a71 */
+    --input: 222.9 4.8% 42.3%; /* #676a71 */
+    --ring: 220.6 34.0% 80.4%; /* #bcc7de */
+
+    /* semantic status layer — DESIGN.md §3 (DRAFT) */
+    --success: 158.1 64.4% 51.6%; /* #34d399 */
+    --success-subtle: 163.8 34.2% 14.9%; /* #19332c */
+    --success-border: 162.0 51.0% 19.2%; /* #184a3b */
+    --warning: 43.3 96.4% 56.3%; /* #fbbf24 */
+    --warning-subtle: 37.1 39.5% 16.9%; /* #3c2f1a */
+    --warning-border: 37.1 58.6% 22.7%; /* #5c4218 */
+    --danger: 6.4 100.0% 83.5%; /* #ffb4ab */
+    --danger-subtle: 355.4 28.3% 18.0%; /* #3b2123 */
+    --danger-border: 357.7 40.0% 25.5%; /* #5b2729 */
+    --info: 199.4 95.5% 73.9%; /* #7dd3fc */
+    --info-subtle: 200.6 41.2% 16.7%; /* #19303c */
+    --info-border: 199.7 59.3% 22.2%; /* #17445a */
+    --neutral: 232.5 7.4% 78.8%; /* #c5c6cd */
+    --neutral-subtle: 220.0 2.8% 21.0%; /* #343537 */
+    --neutral-border: 240.0 2.5% 31.4%; /* #4e4e52 */
+    --brand: 220.6 34.0% 80.4%; /* #bcc7de */
+    --brand-subtle: 222.9 6.4% 21.4%; /* #33353a */
+    --brand-border: 220.0 7.4% 31.8%; /* #4b4f57 */
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans text-body-md;
+    font-feature-settings: "cv11";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Links and disclosure controls otherwise relied on browser outlines whose
+     contrast varies by theme. Interactive components define their own rings. */
+  a:focus-visible,
+  summary:focus-visible {
+    @apply rounded-sm outline-hidden ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* DESIGN.md §5 — tabular alignment comes from OpenType, not a mono font. */
+  .tabular {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+}

@@ -1,0 +1,59 @@
+{
+	admin localhost:2019
+}
+
+(api_proxy) {
+	reverse_proxy api:8000 {
+		# The edge overwrites caller input so one trusted UUID joins Caddy and API logs.
+		header_up X-Request-ID {http.request.uuid}
+	}
+}
+
+{$DOMAIN:cdsportal.example.edu} {
+	tls /etc/caddy/tls/fullchain.pem /etc/caddy/tls/server.key
+	encode zstd gzip
+
+	log {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				# Caddy redacts standard credentials; CSRF is application-specific.
+				request>headers>X-Csrf delete
+				# Keep the route path for operations while dropping all query values.
+				request>uri regexp "^([^?]*).*$" "${1}"
+			}
+		}
+	}
+
+	# OAuth callbacks contain one-time codes and state in the query string, while
+	# login responses contain state in Location. FastAPI still emits a safe,
+	# route-templated completion log for these requests.
+	log_skip /auth/*
+
+	handle /api/* {
+		import api_proxy
+	}
+
+	handle /auth/* {
+		import api_proxy
+	}
+
+	handle /me {
+		import api_proxy
+	}
+
+	handle /healthz {
+		import api_proxy
+	}
+
+	handle /readyz {
+		import api_proxy
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

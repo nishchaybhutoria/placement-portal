@@ -1,0 +1,7 @@
+# esbuild ships prebuilt binaries via a postinstall script; Vite and Vitest
+# cannot run without it.
+allowBuilds:
+  esbuild: true
+  inotify: set this to true or false
+onlyBuiltDependencies:
+  - esbuild

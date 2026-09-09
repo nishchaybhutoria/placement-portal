@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source /opt/backup/bin/common.sh
+
+require_env RCLONE_ROOT PITR_TARGET_TIME PGDATA WAL_RESTORE_DIR
+if [[ ! "$PITR_TARGET_TIME" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}[T\ ][0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]+)?([+]00(:00)?|Z)$ ]]; then
+    log "PITR_TARGET_TIME must be an ISO-8601 UTC timestamp"
+    exit 1
+fi
+
+postgres_target="${PITR_TARGET_TIME/T/ }"
+if [[ "$postgres_target" == *Z ]]; then
+    postgres_target="${postgres_target%Z}+00"
+fi
+
+root="$(remote_root)"
+target_stamp="$(date -u -d "$PITR_TARGET_TIME" +%Y%m%dT%H%M%SZ)"
+latest=""
+while IFS= read -r candidate; do
+    candidate_stamp="${candidate#base-}"
+    candidate_stamp="${candidate_stamp%.tar.gz}"
+    if [[ "$candidate_stamp" > "$target_stamp" ]]; then
+        break
+    fi
+    latest="$candidate"
+done < <(rclone lsf --files-only --include 'base-*.tar.gz' "${root}/base" | sort)
+if [[ -z "$latest" ]]; then
+    # Name what is actually there. A single base taken *after* the requested
+    # target leaves this empty, and "no base backup at or before X" reads as
+    # "the remote is empty" when the truth is "your target predates the only
+    # base you have" -- a different problem with a different answer.
+    log "no physical base backup at or before ${PITR_TARGET_TIME} in ${root}/base"
+    available="$(rclone lsf --files-only --include 'base-*.tar.gz' "${root}/base" | sort || true)"
+    if [[ -z "$available" ]]; then
+        log "  ${root}/base holds no base backup at all; run base-backup before restoring"
+    else
+        log "  ${root}/base holds these, all later than the requested target:"
+        printf '%s\n' "$available" | while IFS= read -r candidate; do
+            log "    ${candidate}"
+        done
+        log "  choose a target at or after the earliest of these, or restore that base without PITR"
+    fi
+    exit 1
+fi
+
+work="$(mktemp -d /tmp/cds-restore.XXXXXX)"
+trap 'rm -rf "$work"' EXIT
+rclone copyto "${root}/base/${latest}" "${work}/${latest}"
+rclone copyto "${root}/base/${latest}.sha256" "${work}/${latest}.sha256"
+(
+    cd "$work"
+    sha256sum -c "${latest}.sha256"
+)
+
+if find "$PGDATA" -mindepth 1 -maxdepth 1 | grep -q .; then
+    log "restore target ${PGDATA} is not empty"
+    exit 1
+fi
+
+log "restoring ${latest} to ${PITR_TARGET_TIME}"
+tar -C "$PGDATA" -xzf "${work}/${latest}"
+rm -rf "${WAL_RESTORE_DIR:?}"/*
+mkdir -p "$WAL_RESTORE_DIR"
+rclone copy "${root}/wal" "$WAL_RESTORE_DIR"
+# Remote WAL is gzip-compressed because archive_timeout can otherwise turn a
+# quiet database into 16 MiB of remote storage every minute. Accept legacy raw
+# objects during transition, and expand compressed segments to the exact names
+# PostgreSQL requests from restore_command.
+while IFS= read -r compressed; do
+    segment="${compressed%.gz}"
+    if [[ -e "$segment" ]]; then
+        log "both compressed and legacy raw WAL exist for $(basename "$segment")"
+        exit 1
+    fi
+    gzip -t "$compressed"
+    gzip -dc "$compressed" >"$segment"
+    rm -f -- "$compressed"
+done < <(find "$WAL_RESTORE_DIR" -maxdepth 1 -type f -name '*.gz' -print)
+
+rm -f "$PGDATA/standby.signal"
+touch "$PGDATA/recovery.signal"
+cat >>"$PGDATA/postgresql.auto.conf" <<EOF
+restore_command = 'cp ${WAL_RESTORE_DIR}/%f %p'
+recovery_target_time = '${postgres_target}'
+recovery_target_inclusive = true
+recovery_target_timeline = 'latest'
+recovery_target_action = 'promote'
+EOF
+
+chown -R "${POSTGRES_UID:-999}:${POSTGRES_GID:-999}" "$PGDATA" "$WAL_RESTORE_DIR"
+chmod 700 "$PGDATA"
+log "physical restore prepared from ${latest}"

@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source /opt/backup/bin/common.sh
+
+# Use the shared backup volume so cron and one-off Compose containers cannot
+# create/upload logical dumps concurrently.
+exec 9>/backups/cds-logical-dump.lock
+if ! flock -n 9; then
+    log "another logical dump is already running; skipping"
+    exit 75
+fi
+
+wait_for_postgres
+ensure_backup_directories
+
+stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+name="dump-${stamp}.dump"
+dump="/backups/dumps/${name}"
+
+log "starting logical dump ${name}"
+pg_dump \
+    --host "$PGHOST" \
+    --port "$PGPORT" \
+    --username "$PGUSER" \
+    --dbname "$PGDATABASE" \
+    --format custom \
+    --compress 9 \
+    --no-password \
+    --file "$dump"
+sha256sum "$dump" | sed 's#  /backups/dumps/#  #' >"${dump}.sha256"
+
+if remote_enabled; then
+    root="$(remote_root)"
+    rclone copyto "$dump" "${root}/dumps/${name}"
+    rclone copyto "${dump}.sha256" "${root}/dumps/${name}.sha256"
+fi
+
+/opt/backup/bin/prune-retention
+log "completed logical dump ${name}"

@@ -1,0 +1,11 @@
+title = "Placement Portal gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated analytics dimensions use UUID values under a generic key field"
+regexTarget = "match"
+regexes = [
+  '''(?i)key"\s*:\s*"(?:question_)?[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}"''',
+]

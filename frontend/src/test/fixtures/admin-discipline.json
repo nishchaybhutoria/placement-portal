@@ -1,0 +1,162 @@
+{
+    "threshold": {
+        "value": 2,
+        "source": "default"
+    },
+    "roster": [
+        {
+            "enrollment_id": "b4a59624-14b7-44be-8bd6-b2255d02e971",
+            "full_name": "Asha Mehta",
+            "email": "asha.mehta@example.edu",
+            "roll_number": "21110001",
+            "is_current": true,
+            "active_strikes": 2,
+            "active_penalties": 1,
+            "blocked": true
+        },
+        {
+            "enrollment_id": "891d5edb-59b8-4154-8e6a-c5b99e8b99e3",
+            "full_name": "Bikram Singh",
+            "email": "bikram.singh@example.edu",
+            "roll_number": "21110002",
+            "is_current": true,
+            "active_strikes": 0,
+            "active_penalties": 0,
+            "blocked": false
+        },
+        {
+            "enrollment_id": "bda0dd56-da44-4ffb-8b75-2c76f596fb23",
+            "full_name": "CDS Administrator",
+            "email": "admin@example.edu",
+            "roll_number": null,
+            "is_current": true,
+            "active_strikes": 0,
+            "active_penalties": 0,
+            "blocked": false
+        },
+        {
+            "enrollment_id": "9dcb4dd3-a7c1-4bca-9025-af3b6b66529d",
+            "full_name": "Chitra Rao",
+            "email": "chitra.rao@example.edu",
+            "roll_number": "21110003",
+            "is_current": true,
+            "active_strikes": 0,
+            "active_penalties": 0,
+            "blocked": false
+        },
+        {
+            "enrollment_id": "5f539a4e-5992-45ee-b0df-5ea72c960921",
+            "full_name": "Dev Patel",
+            "email": "dev.patel@example.edu",
+            "roll_number": "21110004",
+            "is_current": true,
+            "active_strikes": 0,
+            "active_penalties": 0,
+            "blocked": false
+        },
+        {
+            "enrollment_id": "065b0a93-9937-4ce6-a0a6-b1d3a82aaa9f",
+            "full_name": "Esha Nair",
+            "email": "esha.nair@example.edu",
+            "roll_number": "22120005",
+            "is_current": true,
+            "active_strikes": 0,
+            "active_penalties": 0,
+            "blocked": false
+        },
+        {
+            "enrollment_id": "643dddd0-f1df-485b-ba35-4a65e260f37c",
+            "full_name": "Farhan Khan",
+            "email": "farhan.khan@example.edu",
+            "roll_number": "22120006",
+            "is_current": true,
+            "active_strikes": 0,
+            "active_penalties": 0,
+            "blocked": false
+        },
+        {
+            "enrollment_id": "51b85ad7-789d-4941-97c4-879df9157c71",
+            "full_name": "Priya Coordinator",
+            "email": "coordinator@example.edu",
+            "roll_number": null,
+            "is_current": true,
+            "active_strikes": 0,
+            "active_penalties": 0,
+            "blocked": false
+        }
+    ],
+    "student": {
+        "enrollment_id": "b4a59624-14b7-44be-8bd6-b2255d02e971",
+        "full_name": "Asha Mehta",
+        "email": "asha.mehta@example.edu",
+        "roll_number": "21110001",
+        "active_strikes": 2,
+        "active_penalties": 1,
+        "unconsumed_strikes": 0,
+        "strikes": [
+            {
+                "id": "87bb90ad-389e-486c-8068-35d8c0af0725",
+                "reason": "Absent from Quant Test (Quantitative Researcher)",
+                "source": "auto_absence",
+                "created_at": "2026-08-22T14:16:06.132402+00:00",
+                "updated_at": "2026-08-22T14:16:06.209677+00:00",
+                "awarded_by": {
+                    "id": "9da79f09-9b9d-425d-b457-99de7a9d754d",
+                    "name": "Priya Coordinator"
+                },
+                "is_active": true,
+                "consumed_by_penalty_id": "b87ba5f9-9437-4176-ade5-55804936b825",
+                "actions": {
+                    "revoke": {
+                        "allowed": true,
+                        "reason": null,
+                        "human": null
+                    }
+                }
+            },
+            {
+                "id": "84d57e82-6f8f-4b5b-953d-b4a2aaaa14b3",
+                "reason": "Missed the coordinator follow-up",
+                "source": "manual",
+                "created_at": "2026-08-22T14:16:06.209677+00:00",
+                "updated_at": "2026-08-22T14:16:06.209677+00:00",
+                "awarded_by": {
+                    "id": "b22beb9b-7513-4059-8313-db263a53bd0f",
+                    "name": "CDS Administrator"
+                },
+                "is_active": true,
+                "consumed_by_penalty_id": "b87ba5f9-9437-4176-ade5-55804936b825",
+                "actions": {
+                    "revoke": {
+                        "allowed": true,
+                        "reason": null,
+                        "human": null
+                    }
+                }
+            }
+        ],
+        "penalties": [
+            {
+                "id": "b87ba5f9-9437-4176-ade5-55804936b825",
+                "reasons": "Absent from Quant Test (Quantitative Researcher); Missed the coordinator follow-up",
+                "from_strikes": true,
+                "created_at": "2026-08-22T14:16:06.209677+00:00",
+                "created_by": {
+                    "id": "b22beb9b-7513-4059-8313-db263a53bd0f",
+                    "name": "CDS Administrator"
+                },
+                "is_active": true,
+                "revoked_at": null,
+                "revoked_by": null,
+                "actions": {
+                    "revoke": {
+                        "allowed": true,
+                        "reason": null,
+                        "human": null
+                    }
+                }
+            }
+        ],
+        "strikes_to_next_penalty": 2
+    }
+}

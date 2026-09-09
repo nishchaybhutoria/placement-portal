@@ -1,0 +1,89 @@
+{
+  "applications": [
+    {
+      "company": "Acme Corp",
+      "cycle": "Placement 2026",
+      "id": "6b804aae-b645-4fa1-b534-de9921b16468",
+      "job": "Offer Fixture",
+      "status": "offered"
+    },
+    {
+      "company": "Acme Corp",
+      "cycle": "Placement 2026",
+      "id": "abaf73ee-63a2-4276-83d3-450c49e376bf",
+      "job": "Backend Engineer",
+      "status": "in_progress"
+    }
+  ],
+  "discipline": {
+    "active_penalties": 1,
+    "active_strikes": 1
+  },
+  "enrollment_id": "810dcd00-c4ed-41d0-83e3-e949908775f6",
+  "external_offers": [
+    {
+      "actions": {},
+      "attached_cycle": null,
+      "company": {
+        "id": "55e5aa9c-8eb4-4511-9523-035cb9cf8e3e",
+        "name": "Acme Corp"
+      },
+      "ctc_lpa": null,
+      "email": "asha@example.edu",
+      "enrollment_id": "810dcd00-c4ed-41d0-83e3-e949908775f6",
+      "id": "694bbf31-558f-41e5-8fcf-c96308823112",
+      "notes": null,
+      "offered_on": "2026-08-22",
+      "outcome": "placement",
+      "read_only": true,
+      "responded_on": null,
+      "roll_number": "c1d3dfdb",
+      "source": "ppo",
+      "source_application_id": null,
+      "status": "offered",
+      "stipend_month": null,
+      "student": "Asha Screen"
+    }
+  ],
+  "memberships": [
+    {
+      "auto_created": false,
+      "cycle": {
+        "id": "22baa4d6-4df6-4224-822d-a494b1ae0d14",
+        "kind": "placement",
+        "name": "Placement 2026"
+      },
+      "id": "f17e94f3-bb0e-46df-bf26-8fa63fb5378f",
+      "status": "active"
+    }
+  ],
+  "offers": [
+    {
+      "actions": {
+        "accept": {
+          "allowed": true,
+          "human": null,
+          "reason": null
+        },
+        "decline": {
+          "allowed": true,
+          "human": null,
+          "reason": null
+        }
+      },
+      "application_id": "6b804aae-b645-4fa1-b534-de9921b16468",
+      "company": "Acme Corp",
+      "cycle": "Placement 2026",
+      "cycle_id": "22baa4d6-4df6-4224-822d-a494b1ae0d14",
+      "deadline_at": "2026-10-01T19:06:34.086560+00:00",
+      "job": "Offer Fixture",
+      "job_id": "7f683ee3-14a2-4a54-ad2a-11f81885ef65",
+      "offer_id": "2b81bad2-e421-47c0-8550-5e06bce36cbd",
+      "outcome": "placement",
+      "response": null,
+      "status": "offered",
+      "terminated": false
+    }
+  ],
+  "upcoming_rounds": []
+}

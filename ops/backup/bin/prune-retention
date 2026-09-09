@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source /opt/backup/bin/common.sh
+
+# Serialize remote WAL listing/deletion with wal-sync across both the scheduled
+# service and one-off Compose containers. wal-sync already holds this lock when
+# it invokes retention, so it explicitly tells us not to acquire it again.
+if [[ "${CDS_WAL_MAINTENANCE_LOCK_HELD:-0}" != "1" ]]; then
+    exec 8>/backups/cds-wal-maintenance.lock
+    flock 8
+fi
+
+# Keep logical dumps for a short independent recovery window. Physical
+# base+WAL is the primary recovery path; unbounded dumps would compete with it
+# for remote quota.
+days="${DUMP_RETENTION_DAYS:-3}"
+if [[ ! "$days" =~ ^[0-9]+$ ]] || (( days < 1 )); then
+    log "DUMP_RETENTION_DAYS must be a positive integer"
+    exit 1
+fi
+find /backups/dumps -type f -mtime "+${days}" -delete
+if remote_enabled; then
+    root="$(remote_root)"
+    rclone delete "${root}/dumps" --min-age "${days}d"
+    rclone rmdirs "${root}/dumps" --leave-root
+fi
+
+# Retain exactly enough complete physical bases for redundancy. The oldest
+# retained base defines the WAL recovery floor. A count below two would leave a
+# single corrupt/incomplete base as the only PITR starting point.
+base_count="${BASE_RETENTION_COUNT:-2}"
+if [[ ! "$base_count" =~ ^[0-9]+$ ]] || (( base_count < 2 )); then
+    log "BASE_RETENTION_COUNT must be an integer of at least 2"
+    exit 1
+fi
+
+mapfile -t metadata < <(find /backups/base -maxdepth 1 -type f -name 'base-*.tar.gz.meta' -printf '%f\n' | sort -r)
+if (( ${#metadata[@]} < 2 )); then
+    log "fewer than two base backups exist; WAL pruning is intentionally disabled"
+    exit 0
+fi
+
+floor_index=$(( base_count - 1 ))
+if (( floor_index >= ${#metadata[@]} )); then
+    floor_index=$((${#metadata[@]} - 1))
+fi
+cutoff="$(awk -F= '$1 == "wal_start" { print $2; exit }' "/backups/base/${metadata[$floor_index]}")"
+if [[ ! "$cutoff" =~ ^[0-9A-F]{24}$ ]]; then
+    log "invalid WAL retention floor in ${metadata[$floor_index]}"
+    exit 1
+fi
+
+# Prune current compressed and transitional native local WAL, plus both current
+# (.gz) and legacy raw remote objects below the same recovery floor.
+while IFS= read -r path; do
+    segment="$(basename "$path")"
+    segment="${segment%.gz}"
+    if [[ "$segment" =~ ^[0-9A-F]{24}$ && "$segment" < "$cutoff" ]]; then
+        rm -f -- "$path"
+    fi
+done < <(find /wal_archive -maxdepth 1 -type f)
+
+if remote_enabled; then
+    root="$(remote_root)"
+    while IFS= read -r object; do
+        segment="$(basename "$object")"
+        segment="${segment%.gz}"
+        if [[ "$segment" =~ ^[0-9A-F]{24}$ && "$segment" < "$cutoff" ]]; then
+            rclone deletefile "${root}/wal/${object}"
+        fi
+    done < <(rclone lsf --files-only "${root}/wal")
+fi
+
+# Remove physical bases older than the retained set, locally and remotely.
+for meta in "${metadata[@]:$base_count}"; do
+    name="${meta%.meta}"
+    rm -f -- "/backups/base/${name}" "/backups/base/${name}.sha256" "/backups/base/${name}.meta"
+done
+if remote_enabled; then
+    mapfile -t remote_metadata < <(rclone lsf --files-only --include 'base-*.tar.gz.meta' "${root}/base" | sort -r)
+    for meta in "${remote_metadata[@]:$base_count}"; do
+        name="${meta%.meta}"
+        rclone delete "${root}/base" \
+            --include "$name" --include "${name}.sha256" --include "${name}.meta"
+    done
+fi
+
+log "retention complete: ${base_count} bases; WAL floor ${cutoff}; dumps ${days} days"

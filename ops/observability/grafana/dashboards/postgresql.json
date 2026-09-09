@@ -1,0 +1,135 @@
+{
+  "annotations": {"list": []},
+  "description": "PostgreSQL availability, connections, transactions, cache, locks, WAL, and table maintenance from postgres-exporter.",
+  "editable": false,
+  "graphTooltip": 1,
+  "links": [{"asDropdown": true, "includeVars": false, "keepTime": true, "tags": ["cds"], "title": "CDS dashboards", "type": "dashboards"}],
+  "panels": [
+    {
+      "type": "stat", "title": "PostgreSQL target", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "max(up{job=\"postgres\"}) or vector(0)", "instant": true, "refId": "A"}],
+      "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"text": "Down"}, "1": {"text": "Up"}}, "type": "value"}], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0}
+    },
+    {
+      "type": "stat", "title": "Exporter scrape", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "max(pg_up) or vector(0)", "instant": true, "refId": "A"}],
+      "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"text": "Failing"}, "1": {"text": "Healthy"}}, "type": "value"}], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0}
+    },
+    {
+      "type": "stat", "title": "Connections", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(pg_stat_database_numbackends{datname=~\"$database\"})", "refId": "A"}],
+      "fieldConfig": {"defaults": {"decimals": 0, "unit": "short"}, "overrides": []},
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0}
+    },
+    {
+      "type": "stat", "title": "Connection utilization", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "100 * sum(pg_stat_database_numbackends) / scalar(max(pg_settings_max_connections))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"decimals": 1, "unit": "percent", "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 70}, {"color": "red", "value": 85}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0}
+    },
+    {
+      "type": "stat", "title": "Database size", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(pg_database_size_bytes{datname=~\"$database\"})", "refId": "A"}],
+      "fieldConfig": {"defaults": {"decimals": 2, "unit": "bytes"}, "overrides": []},
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 0}
+    },
+    {
+      "type": "stat", "title": "WAL size", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "pg_wal_size_bytes", "refId": "A"}],
+      "fieldConfig": {"defaults": {"decimals": 2, "unit": "bytes"}, "overrides": []},
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 0}
+    },
+    {
+      "type": "timeseries", "title": "Connections by state", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (state) (pg_stat_activity_count{datname=~\"$database\"})", "legendFormat": "{{state}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4}
+    },
+    {
+      "type": "timeseries", "title": "Longest transaction by state", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "max by (state) (pg_stat_activity_max_tx_duration{datname=~\"$database\"})", "legendFormat": "{{state}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "s", "min": 0}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4}
+    },
+    {
+      "type": "timeseries", "title": "Transactions", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum(rate(pg_stat_database_xact_commit{datname=~\"$database\"}[5m]))", "legendFormat": "commits", "refId": "A"},
+        {"expr": "sum(rate(pg_stat_database_xact_rollback{datname=~\"$database\"}[5m]))", "legendFormat": "rollbacks", "refId": "B"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "ops", "min": 0}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12}
+    },
+    {
+      "type": "timeseries", "title": "Buffer cache hit ratio", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "100 * sum(rate(pg_stat_database_blks_hit{datname=~\"$database\"}[5m])) / clamp_min(sum(rate(pg_stat_database_blks_hit{datname=~\"$database\"}[5m])) + sum(rate(pg_stat_database_blks_read{datname=~\"$database\"}[5m])), 0.001)", "legendFormat": "cache hit", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull", "min"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12}
+    },
+    {
+      "type": "timeseries", "title": "Rows changed", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum(rate(pg_stat_database_tup_inserted{datname=~\"$database\"}[5m]))", "legendFormat": "inserted", "refId": "A"},
+        {"expr": "sum(rate(pg_stat_database_tup_updated{datname=~\"$database\"}[5m]))", "legendFormat": "updated", "refId": "B"},
+        {"expr": "sum(rate(pg_stat_database_tup_deleted{datname=~\"$database\"}[5m]))", "legendFormat": "deleted", "refId": "C"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "rowsps", "min": 0}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20}
+    },
+    {
+      "type": "timeseries", "title": "Temporary data and deadlocks", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum(rate(pg_stat_database_temp_bytes{datname=~\"$database\"}[5m]))", "legendFormat": "temporary bytes/s", "refId": "A"},
+        {"expr": "sum(rate(pg_stat_database_deadlocks{datname=~\"$database\"}[5m]))", "legendFormat": "deadlocks/s", "refId": "B"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0}, "overrides": [{"matcher": {"id": "byName", "options": "temporary bytes/s"}, "properties": [{"id": "unit", "value": "Bps"}]}]},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20}
+    },
+    {
+      "type": "timeseries", "title": "Locks by mode", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (mode) (pg_locks_count{datname=~\"$database\"})", "legendFormat": "{{mode}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 28}
+    },
+    {
+      "type": "timeseries", "title": "Checkpoint activity", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "rate(pg_stat_bgwriter_checkpoints_timed_total[5m])", "legendFormat": "scheduled", "refId": "A"},
+        {"expr": "rate(pg_stat_bgwriter_checkpoints_req_total[5m])", "legendFormat": "requested", "refId": "B"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "ops", "min": 0}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 28}
+    },
+    {
+      "type": "table", "title": "Tables with the most dead rows", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "topk(15, pg_stat_user_tables_n_dead_tup{datname=~\"$database\"})", "format": "table", "instant": true, "refId": "A"}],
+      "options": {"showHeader": true},
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 36}
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 40,
+  "tags": ["cds", "postgresql"],
+  "templating": {"list": [{"name": "database", "label": "Database", "type": "query", "datasource": {"type": "prometheus", "uid": "prometheus"}, "definition": "label_values(pg_database_size_bytes, datname)", "query": {"query": "label_values(pg_database_size_bytes, datname)", "refId": "PrometheusVariableQueryEditor-VariableQuery"}, "includeAll": true, "allValue": ".*", "multi": true, "refresh": 1, "sort": 1, "current": {"selected": true, "text": ["cds"], "value": ["cds"]}}]},
+  "time": {"from": "now-6h", "to": "now"},
+  "timezone": "browser",
+  "title": "CDS PostgreSQL",
+  "uid": "cds-postgresql",
+  "version": 1
+}

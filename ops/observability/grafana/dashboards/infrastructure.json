@@ -1,0 +1,148 @@
+{
+  "annotations": {"list": []},
+  "description": "Host and container resource health from node-exporter and cAdvisor.",
+  "editable": false,
+  "graphTooltip": 1,
+  "links": [{"asDropdown": true, "includeVars": false, "keepTime": true, "tags": ["cds"], "title": "CDS dashboards", "type": "dashboards"}],
+  "panels": [
+    {
+      "type": "stat", "title": "Node exporter", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "max(up{job=\"node\"}) or vector(0)", "instant": true, "refId": "A"}],
+      "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"text": "Down"}, "1": {"text": "Up"}}, "type": "value"}], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0}
+    },
+    {
+      "type": "stat", "title": "cAdvisor", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "max(up{job=\"containers\"}) or vector(0)", "instant": true, "refId": "A"}],
+      "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"text": "Down"}, "1": {"text": "Up"}}, "type": "value"}], "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0}
+    },
+    {
+      "type": "stat", "title": "Host CPU busy", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "100 * (1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"decimals": 1, "unit": "percent", "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 75}, {"color": "red", "value": 90}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0}
+    },
+    {
+      "type": "stat", "title": "Memory available", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "100 * node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes", "refId": "A"}],
+      "fieldConfig": {"defaults": {"decimals": 1, "unit": "percent", "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "orange", "value": 10}, {"color": "green", "value": 20}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0}
+    },
+    {
+      "type": "stat", "title": "Lowest filesystem free", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "min(100 * node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay|squashfs\"})", "refId": "A"}],
+      "fieldConfig": {"defaults": {"decimals": 1, "unit": "percent", "min": 0, "max": 100, "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "orange", "value": 10}, {"color": "green", "value": 20}]}}, "overrides": []},
+      "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 0}
+    },
+    {
+      "type": "stat", "title": "Running containers", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "count(count by (name) (container_last_seen{name!=\"\"}))", "instant": true, "refId": "A"}],
+      "fieldConfig": {"defaults": {"decimals": 0, "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}}, "overrides": []},
+      "options": {"colorMode": "value", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 0}
+    },
+    {
+      "type": "timeseries", "title": "Host CPU by mode", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "100 * avg by (mode) (rate(node_cpu_seconds_total{mode!=\"idle\"}[5m]))", "legendFormat": "{{mode}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4}
+    },
+    {
+      "type": "timeseries", "title": "Host load", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "node_load1", "legendFormat": "1 minute", "refId": "A"},
+        {"expr": "node_load5", "legendFormat": "5 minutes", "refId": "B"},
+        {"expr": "node_load15", "legendFormat": "15 minutes", "refId": "C"},
+        {"expr": "count(node_cpu_seconds_total{mode=\"idle\"})", "legendFormat": "CPU cores", "refId": "D"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4}
+    },
+    {
+      "type": "timeseries", "title": "Host memory", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes", "legendFormat": "used", "refId": "A"},
+        {"expr": "node_memory_MemAvailable_bytes", "legendFormat": "available", "refId": "B"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12}
+    },
+    {
+      "type": "timeseries", "title": "Filesystem free space", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "100 * node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay|squashfs\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay|squashfs\"}", "legendFormat": "{{mountpoint}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "asc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12}
+    },
+    {
+      "type": "timeseries", "title": "Filesystem free inodes", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "100 * node_filesystem_files_free{fstype!~\"tmpfs|overlay|squashfs\"} / node_filesystem_files{fstype!~\"tmpfs|overlay|squashfs\"}", "legendFormat": "{{mountpoint}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0, "max": 100}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "asc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 20}
+    },
+    {
+      "type": "timeseries", "title": "Host network throughput", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum by (device) (rate(node_network_receive_bytes_total{device!=\"lo\"}[5m]))", "legendFormat": "receive {{device}}", "refId": "A"},
+        {"expr": "-sum by (device) (rate(node_network_transmit_bytes_total{device!=\"lo\"}[5m]))", "legendFormat": "transmit {{device}}", "refId": "B"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "Bps"}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 20}
+    },
+    {
+      "type": "timeseries", "title": "Container CPU by service", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "100 * sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project=~\"$compose_project\", container_label_com_docker_compose_service!=\"\"}[5m]))", "legendFormat": "{{container_label_com_docker_compose_project}} / {{container_label_com_docker_compose_service}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "min": 0}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 28}
+    },
+    {
+      "type": "timeseries", "title": "Container memory by service", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (container_memory_working_set_bytes{container_label_com_docker_compose_project=~\"$compose_project\", container_label_com_docker_compose_service!=\"\"})", "legendFormat": "{{container_label_com_docker_compose_project}} / {{container_label_com_docker_compose_service}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "bytes", "min": 0}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 28}
+    },
+    {
+      "type": "timeseries", "title": "Container restarts (15m)", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (changes(container_start_time_seconds{container_label_com_docker_compose_project=~\"$compose_project\", container_label_com_docker_compose_service!=\"\"}[15m]))", "legendFormat": "{{container_label_com_docker_compose_project}} / {{container_label_com_docker_compose_service}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0, "decimals": 0}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 37}
+    },
+    {
+      "type": "timeseries", "title": "Container OOM events (1h)", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (container_label_com_docker_compose_project, container_label_com_docker_compose_service) (increase(container_oom_events_total{container_label_com_docker_compose_project=~\"$compose_project\", container_label_com_docker_compose_service!=\"\"}[1h]))", "legendFormat": "{{container_label_com_docker_compose_project}} / {{container_label_com_docker_compose_service}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0, "decimals": 0}, "overrides": []},
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 37}
+    },
+    {
+      "type": "state-timeline", "title": "Monitoring scrape health", "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "up{job=~\"prometheus|alertmanager|loki|alloy|grafana|node|containers|blackbox-exporter\"}", "legendFormat": "{{job}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"mappings": [{"options": {"0": {"color": "red", "text": "Down"}, "1": {"color": "green", "text": "Up"}}, "type": "value"}]}, "overrides": []},
+      "options": {"alignValue": "left", "mergeValues": true, "rowHeight": 0.8, "showValue": "auto", "tooltip": {"mode": "single", "sort": "none"}},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 37}
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 40,
+  "tags": ["cds", "infrastructure"],
+  "templating": {"list": [{"name": "compose_project", "label": "Compose project", "type": "custom", "query": "cds-portal,cds-observability", "includeAll": true, "allValue": ".*", "multi": true, "current": {"selected": true, "text": ["All"], "value": ["$__all"]}}]},
+  "time": {"from": "now-6h", "to": "now"},
+  "timezone": "browser",
+  "title": "CDS Infrastructure",
+  "uid": "cds-infrastructure",
+  "version": 1
+}

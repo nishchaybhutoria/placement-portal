@@ -1,0 +1,174 @@
+{
+    "enrollment_id": "b4a59624-14b7-44be-8bd6-b2255d02e971",
+    "applications": [
+        {
+            "id": "2787a2d8-2762-56fb-9cac-ebcfcb996668",
+            "status": "withdrawn",
+            "applied_at": "2026-08-21T21:00:30.469381+00:00",
+            "resume_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view",
+            "answer_count": 0,
+            "job": {
+                "id": "569d24ee-f634-4db6-be09-1cfcf753d5f5",
+                "title": "Campus Ambassador",
+                "outcome": "internship",
+                "company": "Meridian Consulting",
+                "application_deadline": "2026-11-19T14:36:24.271285+00:00",
+                "cancelled": false
+            },
+            "cycle": {
+                "id": "2f84be96-8851-4f0d-a681-1ca1ed50fd48",
+                "name": "Open Opportunities",
+                "kind": "open",
+                "archived": false
+            },
+            "round": null,
+            "can_edit": false,
+            "can_withdraw": false,
+            "window_reasons": [],
+            "timeline": [
+                {
+                    "event_type": "created",
+                    "from_status": null,
+                    "to_status": "in_progress",
+                    "reason": null,
+                    "at": "2026-08-21T21:00:30.469381+00:00"
+                },
+                {
+                    "event_type": "withdrawn",
+                    "from_status": "in_progress",
+                    "to_status": "withdrawn",
+                    "reason": null,
+                    "at": "2026-08-21T21:00:30.490871+00:00"
+                }
+            ],
+            "edit_form": {
+                "questions": [],
+                "answers": []
+            }
+        },
+        {
+            "id": "a705ea19-8375-5bbb-82d4-c61db8a901ae",
+            "status": "rejected",
+            "applied_at": "2026-08-21T21:00:30.314374+00:00",
+            "resume_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view",
+            "answer_count": 0,
+            "job": {
+                "id": "29d6f97f-5102-46f2-9d8f-adea845cfdef",
+                "title": "Quantitative Researcher",
+                "outcome": "placement",
+                "company": "Helios Analytics",
+                "application_deadline": "2026-09-04T14:35:40.334070+00:00",
+                "cancelled": false
+            },
+            "cycle": {
+                "id": "95d3965f-6fb6-4399-92cf-de4f1c34a0a6",
+                "name": "Placement 2026",
+                "kind": "placement",
+                "archived": false
+            },
+            "round": {
+                "name": "Quant Test",
+                "ord": 1,
+                "of": 2
+            },
+            "can_edit": false,
+            "can_withdraw": false,
+            "window_reasons": [],
+            "timeline": [
+                {
+                    "event_type": "created",
+                    "from_status": null,
+                    "to_status": "in_progress",
+                    "reason": null,
+                    "at": "2026-08-21T21:00:30.314374+00:00"
+                },
+                {
+                    "event_type": "attendance_marked",
+                    "from_status": "in_progress",
+                    "to_status": "in_progress",
+                    "reason": null,
+                    "at": "2026-08-22T11:40:19.191932+00:00"
+                },
+                {
+                    "event_type": "round_finalized",
+                    "from_status": "in_progress",
+                    "to_status": "rejected",
+                    "reason": "absence",
+                    "at": "2026-08-22T14:16:06.132402+00:00"
+                }
+            ],
+            "edit_form": {
+                "questions": [],
+                "answers": []
+            }
+        },
+        {
+            "id": "57adcf20-99da-5c95-87e5-7ec8a3d8fd0f",
+            "status": "in_progress",
+            "applied_at": "2026-08-21T21:00:30.149676+00:00",
+            "resume_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view",
+            "answer_count": 4,
+            "job": {
+                "id": "e5d8b093-1e46-4a41-9718-2b882fe1b8f5",
+                "title": "Backend Engineer",
+                "outcome": "placement",
+                "company": "Northwind Systems",
+                "application_deadline": "2026-09-11T14:35:40.163134+00:00",
+                "cancelled": false
+            },
+            "cycle": {
+                "id": "95d3965f-6fb6-4399-92cf-de4f1c34a0a6",
+                "name": "Placement 2026",
+                "kind": "placement",
+                "archived": false
+            },
+            "round": {
+                "name": "Systems Interview",
+                "ord": 2,
+                "of": 3
+            },
+            "can_edit": true,
+            "can_withdraw": true,
+            "window_reasons": [],
+            "timeline": [
+                {
+                    "event_type": "created",
+                    "from_status": null,
+                    "to_status": "in_progress",
+                    "reason": null,
+                    "at": "2026-08-21T21:00:30.149676+00:00"
+                },
+                {
+                    "event_type": "advanced",
+                    "from_status": "in_progress",
+                    "to_status": "in_progress",
+                    "reason": null,
+                    "at": "2026-08-21T21:00:30.409610+00:00"
+                },
+                {
+                    "event_type": "venue_assigned",
+                    "from_status": "in_progress",
+                    "to_status": "in_progress",
+                    "reason": null,
+                    "at": "2026-08-22T11:40:19.268585+00:00"
+                }
+            ],
+            "edit_form": {
+                "questions": [],
+                "answers": []
+            }
+        }
+    ],
+    "counts": {
+        "total": 3,
+        "in_progress": 1
+    },
+    "resumes": [
+        {
+            "id": "11111111-1111-4111-8111-111111111111",
+            "label": "Default resume",
+            "drive_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view",
+            "is_default": true
+        }
+    ]
+}

@@ -1,0 +1,13 @@
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+
+frontend/src/api/gen/schema.d.ts linguist-generated=true
+backend/uv.lock linguist-generated=true
+frontend/pnpm-lock.yaml linguist-generated=true

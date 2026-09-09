@@ -1,0 +1,4 @@
+# min hour day month weekday command
+*/5 * * * * /opt/backup/bin/record-backup-metrics wal_sync /opt/backup/bin/wal-sync >>/proc/1/fd/1 2>>/proc/1/fd/2
+0 2 * * * /opt/backup/bin/record-backup-metrics base_backup /opt/backup/bin/base-backup >>/proc/1/fd/1 2>>/proc/1/fd/2
+0 3 * * * /opt/backup/bin/record-backup-metrics logical_dump /opt/backup/bin/logical-dump >>/proc/1/fd/1 2>>/proc/1/fd/2

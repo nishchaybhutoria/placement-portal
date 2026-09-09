@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!--
+      Paint the stored theme before the first paint.
+
+      This has to be inline and blocking: a class applied from the bundle lands
+      after the browser has already painted, which is a flash of the wrong
+      palette on every load. The key and the values match `src/lib/theme.ts`,
+      which owns the class from here on.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("cds-theme");
+          var theme = stored === "light" || stored === "dark" ? stored : "system";
+          var dark =
+            theme === "dark" ||
+            (theme === "system" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.classList.toggle("dark", dark);
+        } catch (error) {
+          document.documentElement.classList.remove("dark");
+        }
+      })();
+    </script>
+    <title>CDS Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

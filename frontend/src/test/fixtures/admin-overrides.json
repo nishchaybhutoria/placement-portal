@@ -1,0 +1,117 @@
+{
+  "overrides": [
+    {
+      "id": "9e82a52c-028e-4992-90c0-278cef680bd8",
+      "rule_domain": "offer_cap",
+      "allow": true,
+      "scope": "cycle",
+      "subject_id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+      "subject_label": "Placement 2026",
+      "cycle_id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+      "cycle_name": "Placement 2026",
+      "reason": "Cap frozen while external offers were reconciled",
+      "granted_by": {
+        "id": "c3481ab6-44bc-4d15-84ac-358b83fde6df",
+        "name": "CDS Administrator"
+      },
+      "created_at": "2026-08-22T23:21:44.870275+00:00",
+      "expires_at": null,
+      "state": "deactivated",
+      "is_active": false,
+      "actions": {
+        "deactivate": {
+          "allowed": false,
+          "reason": "override_already_inactive",
+          "human": "This override has already been deactivated"
+        }
+      }
+    },
+    {
+      "id": "45a6e2a9-df56-4545-a150-5306e9a25526",
+      "rule_domain": "application_deadline",
+      "allow": true,
+      "scope": "cycle",
+      "subject_id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+      "subject_label": "Placement 2026",
+      "cycle_id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+      "cycle_name": "Placement 2026",
+      "reason": "Company extended their own deadline by a day",
+      "granted_by": {
+        "id": "c3481ab6-44bc-4d15-84ac-358b83fde6df",
+        "name": "CDS Administrator"
+      },
+      "created_at": "2026-08-22T23:21:44.856965+00:00",
+      "expires_at": "2026-09-05T23:21:44.855063+00:00",
+      "state": "active",
+      "is_active": true,
+      "actions": {
+        "deactivate": {
+          "allowed": true,
+          "reason": null,
+          "human": null
+        }
+      }
+    }
+  ],
+  "filters": {
+    "rule_domain": null,
+    "scope": null,
+    "cycle_id": null,
+    "state": null
+  },
+  "rule_domains": [
+    "eligibility",
+    "application_deadline",
+    "edit_window",
+    "withdraw_window",
+    "outcome_gate",
+    "offer_cap",
+    "offer_deadline",
+    "cycle_registration_window",
+    "cycle_join_rule"
+  ],
+  "scopes": [
+    "cycle",
+    "job",
+    "enrollment",
+    "cycle+enrollment",
+    "job+enrollment",
+    "application"
+  ],
+  "states": [
+    "active",
+    "expired",
+    "deactivated"
+  ],
+  "cycles": [
+    {
+      "id": "fac95135-8285-4f51-95cd-c94f52709c11",
+      "name": "Open Opportunities",
+      "kind": "open",
+      "archived": false
+    },
+    {
+      "id": "2283cf28-d827-4fbb-b795-a46d1982cebd",
+      "name": "Placement 2026",
+      "kind": "placement",
+      "archived": false
+    },
+    {
+      "id": "71da3d95-f495-44ad-b864-a7c500875c74",
+      "name": "Summer Internship 2026",
+      "kind": "internship",
+      "archived": false
+    },
+    {
+      "id": "628043b6-37b4-4727-98c6-227ef9256ce3",
+      "name": "Winter Internship 2026",
+      "kind": "internship",
+      "archived": false
+    }
+  ],
+  "counts": {
+    "active": 1,
+    "expired": 0,
+    "deactivated": 1
+  }
+}

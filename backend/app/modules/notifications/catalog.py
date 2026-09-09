@@ -1,0 +1,82 @@
+"""The effective notification event catalog from LLD section 13 and the design review."""
+
+from __future__ import annotations
+
+EVENT_KEYS: tuple[str, ...] = (
+    "application_submitted",
+    "advanced",
+    "rejected",
+    "absent_marked",
+    "offer_extended",
+    "offer_accepted",
+    "declined_confirm",
+    "auto_declined",
+    "auto_withdrawn",
+    "offer_terminated",
+    "offer_expired",
+    "external_recorded",
+    "external_updated",
+    "strike_added",
+    "strike_revoked",
+    "penalty_added",
+    "penalty_revoked",
+    "venue_timing",
+    "process_changed",
+    "deadline_changed",
+    "job_cancelled",
+    "membership_pending",
+    "membership_approved",
+    "membership_rejected",
+    "membership_removed",
+    "membership_restored",
+    "coordinator_assigned",
+    "coordinator_removed",
+    "deadline_reminder",
+    "round_reminder",
+    "reinstated",
+)
+EVENT_KEY_SET = frozenset(EVENT_KEYS)
+
+# LLD section 13 names event-specific variables.  The existing emitters also
+# carry the student/job/company identity needed to make those notices useful;
+# those common values are listed here so the editor can show the complete set a
+# template can actually use rather than only the event-specific suffix.
+TEMPLATE_VARIABLES: dict[str, tuple[str, ...]] = {
+    "application_submitted": ("student", "job", "company"),
+    "advanced": ("student", "job", "next_round", "venue", "time"),
+    "rejected": ("student", "job", "round", "reason"),
+    "absent_marked": ("student", "job", "round", "strike_total"),
+    "offer_extended": ("student", "job", "company", "deadline"),
+    "offer_accepted": ("student", "job", "company"),
+    "declined_confirm": ("student", "job", "company"),
+    "auto_declined": ("student", "job", "company", "accepted_job"),
+    "auto_withdrawn": ("student", "job", "trigger"),
+    "offer_terminated": ("student", "job", "company", "kind", "reason"),
+    "offer_expired": ("student", "job", "company", "behavior"),
+    "external_recorded": ("student", "company", "source", "outcome"),
+    "external_updated": ("student", "company"),
+    "strike_added": ("student", "reason", "total"),
+    "strike_revoked": ("student", "total"),
+    "penalty_added": ("student", "reasons"),
+    "penalty_revoked": ("student",),
+    "venue_timing": ("student", "job", "round", "venue", "time", "is_update"),
+    "process_changed": ("student", "job"),
+    "deadline_changed": (
+        "student",
+        "job",
+        "application_deadline",
+        "offer_acceptance_deadline",
+        "shortened",
+    ),
+    "job_cancelled": ("student", "job", "reason"),
+    "membership_pending": ("student", "cycle"),
+    "membership_approved": ("student", "cycle"),
+    "membership_rejected": ("student", "cycle", "reason"),
+    "membership_removed": ("student", "cycle", "reason"),
+    "membership_restored": ("student", "cycle"),
+    "coordinator_assigned": ("cycle",),
+    "coordinator_removed": ("cycle",),
+    "deadline_reminder": ("student", "job", "company", "hours_left"),
+    "round_reminder": ("student", "job", "round", "venue", "time"),
+    "reinstated": ("student", "job", "company", "round", "reason"),
+}

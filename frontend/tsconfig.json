@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": false,
+    "types": ["vitest/globals", "@testing-library/jest-dom"],
+    // `paths` resolves against this file's own directory; `baseUrl` was only
+    // ever propping that up, and TypeScript 7 removes the option outright.
+    "paths": { "@/*": ["./src/*"] }
+  },
+  "include": ["src", "scripts", "vite.config.ts", "tailwind.config.ts"]
+}

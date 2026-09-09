@@ -1,0 +1,94 @@
+{
+    "cycle": {
+        "id": "95d3965f-6fb6-4399-92cf-de4f1c34a0a6",
+        "name": "Placement 2026",
+        "kind": "placement",
+        "archived_at": null
+    },
+    "membership_status": "active",
+    "eligible_count": 0,
+    "jobs": [
+        {
+            "id": "29d6f97f-5102-46f2-9d8f-adea845cfdef",
+            "cycle_id": "95d3965f-6fb6-4399-92cf-de4f1c34a0a6",
+            "company": {
+                "id": "9138c0e5-9fc7-4032-ac63-d023851e8805",
+                "name": "Helios Analytics"
+            },
+            "outcome": "placement",
+            "title": "Quantitative Researcher",
+            "description": "Research and productionise systematic trading signals.",
+            "location": "Mumbai",
+            "sector": "Finance",
+            "ctc_lpa": "32.00",
+            "ctc_breakdown": null,
+            "stipend_month": null,
+            "application_deadline": "2026-09-04T14:35:40.334070+00:00",
+            "offer_acceptance_deadline": null,
+            "is_published": true,
+            "published_at": "2026-08-21T14:35:40.392077+00:00",
+            "cancelled_at": null,
+            "eligibility_summary": "Eligible when CPI at least 8.5.",
+            "round_count": 2,
+            "question_count": 0,
+            "eligible": false,
+            "reasons": [
+                {
+                    "code": "duplicate_application",
+                    "human": "You have already applied to this job.",
+                    "path": "application"
+                },
+                {
+                    "code": "penalty_active",
+                    "human": "A disciplinary penalty is blocking your applications in this cycle.",
+                    "path": "penalty"
+                }
+            ],
+            "application": {
+                "application_id": "a705ea19-8375-5bbb-82d4-c61db8a901ae",
+                "status": "rejected"
+            }
+        },
+        {
+            "id": "e5d8b093-1e46-4a41-9718-2b882fe1b8f5",
+            "cycle_id": "95d3965f-6fb6-4399-92cf-de4f1c34a0a6",
+            "company": {
+                "id": "237db3b7-f2be-4b74-ac55-e901f0c026b4",
+                "name": "Northwind Systems"
+            },
+            "outcome": "placement",
+            "title": "Backend Engineer",
+            "description": "Build and operate the storage layer: distributed systems work in Go and Rust, with real on-call ownership from month three.",
+            "location": "Bengaluru",
+            "sector": "Technology",
+            "ctc_lpa": "24.00",
+            "ctc_breakdown": null,
+            "stipend_month": null,
+            "application_deadline": "2026-09-11T14:35:40.163134+00:00",
+            "offer_acceptance_deadline": null,
+            "is_published": true,
+            "published_at": "2026-08-21T14:35:40.314688+00:00",
+            "cancelled_at": null,
+            "eligibility_summary": "Eligible when CPI at least 8.0 and active backlogs at most 0 and primary branch one of Computer Science and Engineering, Electrical Engineering.",
+            "round_count": 3,
+            "question_count": 4,
+            "eligible": false,
+            "reasons": [
+                {
+                    "code": "duplicate_application",
+                    "human": "You have already applied to this job.",
+                    "path": "application"
+                },
+                {
+                    "code": "penalty_active",
+                    "human": "A disciplinary penalty is blocking your applications in this cycle.",
+                    "path": "penalty"
+                }
+            ],
+            "application": {
+                "application_id": "57adcf20-99da-5c95-87e5-7ec8a3d8fd0f",
+                "status": "in_progress"
+            }
+        }
+    ]
+}

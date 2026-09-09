@@ -1,0 +1,110 @@
+name: ${DRILL_PROJECT_NAME:-cds-restore-drill}
+
+services:
+  restore:
+    build:
+      context: ../backup
+    entrypoint: ["/opt/backup/bin/restore-physical"]
+    environment:
+      RCLONE_ROOT: /backups/drill-remote/cds
+      PITR_TARGET_TIME: ${PITR_TARGET_TIME:?PITR_TARGET_TIME is required}
+      PGDATA: /var/lib/postgresql/data
+      WAL_RESTORE_DIR: /restore/wal
+      POSTGRES_UID: "999"
+      POSTGRES_GID: "999"
+    volumes:
+      - source_backups:/backups:ro
+      - drill_pgdata:/var/lib/postgresql/data
+      - drill_wal:/restore/wal
+    restart: "no"
+
+  db:
+    image: postgres:16
+    depends_on:
+      restore:
+        condition: service_completed_successfully
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cds}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cds}
+      POSTGRES_DB: ${POSTGRES_DB:-cds}
+    volumes:
+      - drill_pgdata:/var/lib/postgresql/data
+      - drill_wal:/restore/wal:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 3s
+      retries: 60
+      start_period: 5s
+    restart: "no"
+
+  verify:
+    image: postgres:16
+    entrypoint: ["/bin/bash", "/opt/drill/verify-counts.sh"]
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:-cds}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-cds}
+      PGDATABASE: ${POSTGRES_DB:-cds}
+      EXPECTED_COUNTS_FILE: /expected/counts.txt
+    volumes:
+      - ./verify-counts.sh:/opt/drill/verify-counts.sh:ro
+      - ${DRILL_EXPECTED_DIR:?DRILL_EXPECTED_DIR is required}:/expected:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  # The logical fallback leg. It runs last and against the same database on
+  # purpose: by then the physical chain has been counted and checked, so the
+  # dump may overwrite it, and what is being proved is what `pg_restore`
+  # leaves behind rather than the rows it carries.
+  restore-logical:
+    build:
+      context: ../backup
+    entrypoint: ["/opt/backup/bin/restore-logical"]
+    environment:
+      RCLONE_ROOT: /backups/drill-remote/cds
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:-cds}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-cds}
+      PGDATABASE: ${POSTGRES_DB:-cds}
+    volumes:
+      - source_backups:/backups:ro
+    restart: "no"
+
+  append-only:
+    image: postgres:16
+    entrypoint: ["/bin/bash", "/opt/drill/verify-append-only.sh"]
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: cds_app
+      PGPASSWORD: ${CDS_APP_DB_PASSWORD:-cds_app}
+      PGDATABASE: ${POSTGRES_DB:-cds}
+    volumes:
+      - ./verify-append-only.sh:/opt/drill/verify-append-only.sh:ro
+    restart: "no"
+
+  checker:
+    build:
+      context: ../../backend
+    command: ["python", "-m", "ops.check_consistency"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://cds_app:${CDS_APP_DB_PASSWORD:-cds_app}@db:5432/${POSTGRES_DB:-cds}
+      SESSION_SECRET: restore-drill-session-secret-32-characters
+      DEV_LOGIN: "0"
+      SESSION_COOKIE_SECURE: "1"
+    depends_on:
+      verify:
+        condition: service_completed_successfully
+    restart: "no"
+
+volumes:
+  source_backups:
+    external: true
+    name: ${SOURCE_BACKUP_VOLUME:?SOURCE_BACKUP_VOLUME is required}
+  drill_pgdata:
+  drill_wal:

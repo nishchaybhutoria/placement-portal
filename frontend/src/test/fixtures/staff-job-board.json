@@ -1,0 +1,226 @@
+{
+    "job": {
+        "id": "e5d8b093-1e46-4a41-9718-2b882fe1b8f5",
+        "title": "Backend Engineer",
+        "company": "Northwind Systems",
+        "outcome": "placement",
+        "is_published": true,
+        "cancelled": false,
+        "has_rounds": true
+    },
+    "cycle": {
+        "id": "95d3965f-6fb6-4399-92cf-de4f1c34a0a6",
+        "name": "Placement 2026",
+        "kind": "placement",
+        "archived": false
+    },
+    "rounds": [
+        {
+            "id": "16abb703-0e6f-4149-92f2-01b68d76c672",
+            "ord": 1,
+            "name": "Online Assessment",
+            "finalized_at": null,
+            "finalized_by": null,
+            "actions": {
+                "finalize": {
+                    "allowed": true,
+                    "reason": null,
+                    "human": null
+                }
+            }
+        },
+        {
+            "id": "45f5be51-8b17-4d87-9607-e389d8a1646a",
+            "ord": 2,
+            "name": "Systems Interview",
+            "finalized_at": null,
+            "finalized_by": null,
+            "actions": {
+                "finalize": {
+                    "allowed": true,
+                    "reason": null,
+                    "human": null
+                }
+            }
+        },
+        {
+            "id": "a7b7e3fb-724f-4752-a2ad-7c3ac782f9f8",
+            "ord": 3,
+            "name": "Hiring Manager",
+            "finalized_at": null,
+            "finalized_by": null,
+            "actions": {
+                "finalize": {
+                    "allowed": true,
+                    "reason": null,
+                    "human": null
+                }
+            }
+        }
+    ],
+    "columns": [
+        {
+            "id": "16abb703-0e6f-4149-92f2-01b68d76c672",
+            "ord": 1,
+            "name": "Online Assessment",
+            "finalized_at": null,
+            "finalized_by": null,
+            "actions": {
+                "finalize": {
+                    "allowed": true,
+                    "reason": null,
+                    "human": null
+                }
+            },
+            "count": 1,
+            "rows": [
+                {
+                    "application_id": "abb1780c-d8bb-51ce-952a-5f93a5b3fd24",
+                    "full_name": "Bikram Singh",
+                    "roll_number": "21110002",
+                    "email": "bikram.singh@example.edu",
+                    "status": "in_progress",
+                    "round": {
+                        "id": "16abb703-0e6f-4149-92f2-01b68d76c672",
+                        "name": "Online Assessment",
+                        "ord": 1
+                    },
+                    "result": "waitlisted",
+                    "attendance": "present",
+                    "venue": "AB 1 / 101",
+                    "scheduled_at": "2026-09-15T04:00:00+00:00",
+                    "slot_is_override": true,
+                    "slot_notified_at": "2026-08-22T11:40:19.216812+00:00",
+                    "actions": {
+                        "advance": {
+                            "allowed": false,
+                            "reason": "invalid_transition",
+                            "to_status": null
+                        },
+                        "eliminate": {
+                            "allowed": true,
+                            "reason": null,
+                            "to_status": "rejected",
+                            "to_round": null
+                        },
+                        "waitlist": {
+                            "allowed": false,
+                            "reason": "duplicate_row",
+                            "to_status": null
+                        },
+                        "promote": {
+                            "allowed": true,
+                            "reason": null,
+                            "to_status": "in_progress",
+                            "to_round": "Systems Interview"
+                        },
+                        "mark_attendance": {
+                            "allowed": true,
+                            "reason": null,
+                            "human": null
+                        },
+                        "assign_venue": {
+                            "allowed": true,
+                            "reason": null,
+                            "human": null
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "45f5be51-8b17-4d87-9607-e389d8a1646a",
+            "ord": 2,
+            "name": "Systems Interview",
+            "finalized_at": null,
+            "finalized_by": null,
+            "actions": {
+                "finalize": {
+                    "allowed": true,
+                    "reason": null,
+                    "human": null
+                }
+            },
+            "count": 1,
+            "rows": [
+                {
+                    "application_id": "57adcf20-99da-5c95-87e5-7ec8a3d8fd0f",
+                    "full_name": "Asha Mehta",
+                    "roll_number": "21110001",
+                    "email": "asha.mehta@example.edu",
+                    "status": "in_progress",
+                    "round": {
+                        "id": "45f5be51-8b17-4d87-9607-e389d8a1646a",
+                        "name": "Systems Interview",
+                        "ord": 2
+                    },
+                    "result": "pending",
+                    "attendance": "pending",
+                    "venue": "AB 5 / 204",
+                    "scheduled_at": "2026-09-16T05:00:00+00:00",
+                    "slot_is_override": true,
+                    "slot_notified_at": "2026-08-22T11:40:19.268585+00:00",
+                    "actions": {
+                        "advance": {
+                            "allowed": true,
+                            "reason": null,
+                            "to_status": "in_progress",
+                            "to_round": "Hiring Manager"
+                        },
+                        "eliminate": {
+                            "allowed": true,
+                            "reason": null,
+                            "to_status": "rejected",
+                            "to_round": null
+                        },
+                        "waitlist": {
+                            "allowed": true,
+                            "reason": null,
+                            "to_status": "in_progress",
+                            "to_round": null
+                        },
+                        "promote": {
+                            "allowed": false,
+                            "reason": "invalid_transition",
+                            "to_status": null
+                        },
+                        "mark_attendance": {
+                            "allowed": true,
+                            "reason": null,
+                            "human": null
+                        },
+                        "assign_venue": {
+                            "allowed": true,
+                            "reason": null,
+                            "human": null
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "id": "a7b7e3fb-724f-4752-a2ad-7c3ac782f9f8",
+            "ord": 3,
+            "name": "Hiring Manager",
+            "finalized_at": null,
+            "finalized_by": null,
+            "actions": {
+                "finalize": {
+                    "allowed": true,
+                    "reason": null,
+                    "human": null
+                }
+            },
+            "count": 0,
+            "rows": []
+        }
+    ],
+    "unrouted": [],
+    "settled": [],
+    "counts": {
+        "total": 2,
+        "in_pipeline": 2,
+        "unrouted": 0,
+        "settled": 0
+    }
+}

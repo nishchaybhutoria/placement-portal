@@ -1,0 +1,161 @@
+rule_files:
+  - portal.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: container restart loop and OOM alerts
+    interval: 1m
+    input_series:
+      - series: 'container_start_time_seconds{container_label_com_docker_compose_project="cds-portal",container_label_com_docker_compose_service="api"}'
+        values: '100 200 300 400 400 400 400'
+      - series: 'container_oom_events_total{container_label_com_docker_compose_project="cds-portal",container_label_com_docker_compose_service="worker"}'
+        values: '0 1 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: ContainerRestartLoop
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              component: container
+              service: api
+            exp_annotations:
+              summary: A CDS container is repeatedly restarting
+              description: api restarted at least three times within 15 minutes.
+              runbook_section: observability
+      - eval_time: 2m
+        alertname: ContainerOomKilled
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              component: container
+              service: worker
+            exp_annotations:
+              summary: A CDS container was killed due to memory exhaustion
+              description: worker recorded an OOM event in the last 10 minutes.
+              runbook_section: observability
+
+  - name: PostgreSQL saturation and deadlock alerts
+    interval: 1m
+    input_series:
+      - series: 'pg_settings_max_connections{server="db:5432"}'
+        values: '100x15'
+      - series: 'pg_stat_database_numbackends{datname="cds"}'
+        values: '90x15'
+      - series: 'pg_stat_database_deadlocks{datname="cds"}'
+        values: '0 1 1 1 1 1 1'
+      - series: 'pg_stat_activity_max_tx_duration{datname="cds",state="active"}'
+        values: '400x10'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: PostgresConnectionsSaturated
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              component: postgres
+            exp_annotations:
+              summary: PostgreSQL connection utilization exceeds 85 percent
+              description: Connection utilization is 90 percent.
+              runbook_section: observability
+      - eval_time: 2m
+        alertname: PostgresDeadlocksDetected
+        exp_alerts:
+          - exp_labels:
+              datname: cds
+              severity: critical
+              component: postgres
+            exp_annotations:
+              summary: PostgreSQL deadlocks are occurring
+              description: Database cds recorded 1 deadlocks in 10 minutes.
+              runbook_section: observability
+      - eval_time: 6m
+        alertname: PostgresLongTransaction
+        exp_alerts:
+          - exp_labels:
+              datname: cds
+              severity: warning
+              component: postgres
+            exp_annotations:
+              summary: A PostgreSQL transaction has remained open for over five minutes
+              description: Database cds has a 6m 40s transaction.
+              runbook_section: observability
+
+  - name: command failure alert
+    interval: 1m
+    input_series:
+      - series: 'cds_command_executions_total{command="bulk_upsert_profiles",outcome="error",dry_run="false"}'
+        values: '0 1 1 1'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: CommandExecutionFailed
+        exp_alerts:
+          - exp_labels:
+              command: bulk_upsert_profiles
+              dry_run: "false"
+              severity: critical
+              component: executor
+              service: api
+            exp_annotations:
+              summary: A command execution failed unexpectedly
+              description: bulk_upsert_profiles (preview=false) failed 1 times in 10 minutes.
+              runbook_section: observability
+
+  - name: monitoring target and internal failure alerts
+    interval: 1m
+    input_series:
+      - series: 'up{job="loki",instance="loki:3100"}'
+        values: '0x10'
+      - series: 'prometheus_rule_evaluation_failures_total{job="prometheus",instance="prometheus:9090"}'
+        values: '0 1 1 1 1 1 1'
+      - series: 'prometheus_config_last_reload_successful{job="prometheus",instance="prometheus:9090"}'
+        values: '0x10'
+      - series: 'prometheus_notifications_dropped_total{job="prometheus",instance="prometheus:9090"}'
+        values: '0 1 1 1 1 1 1'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: ObservabilityTargetMissing
+        exp_alerts:
+          - exp_labels:
+              job: loki
+              instance: loki:3100
+              severity: critical
+              component: observability
+            exp_annotations:
+              summary: A monitoring component is unavailable
+              description: Prometheus cannot scrape loki at loki:3100.
+              runbook_section: observability
+      - eval_time: 2m
+        alertname: PrometheusRuleEvaluationFailures
+        exp_alerts:
+          - exp_labels:
+              job: prometheus
+              instance: prometheus:9090
+              severity: critical
+              component: prometheus
+            exp_annotations:
+              summary: Prometheus is failing to evaluate alert rules
+              description: Prometheus recorded 1 rule evaluation failures in 10 minutes.
+              runbook_section: observability
+      - eval_time: 2m
+        alertname: PrometheusAlertDeliveryFailing
+        exp_alerts:
+          - exp_labels:
+              job: prometheus
+              instance: prometheus:9090
+              severity: critical
+              component: alerting
+            exp_annotations:
+              summary: Prometheus cannot deliver alerts to Alertmanager
+              runbook_section: observability
+      - eval_time: 6m
+        alertname: MonitoringConfigurationReloadFailed
+        exp_alerts:
+          - exp_labels:
+              job: prometheus
+              instance: prometheus:9090
+              severity: critical
+              component: observability
+            exp_annotations:
+              summary: A monitoring component rejected its configuration
+              description: prometheus at prometheus:9090 failed its last configuration reload.
+              runbook_section: observability

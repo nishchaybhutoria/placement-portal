@@ -1,0 +1,145 @@
+{
+    "cycle": {
+        "id": "95d3965f-6fb6-4399-92cf-de4f1c34a0a6",
+        "name": "Placement 2026",
+        "kind": "placement"
+    },
+    "job": {
+        "id": "e5d8b093-1e46-4a41-9718-2b882fe1b8f5",
+        "cycle_id": "95d3965f-6fb6-4399-92cf-de4f1c34a0a6",
+        "company": {
+            "id": "237db3b7-f2be-4b74-ac55-e901f0c026b4",
+            "name": "Northwind Systems"
+        },
+        "outcome": "placement",
+        "title": "Backend Engineer",
+        "description": "Build and operate the storage layer: distributed systems work in Go and Rust, with real on-call ownership from month three.",
+        "location": "Bengaluru",
+        "sector": "Technology",
+        "ctc_lpa": "24.00",
+        "ctc_breakdown": null,
+        "stipend_month": null,
+        "application_deadline": "2026-09-11T14:35:40.163134+00:00",
+        "offer_acceptance_deadline": null,
+        "is_published": true,
+        "published_at": "2026-08-21T14:35:40.314688+00:00",
+        "cancelled_at": null,
+        "eligibility_summary": "Eligible when CPI at least 8.0 and active backlogs at most 0 and primary branch one of Computer Science and Engineering, Electrical Engineering."
+    },
+    "compensation": {
+        "ctc_lpa": "24.00",
+        "source": "program",
+        "ctc_breakdown": null,
+        "stipend_month": null
+    },
+    "eligibility": {
+        "eligible": false,
+        "summary": "Eligible when CPI at least 8.0 and active backlogs at most 0 and primary branch one of Computer Science and Engineering, Electrical Engineering.",
+        "reasons": [
+            {
+                "code": "duplicate_application",
+                "human": "You have already applied to this job.",
+                "path": "application"
+            },
+            {
+                "code": "penalty_active",
+                "human": "A disciplinary penalty is blocking your applications in this cycle.",
+                "path": "penalty"
+            }
+        ]
+    },
+    "rounds": [
+        {
+            "round_id": "16abb703-0e6f-4149-92f2-01b68d76c672",
+            "round_type_id": "8f466160-583c-47d7-9b06-d02e7f0ae0ca",
+            "round_type": "Aptitude Test",
+            "name": "Online Assessment",
+            "ord": 1,
+            "venue": "Remote",
+            "scheduled_at": null,
+            "duration_min": 90,
+            "instructions": "Two hours, camera on, no external resources."
+        },
+        {
+            "round_id": "45f5be51-8b17-4d87-9607-e389d8a1646a",
+            "round_type_id": "5c81d198-814d-4627-b4ce-7620d12a5ad0",
+            "round_type": "Technical Interview",
+            "name": "Systems Interview",
+            "ord": 2,
+            "venue": "AB 5 / 201",
+            "scheduled_at": null,
+            "duration_min": 60,
+            "instructions": null
+        },
+        {
+            "round_id": "a7b7e3fb-724f-4752-a2ad-7c3ac782f9f8",
+            "round_type_id": "4e379f4c-4b17-4272-a304-221251ea7f2a",
+            "round_type": "HR Interview",
+            "name": "Hiring Manager",
+            "ord": 3,
+            "venue": "AB 5 / 204",
+            "scheduled_at": null,
+            "duration_min": 45,
+            "instructions": null
+        }
+    ],
+    "apply_form": {
+        "questions": [
+            {
+                "question_id": "c38892e3-6fb3-4206-8c0d-5a9c839803d2",
+                "text": "Which office would you prefer?",
+                "qtype": "single",
+                "required": true,
+                "ord": 1,
+                "options": [
+                    "Bengaluru",
+                    "Pune",
+                    "Hyderabad"
+                ]
+            },
+            {
+                "question_id": "3713c927-8c29-4cc4-a43c-da88d56d86c8",
+                "text": "Which of these have you worked with?",
+                "qtype": "multi",
+                "required": false,
+                "ord": 2,
+                "options": [
+                    "Go",
+                    "Rust",
+                    "Kubernetes",
+                    "Postgres"
+                ]
+            },
+            {
+                "question_id": "a1fcfc45-c561-4a8e-bf41-0bc885c77daa",
+                "text": "Describe a system you have operated in production.",
+                "qtype": "longtext",
+                "required": true,
+                "ord": 3,
+                "options": []
+            },
+            {
+                "question_id": "1b71e31c-3528-43f8-89d6-fddc2cae3b5a",
+                "text": "Link to your strongest project",
+                "qtype": "url",
+                "required": false,
+                "ord": 4,
+                "options": []
+            }
+        ],
+        "resumes": [
+            {
+                "id": "11111111-1111-4111-8111-111111111111",
+                "label": "Default resume",
+                "drive_url": "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view",
+                "is_default": true,
+                "is_cycle_default": true
+            }
+        ]
+    },
+    "application": {
+        "application_id": "57adcf20-99da-5c95-87e5-7ec8a3d8fd0f",
+        "status": "in_progress"
+    },
+    "enrollment_id": "b4a59624-14b7-44be-8bd6-b2255d02e971"
+}

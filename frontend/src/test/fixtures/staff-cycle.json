@@ -1,0 +1,79 @@
+{
+    "cycle": {
+        "id": "95d3965f-6fb6-4399-92cf-de4f1c34a0a6",
+        "name": "Placement 2026",
+        "kind": "placement",
+        "description": "Final-year placement cycle for the 2026 graduating batch.",
+        "starts_on": null,
+        "ends_on": null,
+        "registration_opens_at": "2026-08-07T14:35:39.431503+00:00",
+        "registration_closes_at": "2026-10-05T14:35:39.431503+00:00",
+        "is_active": true,
+        "archived_at": null
+    },
+    "policy": {
+        "membership_requires_approval": {
+            "value": true,
+            "source": "cycle_policy"
+        },
+        "join_rule": {
+            "value": null,
+            "source": "cycle_policy"
+        },
+        "max_accepted_offers": {
+            "value": 1,
+            "source": "cycle_policy"
+        },
+        "penalty_blocks_applications": {
+            "value": true,
+            "source": "cycle_policy"
+        },
+        "allow_withdrawal_after_deadline": {
+            "value": false,
+            "source": "cycle_policy"
+        },
+        "allow_edit_after_deadline": {
+            "value": false,
+            "source": "cycle_policy"
+        },
+        "strike_on_absence": {
+            "value": true,
+            "source": "cycle_policy"
+        },
+        "offer_expiry_behavior": {
+            "value": "auto_decline",
+            "source": "cycle_policy"
+        },
+        "deadline_reminder_hours": {
+            "value": 6,
+            "source": "cycle_policy"
+        },
+        "round_reminder_hours": {
+            "value": 24,
+            "source": "cycle_policy"
+        }
+    },
+    "memberships": {
+        "pending": 2,
+        "active": 4
+    },
+    "pending_approvals": 2,
+    "coordinators": [
+        {
+            "user_id": "9da79f09-9b9d-425d-b457-99de7a9d754d",
+            "email": "coordinator@example.edu",
+            "full_name": "Priya Coordinator"
+        }
+    ],
+    "applications": {
+        "in_progress": 2,
+        "rejected": 1
+    },
+    "actions": {
+        "manage": {
+            "allowed": true,
+            "reason": null,
+            "human": null
+        }
+    }
+}

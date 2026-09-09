@@ -1,0 +1,70 @@
+{
+  "actions": {
+    "extend": {
+      "allowed": true,
+      "human": null,
+      "reason": null
+    },
+    "record_open_outcome": {
+      "allowed": false,
+      "human": "Staff-recorded outcomes are only available for open-cycle jobs",
+      "reason": "invalid_transition"
+    }
+  },
+  "applications": [
+    {
+      "actions": {
+        "extend": {
+          "allowed": true,
+          "human": null,
+          "reason": null
+        },
+        "re_extend": {
+          "allowed": false,
+          "human": "Only a declined or terminated offer can be re-extended",
+          "reason": "invalid_transition"
+        },
+        "terminate": {
+          "allowed": false,
+          "human": "There is no current offered or accepted offer",
+          "reason": "invalid_transition"
+        }
+      },
+      "application_id": "abaf73ee-63a2-4276-83d3-450c49e376bf",
+      "current_round_id": "76e40c5d-0eca-421b-8421-ccdec4460eb8",
+      "email": "asha@example.edu",
+      "enrollment_id": "810dcd00-c4ed-41d0-83e3-e949908775f6",
+      "full_name": "Asha Screen",
+      "offer": null,
+      "offer_count": 0,
+      "restoration_candidates": [],
+      "roll_number": "c1d3dfdb",
+      "status": "in_progress"
+    }
+  ],
+  "counts": {
+    "accepted": 0,
+    "auto_withdrawn": 0,
+    "declined": 0,
+    "in_progress": 1,
+    "offer_terminated": 0,
+    "offered": 0,
+    "pending_offer": 0,
+    "rejected": 0,
+    "withdrawn": 0
+  },
+  "cycle": {
+    "archived": false,
+    "id": "22baa4d6-4df6-4224-822d-a494b1ae0d14",
+    "kind": "placement",
+    "name": "Placement 2026"
+  },
+  "job": {
+    "cancelled": false,
+    "company": "Acme Corp",
+    "id": "e9bb93a2-f93b-4983-aa33-2e4dec7d2604",
+    "offer_acceptance_deadline": null,
+    "outcome": "placement",
+    "title": "Backend Engineer"
+  }
+}

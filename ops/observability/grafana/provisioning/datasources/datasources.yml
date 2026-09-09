@@ -1,0 +1,27 @@
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+
+  - name: Loki
+    uid: loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      derivedFields:
+        - name: Request ID
+          matcherRegex: '"request_id":"([0-9a-f-]{36})"'
+          datasourceUid: loki
+          url: '{compose_project="cds-portal"} | json | request_id="$${__value.raw}"'
+        - name: Command execution ID
+          matcherRegex: '"command_execution_id":"([0-9a-f-]{36})"'
+          datasourceUid: loki
+          url: '{compose_project="cds-portal"} | json | command_execution_id="$${__value.raw}"'

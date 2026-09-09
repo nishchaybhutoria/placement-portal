@@ -1,0 +1,24 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: ses-relay
+  group_by: [alertname, component, severity]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - receiver: ses-relay
+      matchers:
+        - severity="critical"
+      repeat_interval: 30m
+
+receivers:
+  - name: ses-relay
+    webhook_configs:
+      - url: http://alert-relay:8001/alerts
+        send_resolved: true
+        http_config:
+          authorization:
+            type: Bearer
+            credentials_file: /run/secrets/alert_webhook_token

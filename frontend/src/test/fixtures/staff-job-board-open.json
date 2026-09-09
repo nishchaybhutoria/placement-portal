@@ -1,0 +1,122 @@
+{
+    "job": {
+        "id": "f43c9eb3-cc83-47ae-9e20-b76501a1e2ab",
+        "title": "Campus Ambassador",
+        "company": "Meridian Consulting",
+        "outcome": "internship",
+        "is_published": true,
+        "cancelled": false,
+        "has_rounds": false
+    },
+    "cycle": {
+        "id": "462705e4-e0cd-42d9-9b8f-9042a3535917",
+        "name": "Open Opportunities",
+        "kind": "open",
+        "archived": false
+    },
+    "rounds": [],
+    "columns": [],
+    "unrouted": [
+        {
+            "application_id": "540de03a-6972-56b3-9ff1-c4bd66f53961",
+            "full_name": "Chitra Rao",
+            "roll_number": "21110003",
+            "email": "chitra.rao@example.edu",
+            "status": "in_progress",
+            "round": null,
+            "result": null,
+            "attendance": null,
+            "venue": null,
+            "scheduled_at": null,
+            "slot_is_override": false,
+            "slot_notified_at": null,
+            "actions": {
+                "advance": {
+                    "allowed": false,
+                    "reason": "invalid_transition",
+                    "to_status": null
+                },
+                "eliminate": {
+                    "allowed": true,
+                    "reason": null,
+                    "to_status": "rejected",
+                    "to_round": null
+                },
+                "waitlist": {
+                    "allowed": false,
+                    "reason": "invalid_transition",
+                    "to_status": null
+                },
+                "promote": {
+                    "allowed": false,
+                    "reason": "invalid_transition",
+                    "to_status": null
+                },
+                "mark_attendance": {
+                    "allowed": false,
+                    "reason": "invalid_transition",
+                    "human": "Not sitting in this round"
+                },
+                "assign_venue": {
+                    "allowed": false,
+                    "reason": "invalid_transition",
+                    "human": "Not sitting in this round"
+                }
+            }
+        }
+    ],
+    "settled": [
+        {
+            "application_id": "b8d6fd18-0614-5eb5-a59a-8eadb8d8281e",
+            "full_name": "Asha Mehta",
+            "roll_number": "21110001",
+            "email": "asha.mehta@example.edu",
+            "status": "withdrawn",
+            "round": null,
+            "result": null,
+            "attendance": null,
+            "venue": null,
+            "scheduled_at": null,
+            "slot_is_override": false,
+            "slot_notified_at": null,
+            "actions": {
+                "advance": {
+                    "allowed": false,
+                    "reason": "invalid_transition",
+                    "to_status": null
+                },
+                "eliminate": {
+                    "allowed": false,
+                    "reason": "invalid_transition",
+                    "to_status": null
+                },
+                "waitlist": {
+                    "allowed": false,
+                    "reason": "invalid_transition",
+                    "to_status": null
+                },
+                "promote": {
+                    "allowed": false,
+                    "reason": "invalid_transition",
+                    "to_status": null
+                },
+                "mark_attendance": {
+                    "allowed": false,
+                    "reason": "invalid_transition",
+                    "human": "Not sitting in this round"
+                },
+                "assign_venue": {
+                    "allowed": false,
+                    "reason": "invalid_transition",
+                    "human": "Not sitting in this round"
+                }
+            }
+        }
+    ],
+    "counts": {
+        "total": 2,
+        "in_pipeline": 0,
+        "unrouted": 1,
+        "settled": 1
+    }
+}

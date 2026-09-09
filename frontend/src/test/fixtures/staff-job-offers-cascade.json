@@ -1,0 +1,93 @@
+{
+  "actions": {
+    "extend": {
+      "allowed": false,
+      "human": null,
+      "reason": null
+    },
+    "record_open_outcome": {
+      "allowed": false,
+      "human": "Staff-recorded outcomes are only available for open-cycle jobs",
+      "reason": "invalid_transition"
+    }
+  },
+  "applications": [
+    {
+      "actions": {
+        "extend": {
+          "allowed": false,
+          "human": "This application is not extendable",
+          "reason": "invalid_transition"
+        },
+        "re_extend": {
+          "allowed": false,
+          "human": "Only a declined or terminated offer can be re-extended",
+          "reason": "invalid_transition"
+        },
+        "terminate": {
+          "allowed": true,
+          "human": null,
+          "reason": null
+        }
+      },
+      "application_id": "1689ccf2-b04f-440e-81e9-8547b4a2e11e",
+      "current_round_id": null,
+      "email": "asha@example.edu",
+      "enrollment_id": "086380b3-c179-41ca-8b92-e5e5c562880c",
+      "full_name": "Asha Screen",
+      "offer": {
+        "deadline_at": "2026-10-01T19:07:06.064312+00:00",
+        "id": "19149e9a-a909-4e99-b857-7ef56445aefc",
+        "response": "accepted",
+        "terminated": false
+      },
+      "offer_count": 1,
+      "restoration_candidates": [
+        {
+          "application_id": "0efa28e1-2b2e-4e17-9cde-cb0cab347876",
+          "blocked_reason": null,
+          "can_restore": true,
+          "company": "Acme Corp",
+          "current_status": "auto_withdrawn",
+          "cycle": "Placement 2026",
+          "cycle_id": "d89a8a75-e827-4d4e-9234-a151d99667b7",
+          "deadline_at": null,
+          "deadline_editable": false,
+          "job": "Backend Engineer",
+          "job_id": "c1b5f482-67af-4228-8fc6-53f0a039687f",
+          "requires_fresh_offer": false,
+          "restore_status": "in_progress",
+          "selected": false,
+          "target_round_id": "74745f73-8eca-410d-83a0-68d4956322b4"
+        }
+      ],
+      "roll_number": "8971b78d",
+      "status": "accepted"
+    }
+  ],
+  "counts": {
+    "accepted": 1,
+    "auto_withdrawn": 0,
+    "declined": 0,
+    "in_progress": 0,
+    "offer_terminated": 0,
+    "offered": 0,
+    "pending_offer": 0,
+    "rejected": 0,
+    "withdrawn": 0
+  },
+  "cycle": {
+    "archived": false,
+    "id": "d89a8a75-e827-4d4e-9234-a151d99667b7",
+    "kind": "placement",
+    "name": "Placement 2026"
+  },
+  "job": {
+    "cancelled": false,
+    "company": "Acme Corp",
+    "id": "0a7703f6-5a5e-430f-974c-eeaac818efc9",
+    "offer_acceptance_deadline": "2026-10-01T19:07:06.064312+00:00",
+    "outcome": "placement",
+    "title": "Offer Fixture"
+  }
+}

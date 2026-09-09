@@ -1,0 +1,295 @@
+groups:
+  - name: cds-availability
+    rules:
+      - alert: PortalProbeFailed
+        expr: probe_success{job="blackbox"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: edge
+        annotations:
+          summary: CDS Portal HTTPS probe is failing
+          description: "The probe for {{ $labels.instance }} has failed for two minutes."
+          runbook_section: observability
+
+      - alert: ApiTargetMissing
+        expr: up{job="cds-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: Prometheus cannot scrape the CDS API
+
+      - alert: WorkerTargetMissing
+        expr: up{job="cds-worker"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: worker
+        annotations:
+          summary: Prometheus cannot scrape the CDS worker
+
+      - alert: PostgresExporterMissing
+        expr: up{job="postgres"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: postgres
+        annotations:
+          summary: PostgreSQL monitoring is unavailable
+
+      - alert: BackupTargetMissing
+        expr: up{job="backup"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: backup
+        annotations:
+          summary: Prometheus cannot scrape backup health metrics
+          runbook_section: backups
+
+      - alert: ObservabilityTargetMissing
+        expr: up{job=~"prometheus|alertmanager|loki|alloy|grafana|node|containers|blackbox-exporter"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: observability
+        annotations:
+          summary: A monitoring component is unavailable
+          description: "Prometheus cannot scrape {{ $labels.job }} at {{ $labels.instance }}."
+          runbook_section: observability
+
+      - alert: CertificateExpiresSoon
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 45
+        for: 1h
+        labels:
+          severity: warning
+          component: tls
+        annotations:
+          summary: CDS Portal TLS certificate expires within 45 days
+          description: "Certificate for {{ $labels.instance }} has {{ $value | humanize }} days left."
+
+      - alert: CertificateExpiresCritical
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 14
+        for: 15m
+        labels:
+          severity: critical
+          component: tls
+        annotations:
+          summary: CDS Portal TLS certificate expires within 14 days
+
+  - name: cds-host
+    rules:
+      - alert: HostDiskSpaceLow
+        expr: 100 * node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} < 20
+        for: 15m
+        labels:
+          severity: warning
+          component: host
+        annotations:
+          summary: Host filesystem has less than 20 percent free space
+          description: "{{ $labels.mountpoint }} has {{ $value | humanize }} percent free."
+
+      - alert: HostDiskSpaceCritical
+        expr: 100 * node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay"} < 10
+        for: 5m
+        labels:
+          severity: critical
+          component: host
+        annotations:
+          summary: Host filesystem has less than 10 percent free space
+
+      - alert: HostMemoryPressure
+        expr: 100 * node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 10
+        for: 10m
+        labels:
+          severity: warning
+          component: host
+        annotations:
+          summary: Host has less than 10 percent available memory
+
+  - name: cds-containers
+    rules:
+      - alert: ContainerRestartLoop
+        expr: sum by (service) (label_replace(changes(container_start_time_seconds{container_label_com_docker_compose_project=~"cds-portal|cds-observability",container_label_com_docker_compose_service!=""}[15m]), "service", "$1", "container_label_com_docker_compose_service", "(.+)")) >= 3
+        for: 2m
+        labels:
+          severity: critical
+          component: container
+        annotations:
+          summary: A CDS container is repeatedly restarting
+          description: "{{ $labels.service }} restarted at least three times within 15 minutes."
+          runbook_section: observability
+
+      - alert: ContainerOomKilled
+        expr: sum by (service) (label_replace(increase(container_oom_events_total{container_label_com_docker_compose_project=~"cds-portal|cds-observability",container_label_com_docker_compose_service!=""}[10m]), "service", "$1", "container_label_com_docker_compose_service", "(.+)")) > 0
+        labels:
+          severity: critical
+          component: container
+        annotations:
+          summary: A CDS container was killed due to memory exhaustion
+          description: "{{ $labels.service }} recorded an OOM event in the last 10 minutes."
+          runbook_section: observability
+
+  - name: cds-postgresql
+    rules:
+      - alert: PostgresConnectionsSaturated
+        expr: 100 * sum(pg_stat_database_numbackends) / scalar(max(pg_settings_max_connections)) > 85
+        for: 10m
+        labels:
+          severity: critical
+          component: postgres
+        annotations:
+          summary: PostgreSQL connection utilization exceeds 85 percent
+          description: "Connection utilization is {{ $value | humanize }} percent."
+          runbook_section: observability
+
+      - alert: PostgresDeadlocksDetected
+        expr: sum by (datname) (increase(pg_stat_database_deadlocks{datname!~"template.*"}[10m])) > 0
+        labels:
+          severity: critical
+          component: postgres
+        annotations:
+          summary: PostgreSQL deadlocks are occurring
+          description: "Database {{ $labels.datname }} recorded {{ $value | humanize }} deadlocks in 10 minutes."
+          runbook_section: observability
+
+      - alert: PostgresLongTransaction
+        expr: max by (datname) (pg_stat_activity_max_tx_duration{datname!="",state=~"active|idle in transaction"}) > 300
+        for: 5m
+        labels:
+          severity: warning
+          component: postgres
+        annotations:
+          summary: A PostgreSQL transaction has remained open for over five minutes
+          description: "Database {{ $labels.datname }} has a {{ $value | humanizeDuration }} transaction."
+          runbook_section: observability
+
+  - name: cds-backup
+    rules:
+      - alert: BackupRemoteDisabled
+        expr: cds_backup_remote_enabled == 0
+        for: 15m
+        labels:
+          severity: critical
+          component: backup
+        annotations:
+          summary: Remote backup copying is disabled
+          runbook_section: backups
+
+      - alert: BackupAttemptFailing
+        expr: cds_backup_consecutive_failures > 0
+        for: 5m
+        labels:
+          severity: critical
+          component: backup
+        annotations:
+          summary: A CDS backup operation is failing
+          description: "{{ $labels.kind }} has {{ $value | humanize }} consecutive failed attempts."
+          runbook_section: backups
+
+      - alert: BackupWalSyncStale
+        expr: (time() - cds_backup_last_success_timestamp_seconds{kind="wal_sync"} > 900) and on() (cds_backup_remote_enabled == 1)
+        for: 10m
+        labels:
+          severity: critical
+          component: backup
+        annotations:
+          summary: Archived WAL has not synced successfully for 15 minutes
+          runbook_section: backups
+
+      - alert: BackupLogicalDumpStale
+        expr: (time() - cds_backup_last_success_timestamp_seconds{kind="logical_dump"} > 93600) and on() (cds_backup_remote_enabled == 1)
+        for: 30m
+        labels:
+          severity: warning
+          component: backup
+        annotations:
+          summary: The daily logical backup is stale
+          runbook_section: backups
+
+      - alert: BackupBaseBackupStale
+        expr: (time() - cds_backup_last_success_timestamp_seconds{kind="base_backup"} > 129600) and on() (cds_backup_remote_enabled == 1)
+        for: 1h
+        labels:
+          severity: critical
+          component: backup
+        annotations:
+          summary: The daily physical base backup is stale
+          runbook_section: backups
+
+      - alert: BackupBaseRedundancyLow
+        expr: cds_backup_base_archives < 2
+        for: 24h
+        labels:
+          severity: warning
+          component: backup
+        annotations:
+          summary: Fewer than two local base backups are available
+          description: WAL retention remains conservative until two base backups exist.
+          runbook_section: backups
+
+  - name: cds-api
+    rules:
+      - alert: ApiServerErrors
+        expr: sum(rate(cds_http_requests_total{status_class="5xx"}[5m])) / clamp_min(sum(rate(cds_http_requests_total[5m])), 0.001) > 0.05
+        for: 10m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: More than five percent of API requests are failing
+
+      - alert: ApiLatencyHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(cds_http_request_duration_seconds_bucket[10m]))) > 1.5
+        for: 15m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: API p95 latency exceeds 1.5 seconds
+
+      - alert: CommandExecutionFailed
+        expr: sum by (command, dry_run) (increase(cds_command_executions_total{outcome="error"}[10m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: executor
+          service: api
+        annotations:
+          summary: A command execution failed unexpectedly
+          description: "{{ $labels.command }} (preview={{ $labels.dry_run }}) failed {{ $value | humanize }} times in 10 minutes."
+          runbook_section: observability
+
+  - name: cds-monitoring
+    rules:
+      - alert: PrometheusRuleEvaluationFailures
+        expr: increase(prometheus_rule_evaluation_failures_total[10m]) > 0
+        labels:
+          severity: critical
+          component: prometheus
+        annotations:
+          summary: Prometheus is failing to evaluate alert rules
+          description: "Prometheus recorded {{ $value | humanize }} rule evaluation failures in 10 minutes."
+          runbook_section: observability
+
+      - alert: PrometheusAlertDeliveryFailing
+        expr: increase(prometheus_notifications_dropped_total[10m]) > 0
+        labels:
+          severity: critical
+          component: alerting
+        annotations:
+          summary: Prometheus cannot deliver alerts to Alertmanager
+          runbook_section: observability
+
+      - alert: MonitoringConfigurationReloadFailed
+        expr: prometheus_config_last_reload_successful == 0 or alertmanager_config_last_reload_successful == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: observability
+        annotations:
+          summary: A monitoring component rejected its configuration
+          description: "{{ $labels.job }} at {{ $labels.instance }} failed its last configuration reload."
+          runbook_section: observability

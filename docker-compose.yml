@@ -1,0 +1,450 @@
+name: ${COMPOSE_PROJECT_NAME:-cds-portal}
+
+x-app-environment: &app-environment
+  DATABASE_URL: postgresql+asyncpg://cds_app:${CDS_APP_DB_PASSWORD:-cds_app}@db:5432/${POSTGRES_DB:-cds}
+  PROCRASTINATE_DATABASE_URL: postgresql://cds_app:${CDS_APP_DB_PASSWORD:-cds_app}@db:5432/${POSTGRES_DB:-cds}
+  SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be at least 32 characters}
+  SESSION_COOKIE_SECURE: ${SESSION_COOKIE_SECURE:-1}
+  GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+  GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+  ALLOWED_DOMAIN: ${ALLOWED_DOMAIN:-example.edu}
+  DEV_LOGIN: ${DEV_LOGIN:-0}
+  BASE_URL: ${BASE_URL:-https://localhost}
+  SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@example.edu}
+  NOTIFICATION_BACKEND: ${NOTIFICATION_BACKEND:-console}
+  DEV_EMAIL_OUTPUT: ${DEV_EMAIL_OUTPUT:-0}
+  SES_REGION: ${SES_REGION:-ap-south-1}
+  SES_ACCESS_KEY_ID: ${SES_ACCESS_KEY_ID:-}
+  SES_SECRET_ACCESS_KEY: ${SES_SECRET_ACCESS_KEY:-}
+  SES_SENDER: ${SES_SENDER:-}
+  SES_REPLY_TO: ${SES_REPLY_TO:-}
+  APP_ENV: ${APP_ENV:-production}
+  RELEASE: ${RELEASE:-unknown}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  db:
+    image: postgres:16
+    entrypoint: ["/bin/sh", "/opt/cds/postgres-entrypoint.sh"]
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_timeout=300s
+      - -c
+      - archive_command=/opt/cds/archive-wal %p %f
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cds}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cds}
+      POSTGRES_DB: ${POSTGRES_DB:-cds}
+      POSTGRES_MONITOR_PASSWORD: ${POSTGRES_MONITOR_PASSWORD:-cds_monitor}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    networks:
+      - default
+      - observability
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - wal_archive:/wal_archive
+      - ./ops/postgres/entrypoint.sh:/opt/cds/postgres-entrypoint.sh:ro
+      - ./ops/postgres/archive-wal.sh:/opt/cds/archive-wal:ro
+      - ./ops/postgres/init-replication.sh:/docker-entrypoint-initdb.d/10-replication.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    logging: *default-logging
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: ./backend
+    command:
+      - /bin/sh
+      - -ec
+      - python -m app.queue_schema && alembic upgrade head && alembic check
+    environment:
+      MIGRATION_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-cds}:${POSTGRES_PASSWORD:-cds}@db:5432/${POSTGRES_DB:-cds}
+      QUEUE_SCHEMA_DATABASE_URL: postgresql://${POSTGRES_USER:-cds}:${POSTGRES_PASSWORD:-cds}@db:5432/${POSTGRES_DB:-cds}
+      PROCRASTINATE_DATABASE_URL: postgresql://cds_app:${CDS_APP_DB_PASSWORD:-cds_app}@db:5432/${POSTGRES_DB:-cds}
+      CDS_APP_DB_PASSWORD: ${CDS_APP_DB_PASSWORD:-cds_app}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be at least 32 characters}
+    depends_on:
+      db:
+        condition: service_healthy
+    logging: *default-logging
+    restart: "no"
+
+  api:
+    build:
+      context: ./backend
+    command:
+      - /bin/sh
+      - -ec
+      - rm -rf /tmp/prometheus/* && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2 --no-access-log
+    environment:
+      <<: *app-environment
+      SERVICE_NAME: api
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus
+    tmpfs:
+      - /tmp/prometheus:mode=1777
+    networks:
+      - default
+      - observability
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz')
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    init: true
+    logging: *default-logging
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./backend
+    command:
+      - python
+      - -m
+      - procrastinate
+      - --app
+      - app.worker.procrastinate_app
+      - worker
+      - --wait
+      - --concurrency
+      - "${WORKER_CONCURRENCY:-4}"
+    environment:
+      <<: *app-environment
+      SERVICE_NAME: worker
+      METRICS_PORT: "8002"
+    networks:
+      - default
+      - observability
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -m
+        - procrastinate
+        - --app
+        - app.worker.procrastinate_app
+        - healthchecks
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    init: true
+    logging: *default-logging
+    restart: unless-stopped
+
+  alert-relay:
+    build:
+      context: ./backend
+    # The relay alone reads a host-mounted mode-0600 webhook token. API,
+    # worker, and migration containers retain the image's unprivileged user.
+    user: "0:0"
+    command: ["uvicorn", "app.alert_relay:app", "--host", "0.0.0.0", "--port", "8001", "--no-access-log"]
+    environment:
+      SERVICE_NAME: alert-relay
+      APP_ENV: ${APP_ENV:-production}
+      RELEASE: ${RELEASE:-unknown}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SES_REGION: ${SES_REGION:-ap-south-1}
+      SES_ACCESS_KEY_ID: ${SES_ACCESS_KEY_ID:-}
+      SES_SECRET_ACCESS_KEY: ${SES_SECRET_ACCESS_KEY:-}
+      SES_SENDER: ${SES_SENDER:-}
+      SES_REPLY_TO: ${SES_REPLY_TO:-}
+      ALERT_RECIPIENT: ${ALERT_RECIPIENT:-}
+      ALERT_WEBHOOK_TOKEN_FILE: /run/secrets/alert_webhook_token
+    volumes:
+      - ${ALERT_SECRETS_DIR:-/home/cdsuser/cds-secrets/alertmanager}/alert_webhook_token:/run/secrets/alert_webhook_token:ro,Z
+    networks:
+      - observability
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/healthz')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    init: true
+    logging: *default-logging
+    restart: unless-stopped
+
+  backup:
+    build:
+      context: ./ops/backup
+    environment:
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:-cds}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-cds}
+      PGDATABASE: ${POSTGRES_DB:-cds}
+      RCLONE_ROOT: ${RCLONE_ROOT:-gdrive:cds}
+      RCLONE_CONFIG_GDRIVE_TYPE: ${RCLONE_CONFIG_GDRIVE_TYPE:-drive}
+      RCLONE_CONFIG_GDRIVE_SCOPE: ${RCLONE_CONFIG_GDRIVE_SCOPE:-drive}
+      RCLONE_CONFIG_GDRIVE_ROOT_FOLDER_ID: ${RCLONE_CONFIG_GDRIVE_ROOT_FOLDER_ID:-}
+      RCLONE_CONFIG_GDRIVE_TOKEN: ${RCLONE_CONFIG_GDRIVE_TOKEN:-}
+      RCLONE_CONFIG_GDRIVE_SERVICE_ACCOUNT_CREDENTIALS: ${RCLONE_CONFIG_GDRIVE_SERVICE_ACCOUNT_CREDENTIALS:-}
+      BACKUP_REMOTE_ENABLED: ${BACKUP_REMOTE_ENABLED:-1}
+      DUMP_RETENTION_DAYS: ${DUMP_RETENTION_DAYS:-7}
+      BASE_RETENTION_COUNT: ${BASE_RETENTION_COUNT:-7}
+      TZ: UTC
+    networks:
+      - default
+      - observability
+    volumes:
+      - wal_archive:/wal_archive
+      - backup_cache:/backups
+      - rclone_config:/config/rclone
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /opt/backup/bin/healthcheck && wget --quiet --spider http://127.0.0.1:9100/metrics
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *default-logging
+    restart: unless-stopped
+
+  caddy:
+    build:
+      context: .
+      dockerfile: ops/caddy/Dockerfile
+    environment:
+      DOMAIN: ${DOMAIN:-cdsportal.example.edu}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+      - ${TLS_DIR:-/home/cdsuser/cds-secrets/tls}:/etc/caddy/tls:ro,Z
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *default-logging
+    restart: unless-stopped
+
+  test-db:
+    image: postgres:16
+    profiles: ["test"]
+    environment:
+      POSTGRES_USER: cds
+      POSTGRES_PASSWORD: cds
+      POSTGRES_DB: ${POSTGRES_TEST_DB:-cds_test}
+    ports:
+      - "127.0.0.1:${POSTGRES_TEST_PORT:-5433}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    logging: *default-logging
+    restart: "no"
+
+  e2e-db:
+    image: postgres:16
+    profiles: ["e2e"]
+    environment:
+      POSTGRES_USER: cds
+      POSTGRES_PASSWORD: cds
+      POSTGRES_DB: cds_e2e
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cds -d cds_e2e"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    logging: *default-logging
+    restart: "no"
+
+  e2e-migrate:
+    build:
+      context: ./backend
+    profiles: ["e2e"]
+    command:
+      - /bin/sh
+      - -ec
+      - python -m app.queue_schema && alembic upgrade head && alembic check
+    environment:
+      MIGRATION_DATABASE_URL: postgresql+asyncpg://cds:cds@e2e-db:5432/cds_e2e
+      QUEUE_SCHEMA_DATABASE_URL: postgresql://cds:cds@e2e-db:5432/cds_e2e
+      PROCRASTINATE_DATABASE_URL: postgresql://cds_app:cds_app@e2e-db:5432/cds_e2e
+      CDS_APP_DB_PASSWORD: cds_app
+      SESSION_SECRET: cds-e2e-suite-session-secret-32-chars
+    depends_on:
+      e2e-db:
+        condition: service_healthy
+    logging: *default-logging
+    restart: "no"
+
+  e2e-seed:
+    build:
+      context: ./backend
+    profiles: ["e2e"]
+    command:
+      - /bin/sh
+      - -ec
+      - ${E2E_SEED_COMMAND:-python -m app.e2e_seed}
+    environment:
+      DATABASE_URL: postgresql+asyncpg://cds_app:cds_app@e2e-db:5432/cds_e2e
+      PROCRASTINATE_DATABASE_URL: postgresql://cds_app:cds_app@e2e-db:5432/cds_e2e
+      SESSION_SECRET: cds-e2e-suite-session-secret-32-chars
+      SESSION_COOKIE_SECURE: "0"
+      DEV_LOGIN: "1"
+      ALLOWED_DOMAIN: example.edu
+      BASE_URL: http://e2e-web:4173
+      SEED_ADMIN_EMAIL: admin@example.edu
+      NOTIFICATION_BACKEND: console
+    depends_on:
+      e2e-migrate:
+        condition: service_completed_successfully
+    logging: *default-logging
+    restart: "no"
+
+  e2e-api:
+    build:
+      context: ./backend
+    profiles: ["e2e"]
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://cds_app:cds_app@e2e-db:5432/cds_e2e
+      PROCRASTINATE_DATABASE_URL: postgresql://cds_app:cds_app@e2e-db:5432/cds_e2e
+      SESSION_SECRET: cds-e2e-suite-session-secret-32-chars
+      SESSION_COOKIE_SECURE: "0"
+      DEV_LOGIN: "1"
+      ALLOWED_DOMAIN: example.edu
+      BASE_URL: http://e2e-web:4173
+      NOTIFICATION_BACKEND: console
+    depends_on:
+      e2e-seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz')
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    init: true
+    logging: *default-logging
+    restart: "no"
+
+  e2e-worker:
+    build:
+      context: ./backend
+    profiles: ["e2e"]
+    command:
+      - python
+      - -m
+      - procrastinate
+      - --app
+      - app.worker.procrastinate_app
+      - worker
+      - --wait
+      - --concurrency
+      - "2"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://cds_app:cds_app@e2e-db:5432/cds_e2e
+      PROCRASTINATE_DATABASE_URL: postgresql://cds_app:cds_app@e2e-db:5432/cds_e2e
+      SESSION_SECRET: cds-e2e-suite-session-secret-32-chars
+      SESSION_COOKIE_SECURE: "0"
+      DEV_LOGIN: "1"
+      ALLOWED_DOMAIN: example.edu
+      BASE_URL: http://e2e-web:4173
+      NOTIFICATION_BACKEND: console
+      APP_ENV: test
+      DEV_EMAIL_OUTPUT: "1"
+    depends_on:
+      e2e-seed:
+        condition: service_completed_successfully
+    init: true
+    logging: *default-logging
+    restart: "no"
+
+  e2e-web:
+    build:
+      context: .
+      dockerfile: ops/caddy/Dockerfile
+    profiles: ["e2e"]
+    command: ["caddy", "run", "--config", "/etc/caddy/e2e-Caddyfile", "--adapter", "caddyfile"]
+    ports:
+      - "127.0.0.1:${E2E_WEB_PORT:-4173}:4173"
+    volumes:
+      - ./ops/e2e/Caddyfile:/etc/caddy/e2e-Caddyfile:ro
+    depends_on:
+      e2e-api:
+        condition: service_healthy
+      e2e-worker:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "http://127.0.0.1:4173/readyz"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    logging: *default-logging
+    restart: "no"
+
+  e2e:
+    build:
+      context: .
+      dockerfile: frontend/e2e.Dockerfile
+    profiles: ["e2e"]
+    environment:
+      PLAYWRIGHT_BASE_URL: http://e2e-web:4173
+      CI: ${CI:-}
+    depends_on:
+      e2e-web:
+        condition: service_healthy
+    init: true
+    logging: *default-logging
+    restart: "no"
+
+networks:
+  observability:
+    external: true
+    name: cds-observability
+
+volumes:
+  pgdata:
+  wal_archive:
+  backup_cache:
+  rclone_config:
+  caddy_data:
+  caddy_config:

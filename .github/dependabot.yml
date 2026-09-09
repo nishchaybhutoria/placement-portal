@@ -1,0 +1,59 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+    groups:
+      backend-dependencies:
+        patterns: ["*"]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    groups:
+      frontend-dependencies:
+        patterns: ["*"]
+    ignore:
+      # openapi-typescript generates the typed client the whole frontend is
+      # checked against (the F1 build contract), and it declares
+      # `typescript: ^5.x`: it builds that client by calling the compiler's JS
+      # factory API, which the TypeScript 7 native port does not expose. A major
+      # bump therefore does not fail a type check, it crashes `pnpm gen` before
+      # anything is typechecked at all. Lift this once openapi-typescript
+      # supports TypeScript 7.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /ops/backup
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /ops/caddy
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+source /opt/backup/bin/common.sh
+
+root="$(remote_root)"
+stage=/backups/drill-remote/cds
+rm -rf /backups/drill-remote
+mkdir -p "$stage/base" "$stage/wal" "$stage/dumps"
+
+# A restore opens exactly one base backup and replays the WAL at or after that
+# base's start. Mirroring the whole archive instead downloaded every retained
+# base and every retained segment: with a daily base, seven kept, and
+# `archive_timeout`, that is thousands of Drive objects for a rehearsal
+# that will read a few dozen of them. It made `make drill` slow enough to
+# discourage running it, and a drill nobody runs proves nothing.
+#
+# So stage what the restore will actually open. `DRILL_STAGE_ALL=1` brings back
+# the full mirror for an incident where the target is still being argued about
+# and re-staging between attempts would cost more than the download.
+select_base() {
+    local target_stamp="$1" candidate candidate_stamp latest=""
+    while IFS= read -r candidate; do
+        candidate_stamp="${candidate#base-}"
+        candidate_stamp="${candidate_stamp%.tar.gz}"
+        if [[ -n "$target_stamp" && "$candidate_stamp" > "$target_stamp" ]]; then
+            break
+        fi
+        latest="$candidate"
+    done < <(rclone lsf --files-only --include 'base-*.tar.gz' "${root}/base" | sort)
+    printf '%s' "$latest"
+}
+
+stage_all_wal() {
+    log "staging every archived segment from ${root}/wal"
+    rclone copy "${root}/wal" "$stage/wal"
+}
+
+log "downloading restore drill inputs from ${root}"
+
+if [[ "${DRILL_STAGE_ALL:-0}" == "1" ]]; then
+    log "DRILL_STAGE_ALL=1: mirroring every base and every segment"
+    rclone copy "${root}/base" "$stage/base"
+    stage_all_wal
+else
+    target_stamp=""
+    if [[ -n "${PITR_TARGET_TIME:-}" ]]; then
+        # Same selection restore-physical makes, so staging cannot omit the base
+        # the restore is about to choose.
+        target_stamp="$(date -u -d "$PITR_TARGET_TIME" +%Y%m%dT%H%M%SZ)"
+    fi
+    base="$(select_base "$target_stamp")"
+
+    if [[ -z "$base" ]]; then
+        # Diagnosis belongs to restore-physical, which already names what the
+        # remote holds and why a target can miss all of it. Staging an empty
+        # base directory reaches that message; inventing one here would produce
+        # two descriptions of the same failure.
+        log "no base backup at or before ${PITR_TARGET_TIME:-now} in ${root}/base; staging none"
+        stage_all_wal
+    else
+        rclone copyto "${root}/base/${base}" "${stage}/base/${base}"
+        rclone copyto "${root}/base/${base}.sha256" "${stage}/base/${base}.sha256"
+        rclone copyto "${root}/base/${base}.meta" "${stage}/base/${base}.meta"
+        floor="$(awk -F= '$1 == "wal_start" { print $2; exit }' "${stage}/base/${base}.meta")"
+
+        if [[ ! "$floor" =~ ^[0-9A-F]{24}$ ]]; then
+            # A base whose metadata cannot name its starting segment is not a
+            # reason to stage too little and fail the replay for a reason that
+            # looks like data loss. Fall back loudly.
+            log "no usable wal_start in ${base}.meta; falling back to the full mirror"
+            stage_all_wal
+        else
+            wanted="$(mktemp)"
+            trap 'rm -f "$wanted"' EXIT
+            total=0
+            while IFS= read -r object; do
+                (( total += 1 ))
+                segment="$(basename "$object")"
+                segment="${segment%.gz}"
+                # Timeline histories and base labels are neither 24-hex segments
+                # nor large, and recovery asks for them by name. Only completed
+                # segments below the floor are skippable.
+                if [[ "$segment" =~ ^[0-9A-F]{24}$ ]] && [[ "$segment" < "$floor" ]]; then
+                    continue
+                fi
+                printf '%s\n' "$object"
+            done < <(rclone lsf --files-only "${root}/wal") >"$wanted"
+            rclone copy "${root}/wal" "$stage/wal" --files-from "$wanted"
+            log "staged ${base} and $(wc -l <"$wanted") of ${total} objects at or after ${floor}"
+        fi
+    fi
+fi
+
+# The drill exercises the logical fallback as well as the physical chain, so it
+# needs the newest dump too -- only that one: the retention window holds several
+# and the production remote is Google Drive.
+latest_dump="$(rclone lsf --files-only --include 'dump-*.dump' "${root}/dumps" | sort | tail -n 1)"
+if [[ -z "$latest_dump" ]]; then
+    # A remote with base and WAL but no nightly dump yet is a normal state on
+    # day one, not a broken one. Stage what exists and say what is missing; the
+    # drill runner decides whether the fallback leg can run.
+    log "no logical dump at ${root}/dumps: the physical legs will run, the section 9 fallback will not"
+    log "run backup-dump against this remote to exercise the fallback and its append-only proof"
+else
+    rclone copyto "${root}/dumps/${latest_dump}" "${stage}/dumps/${latest_dump}"
+    rclone copyto "${root}/dumps/${latest_dump}.sha256" "${stage}/dumps/${latest_dump}.sha256"
+fi
+log "restore drill inputs downloaded${latest_dump:+, including logical dump ${latest_dump}}"
