@@ -87,6 +87,17 @@ DECLARABLE_FIELDS: frozenset[str] = frozenset(
 # must not overwrite a value subsequently maintained by the student.
 BULK_FIELDS: frozenset[str] = ADMIN_FIELDS | {"contact_number"}
 BULK_INITIAL_ONLY_FIELDS: frozenset[str] = frozenset({"contact_number"})
+#: Admin-managed facts the student keeps current between roster uploads.
+#: These four change every semester -- a CPI moves, backlogs clear, a
+#: graduating year slips -- and the student learns each one the day it changes,
+#: months before the office does.  Locking them on the initial value left the
+#: student's own row stale until the next PRO-2 upload, so the PRO-1 lock never
+#: closes on them.  They stay admin-*owned*: bulk upsert still writes them, and
+#: the semesterly roster remains the authoritative refresh (they are absent
+#: from ``BULK_INITIAL_ONLY_FIELDS`` for exactly that reason).
+STUDENT_MAINTAINED_ADMIN_FIELDS: frozenset[str] = frozenset(
+    {"graduating_year", "cpi", "active_backlogs", "total_backlogs"}
+)
 #: Profile fields stored as booleans; the rule engine treats these as
 #: equality-only (LLD section 9.1 via `domain/rule_schema.BOOLEAN_FIELDS`).
 BOOLEAN_FIELDS: frozenset[str] = frozenset({"is_dual_major", "is_dual_degree"})
@@ -285,7 +296,10 @@ def jsonable(value: object) -> object:
 def unlocked_admin_fields(
     current: Mapping[str, object], *, roll_number: object = None
 ) -> frozenset[str]:
-    """Admin-managed fields that have not yet accepted an initial value.
+    """Admin-managed fields the student may still write.
+
+    That is every field that has not yet accepted an initial value, plus the
+    ``STUDENT_MAINTAINED_ADMIN_FIELDS`` the lock never closes on at all.
 
     PRO-1 locks an admin-managed field once it "accepts the student's initial
     value".  the design review section 4.33 rules that the lock therefore follows the
@@ -298,6 +312,9 @@ def unlocked_admin_fields(
     can never read blank, which would leave it the one PRO-1 field a student
     could never state; it is unlocked exactly while ``secondary_branch_id`` is,
     since 4.32 made the two inseparable.
+
+    The four semesterly academic facts are unlocked unconditionally: see
+    ``STUDENT_MAINTAINED_ADMIN_FIELDS``.
     """
     unlocked = {
         key
@@ -305,6 +322,7 @@ def unlocked_admin_fields(
         - {"roll_number", "is_dual_major", "is_dual_degree"}
         if is_blank(current.get(key))
     }
+    unlocked |= STUDENT_MAINTAINED_ADMIN_FIELDS
     if is_blank(roll_number):
         unlocked.add("roll_number")
     if is_blank(current.get("secondary_branch_id")):

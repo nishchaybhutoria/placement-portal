@@ -60,6 +60,8 @@ Stored roles are `Student` and `Admin`; coordinator capability is a per-cycle as
 ### PRO-1 — Self-declaration, admin ownership, locking
 One profile per enrollment, completed once by the student. **Admin-managed fields** accept the student's initial value, then lock — thereafter editable only by admins (single edit or bulk upsert). **Student-managed fields** stay editable any time. Every change is audited (who, field, old→new).
 
+The four semesterly academic facts — graduating year, CPI, and the two backlog counts — are the exception to the lock: they stay **student-maintained**, editable by the student whenever they change, because the student learns each one months before the office does. They remain admin-*owned* everywhere else — PRO-2 bulk upsert carries them and the semesterly roster overwrites whatever the student last entered, which is what keeps the official numbers authoritative.
+
 Field inventory (confirmed):
 
 | Field | After initial declaration | Required to join a cycle |
@@ -70,10 +72,10 @@ Field inventory (confirmed):
 | Program | **Admin** | yes |
 | Primary branch | **Admin** | yes |
 | Secondary branch (dual majors) | **Admin** | if dual major |
-| Graduating year | **Admin** | yes |
-| CPI (0–10, 2 dp) | **Admin** | yes |
-| Active backlog count | **Admin** | yes |
-| Total (ever) backlog count | **Admin** | yes |
+| Graduating year | **Admin** (student-maintained; see above) | yes |
+| CPI (0–10, 2 dp) | **Admin** (student-maintained; see above) | yes |
+| Active backlog count | **Admin** (student-maintained; see above) | yes |
+| Total (ever) backlog count | **Admin** (student-maintained; see above) | yes |
 | Gender | Admin (used in rules) | yes |
 | Personal email | Student | yes |
 | Contact number | Student | yes |
@@ -82,6 +84,8 @@ Field inventory (confirmed):
 | Minor 1 / Minor 2 | Student | no |
 | GitHub / LinkedIn / portfolio URLs | Student | no |
 | Resume library (PRO-3) | Student | ≥1 entry |
+
+A dual major or dual degree may name the **same** branch twice — a BTech and an MTech in one discipline is the ordinary dual degree — so only the program/branch map constrains the pair.
 
 Backlogs are two **counts** so `active_backlogs = 0`, `total_backlogs = 0`, and `active_backlogs ≤ 1` are all expressible. Profile changes **never** touch existing applications (ELG-4).
 

@@ -568,7 +568,7 @@ async function recordOpenOutcome(
 test.describe.serial("Part D — named four-cycle lifecycle", () => {
   test.setTimeout(180_000);
 
-  test("D.1-D.6 onboarding, locked CPI, restricted resume, idempotent bulk upsert, and audit", async ({ page }) => {
+  test("D.1-D.6 onboarding, field ownership, restricted resume, idempotent bulk upsert, and audit", async ({ page }) => {
     page.setDefaultTimeout(8_000);
     // D.1: every named identity, including both coordinators and the admin, can use dev-login.
     for (const email of [
@@ -589,13 +589,16 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
       email: students.p10[0], program: "BTech", branch: "Civil", cpi: "7.40", active: "0", total: "2",
     });
 
-    // D.3: the server-provided ownership model renders CPI as locked and tells P1 who owns it.
+    // D.3: the server-provided ownership model locks P1's roster identity and
+    // tells them who owns it, while the semesterly figures stay theirs to keep
+    // current -- CPI renders as the input holding today's value, not a fact.
     await login(page, students.p1[0]);
     await page.getByRole("link", { name: "My profile", exact: true }).click();
-    await expect(page.getByText("Locked fields now belong to the administration.", { exact: false })).toBeVisible();
-    await expect(page.getByRole("spinbutton", { name: "CPI" })).toHaveCount(0);
-    const cpiFact = page.getByText("CPI", { exact: true }).locator("..");
-    await expect(cpiFact).toContainText("8.60");
+    await expect(page.getByText("Locked fields now belong to the administration", { exact: false })).toBeVisible();
+    await expect(page.getByRole("combobox", { name: "Program" })).toHaveCount(0);
+    const programFact = page.getByText("Program", { exact: true }).locator("..");
+    await expect(programFact).toContainText("BTech");
+    await expect(page.getByRole("spinbutton", { name: "CPI" })).toHaveValue("8.60");
     await logout(page);
 
     // D.4: URL shape is all that is checked; a restricted Drive file is accepted silently.
