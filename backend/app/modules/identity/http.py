@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from dataclasses import asdict
 from typing import Protocol, cast
 
+import httpx
 from authlib.integrations.base_client.errors import OAuthError
 from authlib.integrations.starlette_client import OAuth
 from fastapi import Depends, FastAPI, Request
@@ -33,6 +34,13 @@ from app.modules.identity.commands import (
 from app.modules.identity.session import SessionManager
 from app.settings import Settings
 
+# Google's token and JWKS endpoints are a hard dependency of the login flow, so
+# bound them explicitly rather than inheriting httpx's 5s default for every
+# phase. Connect stays tight because a stalled TCP/TLS handshake to Google is a
+# network fault, not slowness; the read budget is looser to absorb a slow but
+# healthy response.
+OAUTH_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
+
 
 class GoogleOAuthClient(Protocol):
     async def authorize_redirect(
@@ -51,7 +59,7 @@ def build_google_oauth_client(settings: Settings) -> GoogleOAuthClient:
         client_id=settings.google_client_id,
         client_secret=settings.google_client_secret,
         server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
-        client_kwargs={"scope": "openid email profile"},
+        client_kwargs={"scope": "openid email profile", "timeout": OAUTH_TIMEOUT},
     )
     client = oauth.create_client("google")
     if client is None:
@@ -141,12 +149,26 @@ def mount_identity_routes(
             return _oauth_rejection(error.rejection.reasons)
         request.session[oauth_state_key(state, settings.session_secret)] = True
         callback_url = f"{settings.base_url.rstrip('/')}/auth/google/callback"
-        return await oauth_client.authorize_redirect(
-            request,
-            callback_url,
-            hd=settings.allowed_domain,
-            state=state,
-        )
+        try:
+            return await oauth_client.authorize_redirect(
+                request,
+                callback_url,
+                hd=settings.allowed_domain,
+                state=state,
+            )
+        except (OAuthError, httpx.HTTPError):
+            # Discovery metadata is fetched lazily on the first redirect, so an
+            # unreachable provider fails here rather than at the callback. The
+            # state issued above is left to expire; the next attempt supersedes
+            # it through the same prefix sweep that opens this handler.
+            return _oauth_rejection(
+                [
+                    Reason(
+                        code=OAUTH_PROVIDER_ERROR,
+                        human="Google OAuth provider is unreachable",
+                    )
+                ]
+            )
 
     @app.get("/auth/google/callback", name="google_callback")
     async def google_callback(
@@ -208,7 +230,7 @@ def mount_identity_routes(
             response = RedirectResponse(f"{settings.base_url.rstrip('/')}/")
             sessions.set_login_cookies(response, input_value.session_token)
             return response
-        except (OAuthError, KeyError, TypeError, ValueError):
+        except (OAuthError, httpx.HTTPError, KeyError, TypeError, ValueError):
             return _oauth_rejection(
                 [
                     Reason(
