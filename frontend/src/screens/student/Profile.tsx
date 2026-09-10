@@ -37,8 +37,8 @@ export function Profile() {
         title="My profile"
         subtitle={
           data.declared_at
-            ? `Declared ${formatDate(data.declared_at)}. Locked fields now belong to the administration.`
-            : "Declare this enrollment once, then keep your own contact and link fields current."
+            ? `Declared ${formatDate(data.declared_at)}. Locked fields now belong to the administration; keep your CPI, backlogs, and graduating year current here.`
+            : "Declare this enrollment once, then keep your own contact, link, and semesterly academic fields current."
         }
       />
       <ProfileFields data={data} />

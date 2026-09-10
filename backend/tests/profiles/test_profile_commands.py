@@ -147,7 +147,10 @@ async def test_PRO1_declaration_retains_administration_seeded_values() -> None:
         await _run(
             executor,
             "admin_update_profile",
-            {"enrollment_id": str(student.enrollment_id), "fields": {"cpi": "9.10"}},
+            {
+                "enrollment_id": str(student.enrollment_id),
+                "fields": {"cpi": "9.10", "gender": "female"},
+            },
             admin,
         )
         result = await _run(
@@ -157,6 +160,7 @@ async def test_PRO1_declaration_retains_administration_seeded_values() -> None:
                 "enrollment_id": str(student.enrollment_id),
                 "fields": {
                     "cpi": "6.00",
+                    "gender": "male",
                     "roll_number": "21119999",
                     "personal_email": "seeded@example.com",
                 },
@@ -167,8 +171,8 @@ async def test_PRO1_declaration_retains_administration_seeded_values() -> None:
             row = (
                 await connection.execute(
                     sa.text(
-                        "SELECT p.cpi, p.personal_email, e.roll_number FROM profiles p "
-                        "JOIN enrollments e ON e.id = p.enrollment_id "
+                        "SELECT p.cpi, p.gender, p.personal_email, e.roll_number "
+                        "FROM profiles p JOIN enrollments e ON e.id = p.enrollment_id "
                         "WHERE p.enrollment_id = :id"
                     ),
                     {"id": student.enrollment_id},
@@ -178,10 +182,16 @@ async def test_PRO1_declaration_retains_administration_seeded_values() -> None:
         await engine.dispose()
         await migration.dispose()
 
-    assert sorted(cast(list[str], result.summary["retained_fields"])) == ["cpi", "roll_number"]
-    assert row["cpi"] == Decimal("9.10")
+    assert sorted(cast(list[str], result.summary["retained_fields"])) == [
+        "gender",
+        "roll_number",
+    ]
+    assert row["gender"] == "female"
     assert row["roll_number"] == "21110009"
     assert row["personal_email"] == "seeded@example.com"
+    # CPI is admin-owned but student-maintained: the student's own figure is
+    # the later of the two statements, so the declaration supersedes the seed.
+    assert row["cpi"] == Decimal("6.00")
 
 
 @pytest.mark.asyncio
@@ -246,7 +256,12 @@ async def test_PRO1_administration_overwrites_admin_fields_after_declaration() -
 
 @pytest.mark.asyncio
 async def test_PRO1_student_edit_of_admin_fields_lists_every_offending_field() -> None:
-    """An admin field that already holds a value is refused, and named (PRO-1)."""
+    """An admin field that already holds a value is refused, and named (PRO-1).
+
+    The semesterly four are in the same request and absent from the list: the
+    lock never closes on them, so the only fields named are the ones the
+    student really may not restate.
+    """
     executor, engine = build_test_executor()
     migration = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
     try:
@@ -259,7 +274,7 @@ async def test_PRO1_student_edit_of_admin_fields_lists_every_offending_field() -
             "declare_profile",
             {
                 "enrollment_id": str(student.enrollment_id),
-                "fields": {"cpi": "7.00", "graduating_year": 2026},
+                "fields": {"cpi": "7.00", "graduating_year": 2026, "gender": "female"},
             },
             student.actor,
         )
@@ -271,6 +286,7 @@ async def test_PRO1_student_edit_of_admin_fields_lists_every_offending_field() -
                 "fields": {
                     "cpi": "9.90",
                     "graduating_year": 2027,
+                    "gender": "male",
                     "roll_number": "21119998",
                     "institute_email": "new@example.edu",
                     "contact_number": "+1 202-555-0101",
@@ -283,10 +299,76 @@ async def test_PRO1_student_edit_of_admin_fields_lists_every_offending_field() -
         await migration.dispose()
 
     assert sorted(codes) == [
-        (FIELD_NOT_EDITABLE, "cpi"),
-        (FIELD_NOT_EDITABLE, "graduating_year"),
+        (FIELD_NOT_EDITABLE, "gender"),
         (FIELD_NOT_EDITABLE, "institute_email"),
         (FIELD_NOT_EDITABLE, "roll_number"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_PRO1_the_semesterly_academic_fields_stay_the_students_to_correct() -> None:
+    """CPI, backlogs, and the graduating year move; the student says so.
+
+    They are admin-*owned* -- PRO-2 still refreshes them from the roster -- but
+    locking them on the declared value left the student's own row stale for a
+    semester at a time, which is what these edits exist to prevent.
+    """
+    executor, engine = build_test_executor()
+    migration = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
+    try:
+        async with migration.begin() as connection:
+            student = await seed_student(connection, "semester@example.edu")
+        await _run(
+            executor,
+            "declare_profile",
+            {
+                "enrollment_id": str(student.enrollment_id),
+                "fields": {
+                    "cpi": "7.00",
+                    "graduating_year": 2026,
+                    "active_backlogs": 2,
+                    "total_backlogs": 3,
+                },
+            },
+            student.actor,
+        )
+        result = await _run(
+            executor,
+            "update_student_fields",
+            {
+                "enrollment_id": str(student.enrollment_id),
+                "fields": {
+                    "cpi": "8.57",
+                    "graduating_year": 2027,
+                    "active_backlogs": 0,
+                    "total_backlogs": 3,
+                },
+            },
+            student.actor,
+        )
+        async with engine.connect() as connection:
+            row = (
+                await connection.execute(
+                    sa.text(
+                        "SELECT cpi, graduating_year, active_backlogs, total_backlogs "
+                        "FROM profiles WHERE enrollment_id = :id"
+                    ),
+                    {"id": student.enrollment_id},
+                )
+            ).mappings().one()
+    finally:
+        await engine.dispose()
+        await migration.dispose()
+
+    assert row["cpi"] == Decimal("8.57")
+    assert row["graduating_year"] == 2027
+    assert row["active_backlogs"] == 0
+    assert row["total_backlogs"] == 3
+    # An unchanged count is not a change; the audit records only what moved.
+    assert result.summary["changed_fields"] == [
+        "active_backlogs",
+        "cpi",
+        "graduating_year",
     ]
 
 
@@ -294,10 +376,11 @@ async def test_PRO1_student_edit_of_admin_fields_lists_every_offending_field() -
 async def test_PRO1_an_admin_field_left_blank_is_still_the_students_to_supply() -> None:
     """The lock follows the value, not `declared_at` (the design review section 4.33).
 
-    A declaration that leaves CPI blank used to write NULL into an immediately
-    locked column, which the CYC-3 join checklist then required forever and only
-    an administrator could ever supply.  The student fills it once, and only
-    once: the second attempt is refused exactly as an admin field always was.
+    A declaration that leaves gender blank used to write NULL into an
+    immediately locked column, which the CYC-3 join checklist then required
+    forever and only an administrator could ever supply.  The student fills it
+    once, and only once: the second attempt is refused exactly as an admin
+    field always was.
     """
     executor, engine = build_test_executor()
     migration = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
@@ -319,8 +402,7 @@ async def test_PRO1_an_admin_field_left_blank_is_still_the_students_to_supply() 
             {
                 "enrollment_id": str(student.enrollment_id),
                 "fields": {
-                    "cpi": "8.10",
-                    "active_backlogs": 0,
+                    "gender": "female",
                     "roll_number": "21119997",
                 },
             },
@@ -330,7 +412,7 @@ async def test_PRO1_an_admin_field_left_blank_is_still_the_students_to_supply() 
             row = (
                 await connection.execute(
                     sa.text(
-                        "SELECT p.cpi, p.active_backlogs, e.roll_number "
+                        "SELECT p.gender, e.roll_number "
                         "FROM profiles p JOIN enrollments e ON e.id = p.enrollment_id "
                         "WHERE p.enrollment_id = :id"
                     ),
@@ -342,7 +424,7 @@ async def test_PRO1_an_admin_field_left_blank_is_still_the_students_to_supply() 
             "update_student_fields",
             {
                 "enrollment_id": str(student.enrollment_id),
-                "fields": {"cpi": "9.10", "active_backlogs": 1, "roll_number": "2111000"},
+                "fields": {"gender": "male", "roll_number": "2111000"},
             },
             student.actor,
         )
@@ -350,12 +432,10 @@ async def test_PRO1_an_admin_field_left_blank_is_still_the_students_to_supply() 
         await engine.dispose()
         await migration.dispose()
 
-    assert row["cpi"] == Decimal("8.10")
-    assert row["active_backlogs"] == 0
+    assert row["gender"] == "female"
     assert row["roll_number"] == "21119997"
     assert sorted(codes) == [
-        (FIELD_NOT_EDITABLE, "active_backlogs"),
-        (FIELD_NOT_EDITABLE, "cpi"),
+        (FIELD_NOT_EDITABLE, "gender"),
         (FIELD_NOT_EDITABLE, "roll_number"),
     ]
 
@@ -443,24 +523,6 @@ async def test_PRO1_program_branch_map_and_taxonomy_state_are_enforced() -> None
             },
             other.actor,
         )
-        # A dual major, so the only thing wrong with this profile is that both
-        # majors name the same branch. Without the flag the server would also
-        # (correctly) refuse the secondary branch outright, and this case is
-        # about the duplicate.
-        duplicate_branch = await _reasons(
-            executor,
-            "declare_profile",
-            {
-                "enrollment_id": str(student.enrollment_id),
-                "fields": {
-                    "program_id": str(taxonomy.program_id),
-                    "is_dual_major": True,
-                    "primary_branch_id": str(taxonomy.branch_id),
-                    "secondary_branch_id": str(taxonomy.branch_id),
-                },
-            },
-            student.actor,
-        )
         secondary_without_flag = await _reasons(
             executor,
             "declare_profile",
@@ -480,9 +542,76 @@ async def test_PRO1_program_branch_map_and_taxonomy_state_are_enforced() -> None
 
     assert unmapped == [(PROGRAM_BRANCH_MISMATCH, "primary_branch_id")]
     assert unknown == [(UNKNOWN_TAXONOMY_VALUE, "program_id")]
-    assert duplicate_branch == [(PROGRAM_BRANCH_MISMATCH, "secondary_branch_id")]
     # A second major named by somebody who has not got one (the design review 4.32).
     assert (INVALID_FIELD_VALUE, "secondary_branch_id") in secondary_without_flag
+
+
+@pytest.mark.asyncio
+async def test_PRO1_a_dual_student_may_name_the_same_branch_twice() -> None:
+    """A BTech and an MTech in one discipline is an enrollment, not a typo.
+
+    The pair used to be refused outright, which left every dual degree
+    continuing in its own discipline -- and the dual majors the office reports
+    the same of -- unable to state the branches they actually hold.
+    """
+    executor, engine = build_test_executor()
+    migration = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
+    try:
+        async with migration.begin() as connection:
+            taxonomy = await seed_taxonomy(connection)
+            degree = await seed_student(connection, "dualdegree@example.edu")
+            major = await seed_student(connection, "dualmajor@example.edu")
+        await _run(
+            executor,
+            "declare_profile",
+            {
+                "enrollment_id": str(degree.enrollment_id),
+                "fields": {
+                    "program_id": str(taxonomy.program_id),
+                    "primary_branch_id": str(taxonomy.branch_id),
+                    "is_dual_degree": True,
+                    "secondary_program_id": str(taxonomy.other_program_id),
+                    "secondary_branch_id": str(taxonomy.branch_id),
+                },
+            },
+            degree.actor,
+        )
+        await _run(
+            executor,
+            "declare_profile",
+            {
+                "enrollment_id": str(major.enrollment_id),
+                "fields": {
+                    "program_id": str(taxonomy.program_id),
+                    "primary_branch_id": str(taxonomy.branch_id),
+                    "is_dual_major": True,
+                    "secondary_branch_id": str(taxonomy.branch_id),
+                },
+            },
+            major.actor,
+        )
+        async with engine.connect() as connection:
+            rows = (
+                await connection.execute(
+                    sa.text(
+                        "SELECT enrollment_id, primary_branch_id, secondary_branch_id "
+                        "FROM profiles"
+                    )
+                )
+            ).mappings().all()
+    finally:
+        await engine.dispose()
+        await migration.dispose()
+
+    assert {row["enrollment_id"] for row in rows} == {
+        degree.enrollment_id,
+        major.enrollment_id,
+    }
+    assert all(
+        row["primary_branch_id"] == taxonomy.branch_id
+        and row["secondary_branch_id"] == taxonomy.branch_id
+        for row in rows
+    )
 
 
 @pytest.mark.asyncio

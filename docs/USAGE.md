@@ -95,8 +95,10 @@ read-only external offers. Students accept or decline open offers here.
 ### Profile — `/profile`
 
 Initial declaration collects academic and contact fields. Student-managed
-fields remain editable. Administratively owned values lock after declaration
-and are corrected from the staff record or bulk upsert.
+fields remain editable, as do the four semesterly academic figures — graduating
+year, CPI, and both backlog counts — which the student keeps current between
+roster uploads. The remaining administratively owned values lock after
+declaration and are corrected from the staff record or bulk upsert.
 
 The resume library stores Google Drive links only. Applying copies the chosen
 URL onto the application, preserving the submitted artifact even if the library

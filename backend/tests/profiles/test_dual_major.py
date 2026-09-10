@@ -186,6 +186,38 @@ def test_PRO1_a_secondary_branch_requires_the_student_to_be_a_dual_major() -> No
     assert reasons[0].human == "Only a dual major or dual degree has a secondary branch"
 
 
+def test_PRO1_both_majors_may_name_the_same_branch() -> None:
+    """One discipline, two qualifications: the pair repeating is not an error.
+
+    A BTech continued into an MTech in the same discipline is the ordinary dual
+    degree, and the office records dual majors that read the same way; the
+    branches are qualified by their programs, so the repetition says nothing
+    contradictory.  Refusing it made those students undeclarable.
+    """
+    btech, mtech, branch = uuid4(), uuid4(), uuid4()
+    pairs = frozenset({(btech, branch), (mtech, branch)})
+
+    assert program_branch_reasons(
+        {
+            "program_id": btech,
+            "primary_branch_id": branch,
+            "is_dual_degree": True,
+            "secondary_program_id": mtech,
+            "secondary_branch_id": branch,
+        },
+        pairs,
+    ) == []
+    assert program_branch_reasons(
+        {
+            "program_id": btech,
+            "primary_branch_id": branch,
+            "is_dual_major": True,
+            "secondary_branch_id": branch,
+        },
+        pairs,
+    ) == []
+
+
 def test_PRO1_a_dual_degree_uses_its_secondary_program_for_its_second_branch() -> None:
     btech, mtech, primary, secondary = uuid4(), uuid4(), uuid4(), uuid4()
     pairs = frozenset({(btech, primary), (mtech, secondary)})

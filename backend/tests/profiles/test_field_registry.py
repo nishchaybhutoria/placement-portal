@@ -10,13 +10,16 @@ import pytest
 from app.modules.profiles.fields import (
     ADMIN_FIELDS,
     BULK_FIELDS,
+    BULK_INITIAL_ONLY_FIELDS,
     DECLARABLE_FIELDS,
     FIELDS,
     FIELDS_BY_KEY,
     STUDENT_FIELDS,
+    STUDENT_MAINTAINED_ADMIN_FIELDS,
     UNEDITABLE_FIELDS,
     FieldValueError,
     coerce_field,
+    unlocked_admin_fields,
 )
 
 # Transcribed from docs/BEHAVIOR.md PRO-1 "Field inventory (confirmed)".
@@ -93,6 +96,28 @@ def test_PRO1_declaration_covers_every_field_except_the_google_seeded_name() -> 
 
 def test_PRO2_bulk_columns_include_admin_fields_and_initial_roster_contact() -> None:
     assert BULK_FIELDS == ADMIN_FIELDS | {"contact_number"}
+
+
+def test_PRO1_the_semesterly_academic_fields_never_lock() -> None:
+    """CPI, backlogs, and the graduating year move mid-degree (PRO-1).
+
+    They stay admin-owned -- the roster is still authoritative and PRO-2 still
+    writes them -- but the student may restate them at any time, so the lock
+    that closes on every other admin field never closes on these four.
+    """
+    assert STUDENT_MAINTAINED_ADMIN_FIELDS <= ADMIN_FIELDS
+    filled = {key: "set" for key in ADMIN_FIELDS}
+
+    assert (
+        unlocked_admin_fields(filled, roll_number="21110001")
+        == STUDENT_MAINTAINED_ADMIN_FIELDS
+    )
+
+
+def test_PRO2_a_roster_upload_still_refreshes_the_student_maintained_fields() -> None:
+    """The office's semesterly numbers overwrite whatever the student entered."""
+    assert STUDENT_MAINTAINED_ADMIN_FIELDS <= BULK_FIELDS
+    assert STUDENT_MAINTAINED_ADMIN_FIELDS.isdisjoint(BULK_INITIAL_ONLY_FIELDS)
 
 
 def test_PRO1_field_homes_match_the_schema() -> None:

@@ -36,6 +36,7 @@ from app.modules.profiles.fields import (
     FIELDS_BY_KEY,
     PROFILE_COLUMNS,
     STUDENT_FIELDS,
+    STUDENT_MAINTAINED_ADMIN_FIELDS,
     TAXONOMY_FIELDS,
     UNEDITABLE_FIELDS,
     FieldValueError,
@@ -403,6 +404,13 @@ def program_branch_reasons(
     secondary branch yet -- is deliberately *not* done here: PRO-1 makes that a
     requirement for joining a cycle, which `check_profile_completeness` already
     enforces, so the office can record the fact before the branch is settled.
+
+    The two branches may be the *same* branch, for a dual major as much as for
+    a dual degree.  Continuing into an MTech in the discipline just read for
+    the BTech is the ordinary dual degree, and the office reports the same of
+    dual majors, so the pair repeating a branch is a real enrollment rather
+    than a typo.  What still cannot repeat is a branch its program does not
+    offer, checked just above -- that is where a genuine contradiction shows.
     """
     program = effective.get("program_id")
     secondary_program = effective.get("secondary_program_id")
@@ -445,12 +453,6 @@ def program_branch_reasons(
             human=("Secondary branch is not offered by the secondary program"
                    if dual_degree else
                    "Secondary branch is not offered by the declared program"),
-            path="secondary_branch_id",
-        ))
-    if isinstance(primary, UUID) and primary == secondary:
-        reasons.append(Reason(
-            code=PROGRAM_BRANCH_MISMATCH,
-            human="Secondary branch must differ from the primary branch",
             path="secondary_branch_id",
         ))
     if isinstance(secondary, UUID) and not (dual_major or dual_degree):
@@ -516,7 +518,9 @@ def _decide_declare(
 
     current = state.current
     # PRO-1: admin-managed fields the administration already populated stay theirs;
-    # the student's declaration fills only what is still empty.
+    # the student's declaration fills only what is still empty -- except the
+    # semesterly facts of `STUDENT_MAINTAINED_ADMIN_FIELDS`, which the student
+    # may restate at any time and so may state here.
     retained: list[str] = []
     applied: dict[str, object] = {}
     for key, value in coerced.items():
@@ -526,7 +530,10 @@ def _decide_declare(
             elif value is not None:
                 applied[key] = value
             continue
-        if key in ADMIN_FIELDS and current.get(key) is not None:
+        if (
+            key in ADMIN_FIELDS - STUDENT_MAINTAINED_ADMIN_FIELDS
+            and current.get(key) is not None
+        ):
             retained.append(key)
             continue
         applied[key] = value
