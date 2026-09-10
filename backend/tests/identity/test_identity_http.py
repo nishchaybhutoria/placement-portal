@@ -19,6 +19,7 @@ from fastapi import FastAPI
 
 from app.core.db import create_engine
 from app.main import create_app
+from app.modules.identity.http import build_google_oauth_client
 from app.settings import Settings
 
 
@@ -64,6 +65,23 @@ def _oauth_client(userinfo: dict[str, object]) -> tuple[object, AsyncMock]:
     fetch = AsyncMock(return_value={"access_token": "fake", "userinfo": userinfo})
     client.fetch_access_token = fetch
     return client, fetch
+
+
+def _oauth_client_with_failing_redirect(error: Exception) -> tuple[object, AsyncMock]:
+    oauth = OAuth()
+    oauth.register(
+        "google",
+        client_id="google-client",
+        client_secret="google-secret",
+        authorize_url="https://accounts.google.test/o/oauth2/auth",
+        access_token_url="https://accounts.google.test/o/oauth2/token",
+        client_kwargs={"scope": "openid email profile"},
+    )
+    client = oauth.create_client("google")
+    assert client is not None
+    redirect = AsyncMock(side_effect=error)
+    client.authorize_redirect = redirect
+    return client, redirect
 
 
 async def _client(
@@ -772,6 +790,97 @@ async def test_IDN1_failed_oauth_exchange_still_consumes_server_state() -> None:
     assert failed.status_code == 403
     assert replay.status_code == 403
     assert fetch.await_count == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "timeout_error",
+    [
+        httpx.ConnectTimeout("connection to Google timed out"),
+        httpx.ReadTimeout("Google did not answer in time"),
+    ],
+    ids=["connect", "read"],
+)
+async def test_IDN1_provider_timeout_is_rejected_not_raised(
+    timeout_error: httpx.TimeoutException,
+) -> None:
+    """A slow Google token endpoint is a provider rejection, never a 500.
+
+    httpx timeouts are not OAuthError, so they used to escape the callback and
+    surface as an unhandled ASGI exception after the one-time state had already
+    been consumed.
+    """
+
+    oauth_client, fetch = _oauth_client(
+        {
+            "email": "timeout@example.edu",
+            "email_verified": True,
+            "hd": "example.edu",
+            "name": "Timeout Student",
+        }
+    )
+    fetch.side_effect = timeout_error
+    application, client = await _client(oauth_client=oauth_client)
+    try:
+        login = await client.get("/auth/google/login")
+        state = parse_qs(urlparse(login.headers["location"]).query)["state"][0]
+        timed_out = await client.get(
+            "/auth/google/callback", params={"code": "slow", "state": state}
+        )
+        replay = await client.get(
+            "/auth/google/callback", params={"code": "slow", "state": state}
+        )
+    finally:
+        await _close(application, client)
+
+    assert timed_out.status_code == 403
+    assert timed_out.headers["content-type"].startswith("application/problem+json")
+    assert [reason["code"] for reason in timed_out.json()["reasons"]] == [
+        "oauth_provider_error"
+    ]
+    # The state is spent even on failure, so a retry must restart the flow.
+    assert replay.status_code == 403
+    assert fetch.await_count == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "provider_error",
+    [
+        httpx.ConnectTimeout("connection to Google timed out"),
+        httpx.ReadTimeout("Google did not answer in time"),
+    ],
+    ids=["connect", "read"],
+)
+async def test_IDN1_login_provider_timeout_is_rejected_not_raised(
+    provider_error: httpx.TimeoutException,
+) -> None:
+    """Discovery metadata is fetched lazily, so the redirect is a network call."""
+
+    oauth_client, redirect = _oauth_client_with_failing_redirect(provider_error)
+    application, client = await _client(oauth_client=oauth_client)
+    try:
+        login = await client.get("/auth/google/login")
+    finally:
+        await _close(application, client)
+
+    assert login.status_code == 403
+    assert login.headers["content-type"].startswith("application/problem+json")
+    assert [reason["code"] for reason in login.json()["reasons"]] == [
+        "oauth_provider_error"
+    ]
+    assert redirect.await_count == 1
+
+
+def test_IDN1_google_oauth_client_bounds_provider_timeouts() -> None:
+    """The provider client must not inherit httpx's implicit 5s default."""
+
+    client = build_google_oauth_client(_settings())
+    timeout = getattr(client, "client_kwargs", {}).get("timeout")
+
+    assert isinstance(timeout, httpx.Timeout)
+    assert timeout.connect == 5.0
+    assert timeout.read == 10.0
 
 
 @pytest.mark.asyncio
