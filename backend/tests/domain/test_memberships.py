@@ -91,7 +91,7 @@ def test_CYC3_join_field_labels_track_the_M6_field_registry() -> None:
         JOIN_FIELD_LABELS
     )
     # Every checkable requirement, conditional ones included, has a label.
-    assert set(required_join_fields(dual_major=True)) <= set(JOIN_FIELD_LABELS)
+    assert set(required_join_fields(second_discipline=True)) <= set(JOIN_FIELD_LABELS)
 
 
 def test_CYC3_a_complete_declared_profile_with_a_resume_passes() -> None:
@@ -100,13 +100,18 @@ def test_CYC3_a_complete_declared_profile_with_a_resume_passes() -> None:
     ) == ()
 
 
-def test_CYC3_secondary_branch_is_required_only_for_a_dual_major() -> None:
-    """Resolved by the M9 amendment; see tests/taxonomies/test_dual_major.py."""
+def test_CYC3_secondary_branch_is_required_only_for_a_dual_programme() -> None:
+    """Resolved by the M9 amendment; see tests/profiles/test_dual_major.py.
+
+    Whether a second discipline applies is the declared programme's to say, so
+    the caller reads it there and passes it in rather than the checklist
+    looking for a flag on the profile.
+    """
     profile = complete_profile()
     assert "secondary_branch_id" not in profile
     assert check_profile_completeness(profile, resume_count=1, declared=True) == ()
     dual = check_profile_completeness(
-        profile | {"is_dual_major": True}, resume_count=1, declared=True
+        profile, resume_count=1, declared=True, second_discipline=True
     )
     assert [reason.path for reason in dual] == ["secondary_branch_id"]
 

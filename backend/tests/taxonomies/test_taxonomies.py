@@ -27,7 +27,15 @@ from app.modules.taxonomies.commands import (
     UpsertTaxonomyItemInput,
     register_taxonomy_commands,
 )
-from app.seed import BRANCHES, PROGRAMS, ROUND_TYPES, SECTORS, STUDENTS, run_seed
+from app.seed import (
+    BRANCHES,
+    COMBINED_PROGRAMS,
+    PROGRAMS,
+    ROUND_TYPES,
+    SECTORS,
+    STUDENTS,
+    run_seed,
+)
 from app.settings import Settings
 
 
@@ -456,9 +464,15 @@ async def test_TAX_seed_v1_is_idempotent_and_builds_the_admin_vocabulary() -> No
         # The admin, the coordinator, and one user per seeded student. Running
         # the seed twice adds none of them again, which is what this asserts.
         "users": 2 + len(STUDENTS),
-        "programs": len(PROGRAMS),
+        # The plain degrees plus the combined programmes built from them.
+        "programs": len(PROGRAMS) + len(COMBINED_PROGRAMS),
         "branches": len(BRANCHES),
-        "program_branches": sum(len(branches) for branches in PROGRAMS.values()),
+        # A combined programme offers every discipline its component degrees do.
+        "program_branches": sum(len(branches) for branches in PROGRAMS.values())
+        + sum(
+            len({*PROGRAMS[primary], *PROGRAMS[secondary]})
+            for _name, _structure, primary, secondary in COMBINED_PROGRAMS
+        ),
         "sectors": len(SECTORS),
         "round_types": len(ROUND_TYPES),
     }

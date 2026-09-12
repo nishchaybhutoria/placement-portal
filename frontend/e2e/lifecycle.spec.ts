@@ -297,7 +297,9 @@ async function buildNestedRule(
   await palette.getByRole("button", { name: "Primary programs" }).click();
   await page
     .getByRole("region", { name: "Primary programs" })
-    .getByRole("checkbox", { name: program })
+    // Exact: "BTech Dual Major" is a programme of its own now, and a substring
+    // match would resolve to both.
+    .getByRole("checkbox", { name: program, exact: true })
     .check();
 
   await palette.getByRole("button", { name: "Any of these" }).click();
@@ -315,8 +317,12 @@ async function buildNestedRule(
     const optionPalette = option.getByRole("group", {
       name: `Add a condition to option ${index + 1}`,
     });
-    await optionPalette.getByRole("button", { name: "Primary branches" }).click();
-    await option.getByRole("checkbox", { name: branch as string }).check();
+    await optionPalette
+      .getByRole("button", { name: "Primary branch column (advanced)" })
+      .click();
+    await option
+      .getByRole("checkbox", { name: branch as string, exact: true })
+      .check();
     await optionPalette.getByRole("button", { name: "Minimum CPI" }).click();
     await option.getByRole("spinbutton", { name: "Minimum CPI" }).fill(cpi as string);
   }

@@ -4735,6 +4735,17 @@ export interface components {
              */
             program_id: string;
         };
+        /**
+         * ProgramStructure
+         * @description How many disciplines a programme enrols a student in, and of what kind.
+         *
+         *     The programme carries this, not the profile: "BTech-MTech Dual Degree" is a
+         *     programme the office admits students into, and a student is in one
+         *     programme.  Two booleans on the profile could say a student was both, or
+         *     neither while naming a second discipline; a programme cannot.
+         * @enum {string}
+         */
+        ProgramStructure: "single" | "dual_major" | "dual_degree";
         /** PromoteWaitlistedCommandPreview */
         PromoteWaitlistedCommandPreview: {
             /** Events */
@@ -6524,6 +6535,11 @@ export interface components {
             kind: components["schemas"]["TaxonomyKind"];
             /** Name */
             name?: string | null;
+            /** Primary Degree Id */
+            primary_degree_id?: string | null;
+            /** Secondary Degree Id */
+            secondary_degree_id?: string | null;
+            structure?: components["schemas"]["ProgramStructure"] | null;
         };
         /** UpsertTaxonomyItemSummary */
         UpsertTaxonomyItemSummary: {

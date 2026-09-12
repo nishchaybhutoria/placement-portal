@@ -71,8 +71,7 @@ async def test_PRO1_declare_profile_writes_the_profile_and_the_enrollment_roll()
                 "enrollment_id": str(student.enrollment_id),
                 "fields": {
                     "roll_number": "21110001",
-                    "program_id": str(taxonomy.program_id),
-                    "is_dual_major": True,
+                    "program_id": str(taxonomy.dual_major_program_id),
                     "primary_branch_id": str(taxonomy.branch_id),
                     "secondary_branch_id": str(taxonomy.second_branch_id),
                     "graduating_year": 2026,
@@ -88,7 +87,7 @@ async def test_PRO1_declare_profile_writes_the_profile_and_the_enrollment_roll()
             row = (
                 await connection.execute(
                     sa.text(
-                        "SELECT p.cpi, p.gender, p.declared_at, p.is_dual_major, "
+                        "SELECT p.cpi, p.gender, p.declared_at, p.program_id, "
                         "e.roll_number "
                         "FROM profiles p JOIN enrollments e ON e.id = p.enrollment_id "
                         "WHERE p.enrollment_id = :id"
@@ -108,9 +107,9 @@ async def test_PRO1_declare_profile_writes_the_profile_and_the_enrollment_roll()
     assert row["cpi"] == Decimal("8.55")
     assert row["gender"] == "female"
     assert row["declared_at"] is not None
-    # A student states their own dual major at declaration; PRO-1 then locks it
-    # as an admin-managed field (the design review 4.32).
-    assert row["is_dual_major"] is True
+    # A student states the programme they are in at declaration -- the dual
+    # major is which programme, not a separate flag beside it.
+    assert row["program_id"] == taxonomy.dual_major_program_id
     assert row["roll_number"] == "21110001"
     assert [entry["action"] for entry in audit] == ["declare_profile"]
     assert audit[0]["details"]["after"]["roll_number"] == "21110001"
@@ -567,10 +566,8 @@ async def test_PRO1_a_dual_student_may_name_the_same_branch_twice() -> None:
             {
                 "enrollment_id": str(degree.enrollment_id),
                 "fields": {
-                    "program_id": str(taxonomy.program_id),
+                    "program_id": str(taxonomy.dual_degree_program_id),
                     "primary_branch_id": str(taxonomy.branch_id),
-                    "is_dual_degree": True,
-                    "secondary_program_id": str(taxonomy.other_program_id),
                     "secondary_branch_id": str(taxonomy.branch_id),
                 },
             },
@@ -582,9 +579,8 @@ async def test_PRO1_a_dual_student_may_name_the_same_branch_twice() -> None:
             {
                 "enrollment_id": str(major.enrollment_id),
                 "fields": {
-                    "program_id": str(taxonomy.program_id),
+                    "program_id": str(taxonomy.dual_major_program_id),
                     "primary_branch_id": str(taxonomy.branch_id),
-                    "is_dual_major": True,
                     "secondary_branch_id": str(taxonomy.branch_id),
                 },
             },

@@ -1,31 +1,38 @@
-"""Dual majors (Behavior PRO-1, ELG-2; the design review sections 4.19, 4.32).
+"""Dual majors and dual degrees (PRO-1, ELG-2; the design review 4.19, 4.32).
 
-A dual major is a **student** completing two majors at once, one primary and
-one secondary -- not a kind of program.  Section 4.18 originally put the flag
-on the ``programs`` taxonomy row; section 4.32 reverses that and moves it to
-``profiles.is_dual_major``, beside the two branch columns it governs.  These
-tests pin the three things that follow: PRO-1 asks the secondary branch of
-exactly the students who hold one, the pair cannot contradict itself, and
-ELG-2 rules keep reading the same field name they always have.
+Section 4.18 put the dual-major flag on the ``programs`` row; 4.32 moved it to
+``profiles.is_dual_major`` beside the branch columns it governed.  Both readings
+made the *profile* carry the shape of the enrollment, and a pair of booleans
+beside a secondary programme id can disagree with itself: both set at once, a
+secondary programme with no dual degree, a second discipline on neither.
+
+The programme carries it instead.  "BTech Dual Major" and "BTech-MTech Dual
+Degree" are programmes the office admits students into, a student is in one
+programme, and the contradictions above cannot be written down.  These tests
+pin what follows: PRO-1 asks the second discipline of exactly the programmes
+that enrol one, each discipline is checked against the degree it comes from,
+and rules written against the old field names keep evaluating.
 """
 
 from __future__ import annotations
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
 from app.domain.memberships import check_profile_completeness, required_join_fields
+from app.domain.pathways import ProgramPathway, derived_rule_facts
 from app.domain.rules import RuleContext, RuleField, evaluate, parse_rule
+from app.domain.shared import ProgramStructure
 from app.modules.profiles.commands import program_branch_reasons
 from app.modules.profiles.fields import (
     BULK_FIELDS,
     FIELDS_BY_KEY,
     PROFILE_COLUMNS,
     FieldOwner,
-    FieldValueError,
-    coerce_field,
 )
+
+CONTEXT = RuleContext(not_placement_placed=True)
 
 
 def _profile(**overrides: object) -> dict[str, object]:
@@ -50,125 +57,55 @@ def _profile(**overrides: object) -> dict[str, object]:
     return base | overrides
 
 
-def test_PRO1_a_dual_major_must_name_a_secondary_branch() -> None:
+def _pathways(
+    program: UUID, structure: ProgramStructure, primary: UUID, secondary: UUID
+) -> dict[UUID, ProgramPathway]:
+    return {
+        program: ProgramPathway(
+            structure=structure,
+            primary_degree_id=primary,
+            secondary_degree_id=secondary,
+        )
+    }
+
+
+def test_PRO1_a_programme_with_a_second_discipline_must_name_it() -> None:
     reasons = check_profile_completeness(
-        _profile(is_dual_major=True), resume_count=1, declared=True
+        _profile(), resume_count=1, declared=True, second_discipline=True
     )
 
     assert [reason.path for reason in reasons] == ["secondary_branch_id"]
     assert reasons[0].human == "Secondary branch is required to join a cycle"
 
 
-def test_PRO1_a_single_major_is_complete_without_a_secondary_branch() -> None:
-    assert (
-        check_profile_completeness(
-            _profile(is_dual_major=False), resume_count=1, declared=True
-        )
-        == ()
-    )
-    # A profile that does not state the fact is treated as single-major rather
-    # than blocking: the column defaults to false and says so.
+def test_PRO1_a_single_programme_is_complete_without_a_second_discipline() -> None:
     assert check_profile_completeness(_profile(), resume_count=1, declared=True) == ()
 
 
-def test_PRO1_a_dual_major_with_a_secondary_branch_is_complete() -> None:
+def test_PRO1_a_second_discipline_named_completes_the_profile() -> None:
     assert (
         check_profile_completeness(
-            _profile(is_dual_major=True, secondary_branch_id=uuid4()),
+            _profile(secondary_branch_id=uuid4()),
             resume_count=1,
             declared=True,
+            second_discipline=True,
         )
         == ()
     )
 
 
-def test_PRO1_the_required_field_list_depends_on_the_student() -> None:
-    single = required_join_fields(dual_major=False)
-    dual = required_join_fields(dual_major=True)
+def test_PRO1_the_required_field_list_depends_on_the_programme() -> None:
+    single = required_join_fields(second_discipline=False)
+    dual = required_join_fields(second_discipline=True)
     assert "secondary_branch_id" not in single
     assert set(dual) - set(single) == {"secondary_branch_id"}
+    # The combined programme names the postgraduate degree, so the profile
+    # never has to -- and the join checklist stops asking for it.
+    assert "secondary_program_id" not in dual
 
 
-def test_ELG2_a_rule_can_target_dual_majors() -> None:
-    tree = parse_rule({"field": "is_dual_major", "op": "eq", "value": True})
-    context = RuleContext(not_placement_placed=True)
-
-    assert evaluate(tree, {"is_dual_major": True}, context).verdict is True
-    failed = evaluate(tree, {"is_dual_major": False}, context)
-    assert failed.verdict is False
-    assert failed.failures[0].human == (
-        "Requires a dual major; you are not one."
-    )
-
-
-def test_ELG2_the_dual_major_field_is_in_the_rule_registry() -> None:
-    assert RuleField.IS_DUAL_MAJOR.value == "is_dual_major"
-
-
-@pytest.mark.parametrize(
-    "node",
-    [
-        {"field": "is_dual_major", "op": "eq", "value": "yes"},
-        {"field": "is_dual_major", "op": "gte", "value": True},
-        {"field": "is_dual_major", "op": "in", "value": [True, False]},
-    ],
-)
-def test_ELG2_a_true_false_field_rejects_nonsensical_operators(
-    node: dict[str, object],
-) -> None:
-    with pytest.raises(ValueError):
-        parse_rule(node)
-
-
-def test_PRO1_the_flag_is_an_admin_managed_profile_field() -> None:
-    """It is a PRO-1 field, which is what carries it everywhere else.
-
-    Registering it in the field registry is the whole mechanism: `PROFILE_COLUMNS`,
-    the PRO-2 bulk columns, `me/profile`, the ANA-4 export registry and the INT-2
-    snapshot diff all derive from `FIELDS`, so this one assertion is what stops
-    the column being visible to some of them and not others.
-    """
-    field = FIELDS_BY_KEY["is_dual_major"]
-    assert field.owner is FieldOwner.ADMIN
-    assert field.home == "profiles"
-    assert "is_dual_major" in PROFILE_COLUMNS
-    assert "is_dual_major" in BULK_FIELDS
-
-
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [
-        (True, True),
-        (False, False),
-        ("yes", True),
-        ("Y", True),
-        ("1", True),
-        ("no", False),
-        ("FALSE", False),
-        ("0", False),
-        # A blank cell clears the fact to "no": the column is NOT NULL, so
-        # unlike every other field there is no "unknown" to clear it to.
-        ("", False),
-        (None, False),
-    ],
-)
-def test_PRO2_a_spreadsheet_yes_or_no_becomes_the_flag(
-    value: object, expected: bool
-) -> None:
-    assert coerce_field("is_dual_major", value) is expected
-
-
-def test_PRO2_an_unreadable_yes_or_no_is_a_row_error() -> None:
-    with pytest.raises(FieldValueError, match="must be yes or no"):
-        coerce_field("is_dual_major", "maybe")
-
-
-def test_PRO1_a_secondary_branch_requires_the_student_to_be_a_dual_major() -> None:
-    """The pair cannot contradict itself.
-
-    A second major named by somebody who has not got one is not a harmless
-    extra field -- it is the same fact stated two ways, disagreeing.
-    """
+def test_PRO1_a_second_discipline_on_a_single_programme_is_a_contradiction() -> None:
+    """Not a harmless extra field: the programme says there is no second slot."""
     program, primary, secondary = uuid4(), uuid4(), uuid4()
     pairs = frozenset({(program, primary), (program, secondary)})
 
@@ -177,91 +114,139 @@ def test_PRO1_a_secondary_branch_requires_the_student_to_be_a_dual_major() -> No
             "program_id": program,
             "primary_branch_id": primary,
             "secondary_branch_id": secondary,
-            "is_dual_major": False,
         },
         pairs,
+        {program: ProgramPathway(ProgramStructure.SINGLE)},
     )
 
     assert [reason.path for reason in reasons] == ["secondary_branch_id"]
     assert reasons[0].human == "Only a dual major or dual degree has a secondary branch"
 
 
-def test_PRO1_both_majors_may_name_the_same_branch() -> None:
+def test_PRO1_both_disciplines_may_name_the_same_branch() -> None:
     """One discipline, two qualifications: the pair repeating is not an error.
 
     A BTech continued into an MTech in the same discipline is the ordinary dual
-    degree, and the office records dual majors that read the same way; the
-    branches are qualified by their programs, so the repetition says nothing
-    contradictory.  Refusing it made those students undeclarable.
+    degree, and the office records dual majors that read the same way.
     """
-    btech, mtech, branch = uuid4(), uuid4(), uuid4()
-    pairs = frozenset({(btech, branch), (mtech, branch)})
+    combined, btech, mtech, branch = uuid4(), uuid4(), uuid4(), uuid4()
+    pairs = frozenset({(combined, branch), (btech, branch), (mtech, branch)})
 
     assert program_branch_reasons(
         {
-            "program_id": btech,
+            "program_id": combined,
             "primary_branch_id": branch,
-            "is_dual_degree": True,
-            "secondary_program_id": mtech,
             "secondary_branch_id": branch,
         },
         pairs,
+        _pathways(combined, ProgramStructure.DUAL_DEGREE, btech, mtech),
     ) == []
     assert program_branch_reasons(
         {
-            "program_id": btech,
+            "program_id": combined,
             "primary_branch_id": branch,
-            "is_dual_major": True,
             "secondary_branch_id": branch,
         },
         pairs,
+        _pathways(combined, ProgramStructure.DUAL_MAJOR, btech, btech),
     ) == []
 
 
-def test_PRO1_a_dual_degree_uses_its_secondary_program_for_its_second_branch() -> None:
-    btech, mtech, primary, secondary = uuid4(), uuid4(), uuid4(), uuid4()
-    pairs = frozenset({(btech, primary), (mtech, secondary)})
+def test_PRO1_a_dual_degree_checks_its_second_discipline_against_the_pg_degree() -> None:
+    combined, btech, mtech = uuid4(), uuid4(), uuid4()
+    primary, secondary = uuid4(), uuid4()
+    pairs = frozenset({(combined, primary), (btech, primary), (mtech, secondary)})
+    pathways = _pathways(combined, ProgramStructure.DUAL_DEGREE, btech, mtech)
 
     assert program_branch_reasons(
         {
-            "program_id": btech,
+            "program_id": combined,
             "primary_branch_id": primary,
-            "is_dual_major": False,
-            "is_dual_degree": True,
-            "secondary_program_id": mtech,
             "secondary_branch_id": secondary,
         },
         pairs,
+        pathways,
     ) == []
-    reasons = check_profile_completeness(
-        _profile(
-            is_dual_degree=True,
-            secondary_program_id=mtech,
-            secondary_branch_id=None,
-        ),
-        resume_count=1,
-        declared=True,
+
+    # A discipline the postgraduate degree does not offer is refused, even when
+    # the undergraduate half does offer it.
+    reasons = program_branch_reasons(
+        {
+            "program_id": combined,
+            "primary_branch_id": primary,
+            "secondary_branch_id": primary,
+        },
+        pairs,
+        pathways,
     )
     assert [reason.path for reason in reasons] == ["secondary_branch_id"]
+    assert reasons[0].human == (
+        "Secondary branch is not offered by the postgraduate degree"
+    )
 
 
-def test_PRO1_a_dual_major_may_be_recorded_before_the_second_branch_is_known() -> None:
-    """The flag alone is not an error: PRO-1 makes the branch a *join* rule.
+def test_PRO1_a_dual_programme_may_be_recorded_before_the_second_branch() -> None:
+    """PRO-1 makes the second discipline a *join* rule, not a declaration one.
 
-    The office learns that a student is a dual major before it learns which
-    second branch, and refusing the first fact until the second arrives would
+    The office learns which programme a student is in before it learns their
+    second discipline, and refusing the first until the second arrives would
     make the pair unrecordable in the order they actually arrive.
     """
-    program, primary = uuid4(), uuid4()
+    combined, btech, primary = uuid4(), uuid4(), uuid4()
 
-    assert (
-        program_branch_reasons(
-            {
-                "program_id": program,
-                "primary_branch_id": primary,
-                "is_dual_major": True,
-            },
-            frozenset({(program, primary)}),
-        )
-        == []
-    )
+    assert program_branch_reasons(
+        {"program_id": combined, "primary_branch_id": primary},
+        frozenset({(combined, primary)}),
+        _pathways(combined, ProgramStructure.DUAL_MAJOR, btech, btech),
+    ) == []
+
+
+def test_PRO1_the_profile_no_longer_carries_the_shape_of_the_enrollment() -> None:
+    """The three columns that could disagree are gone from the registry.
+
+    Registering a field is the whole mechanism -- `PROFILE_COLUMNS`, the PRO-2
+    bulk columns, `me/profile`, the ANA-4 export registry and the INT-2 snapshot
+    diff all derive from `FIELDS` -- so their absence here is their absence
+    everywhere.
+    """
+    for key in ("is_dual_major", "is_dual_degree", "secondary_program_id"):
+        assert key not in FIELDS_BY_KEY
+        assert key not in PROFILE_COLUMNS
+        assert key not in BULK_FIELDS
+    secondary = FIELDS_BY_KEY["secondary_branch_id"]
+    assert secondary.owner is FieldOwner.ADMIN
+    assert secondary.home == "profiles"
+
+
+@pytest.mark.parametrize("structure, dual_major, dual_degree", [
+    (ProgramStructure.SINGLE, False, False),
+    (ProgramStructure.DUAL_MAJOR, True, False),
+    (ProgramStructure.DUAL_DEGREE, False, True),
+])
+def test_ELG2_a_rule_written_against_the_old_field_names_still_evaluates(
+    structure: ProgramStructure, dual_major: bool, dual_degree: bool,
+) -> None:
+    """A fact that moves house must not start failing the rules that named it."""
+    facts = derived_rule_facts({"program_structure": structure.value})
+    assert facts["is_dual_major"] is dual_major
+    assert facts["is_dual_degree"] is dual_degree
+
+    tree = parse_rule({"field": "is_dual_major", "op": "eq", "value": True})
+    assert evaluate(tree, facts, CONTEXT).verdict is dual_major
+
+
+def test_ELG2_the_old_boolean_fields_remain_in_the_rule_registry() -> None:
+    assert RuleField.IS_DUAL_MAJOR.value == "is_dual_major"
+    assert RuleField.IS_DUAL_DEGREE.value == "is_dual_degree"
+
+
+@pytest.mark.parametrize("node", [
+    {"field": "is_dual_major", "op": "eq", "value": "yes"},
+    {"field": "is_dual_major", "op": "gte", "value": True},
+    {"field": "is_dual_major", "op": "in", "value": [True, False]},
+])
+def test_ELG2_a_true_false_field_rejects_nonsensical_operators(
+    node: dict[str, object],
+) -> None:
+    with pytest.raises(ValueError):
+        parse_rule(node)

@@ -20,6 +20,7 @@ from app.core.authz import Authorizer
 from app.core.db import create_engine
 from app.core.executor import Executor
 from app.core.plan import ActorContext
+from app.domain.pathways import dual_degree_name, dual_major_name
 from app.settings import Settings
 
 DRIVE_URL = "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view"
@@ -48,6 +49,10 @@ class Student:
 class Taxonomy:
     program_id: UUID
     other_program_id: UUID
+    #: "BTech Dual Major" and "BTech-MTech Dual Degree": a combined enrollment
+    #: is a programme of its own (app.domain.pathways).
+    dual_major_program_id: UUID
+    dual_degree_program_id: UUID
     branch_id: UUID
     second_branch_id: UUID
     unmapped_branch_id: UUID
@@ -174,13 +179,36 @@ async def add_enrollment(
 
 
 async def seed_taxonomy(connection: AsyncConnection) -> Taxonomy:
-    ids = {name: uuid4() for name in ("program", "other", "branch", "second", "unmapped", "minor")}
+    ids = {
+        name: uuid4()
+        for name in (
+            "program", "other", "dual_major", "dual_degree",
+            "branch", "second", "unmapped", "minor",
+        )
+    }
     await connection.execute(
         sa.text(
             "INSERT INTO programs (id, name, is_active) VALUES "
             "(:program, 'BTech', true), (:other, 'MTech', true)"
         ),
         {"program": ids["program"], "other": ids["other"]},
+    )
+    await connection.execute(
+        sa.text(
+            "INSERT INTO programs "
+            "(id, name, is_active, structure, primary_degree_id, secondary_degree_id) "
+            "VALUES "
+            "(:dual_major, :dual_major_name, true, 'dual_major', :program, :program), "
+            "(:dual_degree, :dual_degree_name, true, 'dual_degree', :program, :other)"
+        ),
+        {
+            "dual_major": ids["dual_major"],
+            "dual_major_name": dual_major_name("BTech"),
+            "dual_degree": ids["dual_degree"],
+            "dual_degree_name": dual_degree_name("BTech", "MTech"),
+            "program": ids["program"],
+            "other": ids["other"],
+        },
     )
     await connection.execute(
         sa.text(
@@ -198,11 +226,15 @@ async def seed_taxonomy(connection: AsyncConnection) -> Taxonomy:
     await connection.execute(
         sa.text(
             "INSERT INTO program_branches (program_id, branch_id) VALUES "
-            "(:program, :branch), (:program, :second), (:other, :branch)"
+            "(:program, :branch), (:program, :second), (:other, :branch), "
+            "(:dual_major, :branch), (:dual_major, :second), "
+            "(:dual_degree, :branch), (:dual_degree, :second)"
         ),
         {
             "program": ids["program"],
             "other": ids["other"],
+            "dual_major": ids["dual_major"],
+            "dual_degree": ids["dual_degree"],
             "branch": ids["branch"],
             "second": ids["second"],
         },
@@ -210,6 +242,8 @@ async def seed_taxonomy(connection: AsyncConnection) -> Taxonomy:
     return Taxonomy(
         program_id=ids["program"],
         other_program_id=ids["other"],
+        dual_major_program_id=ids["dual_major"],
+        dual_degree_program_id=ids["dual_degree"],
         branch_id=ids["branch"],
         second_branch_id=ids["second"],
         unmapped_branch_id=ids["unmapped"],

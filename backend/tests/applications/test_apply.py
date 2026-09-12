@@ -25,6 +25,7 @@ from app.core.errors import (
     DomainRejection,
 )
 from app.core.plan import Result
+from app.domain.pathways import derived_rule_facts
 from app.modules.profiles.fields import FIELDS
 from tests.applications.conftest import (
     DRIVE_URL,
@@ -232,10 +233,13 @@ async def test_APP1_the_snapshot_carries_every_registry_field() -> None:
     )
     snapshot = cast("dict[str, object]", applications[0]["profile_snapshot"])
 
-    expected = {field.key for field in FIELDS} | {
-        # A program property the rule engine reads as a field (section 4.18),
-        # so it is judged on and therefore snapshotted.
-        "is_dual_major"
+    # Everything the rule was judged on, which is the registry plus the facts
+    # derived from the declared programme -- a snapshot that omitted those
+    # could not reconstruct the verdict it recorded (ELG-4).
+    expected = {field.key for field in FIELDS} | set(derived_rule_facts({})) | {
+        "program_structure",
+        "program_primary_degree_id",
+        "program_secondary_degree_id",
     }
     assert set(snapshot) == expected
 

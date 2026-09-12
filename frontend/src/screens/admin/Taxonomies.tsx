@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 
 import { payload, type TaxonomiesPayload, type TaxonomyItem } from "@/api/payloads";
 import { useCommand, useScreen } from "@/api/useScreen";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
 import { DataTable, type Column } from "@/components/ui/table";
 import { Tabs } from "@/components/ui/tabs";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
@@ -19,10 +19,11 @@ type Item = TaxonomyItem;
 /**
  * The five taxonomies, one tab each (LLD §11.3 `admin/taxonomies`).
  *
- * Programs carry one thing the others do not: the branches they admit, edited
- * here because there is nowhere else they can be. Whether a *student* holds two
- * of those branches at once is a fact about the student and lives on their
- * profile, not here (the design review §4.32).
+ * Programs carry two things the others do not: the branches they admit, and the
+ * shape of the enrollment they are. "BTech Dual Major" and "BTech-MTech Dual
+ * Degree" are programmes admitted into, so whether a student holds two
+ * disciplines is settled by which programme they are in, not by a flag on
+ * their profile (the design review §4.32, amended here).
  */
 const KINDS = [
   { id: "programs", label: "Programs" },
@@ -71,13 +72,25 @@ function TaxonomyTab({ kind, items, data }: { kind: Kind; items: Item[]; data: S
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [branchIds, setBranchIds] = useState<string[]>([]);
+  const [structure, setStructure] = useState("single");
+  const [primaryDegree, setPrimaryDegree] = useState("");
+  const [secondaryDegree, setSecondaryDegree] = useState("");
   const branches = data.branches ?? [];
   const mappings = data.program_branches ?? [];
+  // A component degree is itself a plain degree, so a combined programme is
+  // never built out of another combined one.
+  const degrees = (data.programs ?? []).filter(
+    (item) => (item.structure ?? "single") === "single" && item.id !== editingId,
+  );
+  const combined = structure !== "single";
 
   function reset() {
     setEditingId(null);
     setName("");
     setBranchIds([]);
+    setStructure("single");
+    setPrimaryDegree("");
+    setSecondaryDegree("");
   }
 
   function editItem(item: Item) {
@@ -88,6 +101,9 @@ function TaxonomyTab({ kind, items, data }: { kind: Kind; items: Item[]; data: S
         ? mappings.filter((row) => row.program_id === item.id).map((row) => row.branch_id)
         : [],
     );
+    setStructure(item.structure ?? "single");
+    setPrimaryDegree(item.primary_degree_id ?? "");
+    setSecondaryDegree(item.secondary_degree_id ?? "");
   }
 
   function submit() {
@@ -99,7 +115,14 @@ function TaxonomyTab({ kind, items, data }: { kind: Kind; items: Item[]; data: S
           name: name.trim(),
           action: "upsert",
           is_active: true,
-          ...(kind === "programs" ? { branch_ids: branchIds } : {}),
+          ...(kind === "programs"
+            ? {
+                branch_ids: branchIds,
+                structure: structure as "single" | "dual_major" | "dual_degree",
+                primary_degree_id: combined ? primaryDegree : null,
+                secondary_degree_id: combined ? secondaryDegree : null,
+              }
+            : {}),
         },
       },
       {
@@ -194,7 +217,10 @@ function TaxonomyTab({ kind, items, data }: { kind: Kind; items: Item[]; data: S
             <Button
               variant="primary"
               icon={<Plus className="h-4 w-4" />}
-              disabled={!name.trim()}
+              disabled={
+                !name.trim() ||
+                (kind === "programs" && combined && (!primaryDegree || !secondaryDegree))
+              }
               loading={upsert.isPending}
               onClick={submit}
             >
@@ -207,6 +233,60 @@ function TaxonomyTab({ kind, items, data }: { kind: Kind; items: Item[]; data: S
 
           {kind === "programs" ? (
             <>
+              <Field
+                label="What this program enrols a student in"
+                hint="A dual major reads both disciplines from one degree; a dual degree reads its second from the postgraduate one."
+              >
+                {(input) => (
+                  <Select
+                    {...input}
+                    value={structure}
+                    onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                      setStructure(event.target.value)
+                    }
+                  >
+                    <option value="single">One discipline</option>
+                    <option value="dual_major">Dual major — two disciplines</option>
+                    <option value="dual_degree">Dual degree — undergraduate and postgraduate</option>
+                  </Select>
+                )}
+              </Field>
+              {combined ? (
+                <div className="grid gap-gap-lg sm:grid-cols-2">
+                  <Field label="Primary discipline comes from">
+                    {(input) => (
+                      <Select
+                        {...input}
+                        value={primaryDegree}
+                        onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                          setPrimaryDegree(event.target.value)
+                        }
+                      >
+                        <option value="">Select a degree…</option>
+                        {degrees.map((item) => (
+                          <option key={item.id} value={item.id}>{item.name}</option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                  <Field label="Second discipline comes from">
+                    {(input) => (
+                      <Select
+                        {...input}
+                        value={secondaryDegree}
+                        onChange={(event: ChangeEvent<HTMLSelectElement>) =>
+                          setSecondaryDegree(event.target.value)
+                        }
+                      >
+                        <option value="">Select a degree…</option>
+                        {degrees.map((item) => (
+                          <option key={item.id} value={item.id}>{item.name}</option>
+                        ))}
+                      </Select>
+                    )}
+                  </Field>
+                </div>
+              ) : null}
               <Field label="Branches this program admits">
                 {() => (
                   branches.length === 0 ? (

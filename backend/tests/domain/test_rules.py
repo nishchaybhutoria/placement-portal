@@ -6,7 +6,14 @@ from uuid import UUID
 import pytest
 from pydantic import ValidationError
 
-from app.domain.rules import RuleContext, RuleField, evaluate, parse_rule
+from app.domain.rules import (
+    SET_FIELDS,
+    RuleContext,
+    RuleField,
+    actual_key,
+    evaluate,
+    parse_rule,
+)
 
 CONTEXT = RuleContext(not_placement_placed=True)
 PROGRAM = UUID("00000000-0000-0000-0000-000000000101")
@@ -15,7 +22,12 @@ OTHER_PROGRAM = UUID("00000000-0000-0000-0000-000000000102")
 
 def _verdict(field: str, op: str, expected: object, actual: object) -> bool:
     rule = parse_rule({"field": field, "op": op, "value": expected})
-    return evaluate(rule, {field: actual}, CONTEXT).verdict
+    # A set-valued field reads a derived key beside the column, and answers
+    # from the set of values the student may use; one value is a set of one.
+    rule_field = RuleField(field)
+    key = actual_key(rule_field)
+    live = frozenset({actual}) if rule_field in SET_FIELDS else actual
+    return evaluate(rule, {key: live}, CONTEXT).verdict
 
 
 @pytest.mark.parametrize(

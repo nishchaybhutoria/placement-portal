@@ -22,6 +22,8 @@ export interface CycleHeader {
 export interface TaxonomyRef {
   id: string;
   name: string;
+  /** Programmes only: "single", "dual_major" or "dual_degree" (ELG-2). */
+  structure?: string;
 }
 
 /* -------------------------------------------------------------- cycles --- */
@@ -508,6 +510,10 @@ export interface TaxonomyItem {
   id: string;
   name: string;
   is_active: boolean;
+  /** Programmes only: the shape of the enrollment they admit (ELG-2). */
+  structure?: string;
+  primary_degree_id?: string | null;
+  secondary_degree_id?: string | null;
 }
 
 export interface TaxonomiesPayload {

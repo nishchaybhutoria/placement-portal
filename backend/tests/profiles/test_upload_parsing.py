@@ -95,16 +95,14 @@ def test_PRO2_institution_pre_registration_sheet_derives_dual_degree_shape_and_y
         "full_name": "Asha Rao",
         "contact_number": "9876543210",
         "gender": "Female",
-        "program_id": "BTech",
+        # A dual enrollment resolves to the combined programme by name, so the
+        # upsert looks it up like any other rather than setting flags.
+        "program_id": "BTech\N{EN DASH}MTech Dual Degree",
         "primary_branch_id": "Civil Engineering",
-        "is_dual_major": False,
-        "is_dual_degree": True,
-        "secondary_program_id": "MTech",
         "secondary_branch_id": "Computer Science and Engineering",
         "graduating_year": "2027",
     }
-    assert parsed.rows[1].fields["is_dual_major"] is True
-    assert parsed.rows[1].fields["is_dual_degree"] is False
+    assert parsed.rows[1].fields["program_id"] == "BTech Dual Major"
     assert parsed.rows[1].fields["primary_branch_id"] == "Chemical Engineering"
     assert "secondary_program_id" not in parsed.rows[1].fields
 

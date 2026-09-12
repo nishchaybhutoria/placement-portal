@@ -78,7 +78,7 @@ async def test_mock_seed_matches_the_synthetic_cast() -> None:
 
     students = await _all(
         "SELECT u.email, u.full_name, e.roll_number, p.declared_at, p.cpi, "
-        "p.active_backlogs, p.total_backlogs, p.is_dual_major, "
+        "p.active_backlogs, p.total_backlogs, prog.structure AS program_structure, "
         "prog.name AS program, branch.name AS branch, secondary.name AS secondary_branch "
         "FROM users u JOIN enrollments e ON e.user_id = u.id AND e.is_current "
         "LEFT JOIN profiles p ON p.enrollment_id = e.id "
@@ -125,7 +125,11 @@ async def test_mock_seed_matches_the_synthetic_cast() -> None:
             0,
             0,
         ),
-        "99000004": ("Demo Student 04", "demo.student04@example.edu", "BTech", "CSE", "7.80", 0, 0),
+        # The one dual major in the cast, enrolled in the combined programme.
+        "99000004": (
+            "Demo Student 04", "demo.student04@example.edu",
+            "BTech Dual Major", "CSE", "7.80", 0, 0,
+        ),
         "99000001": (
             "Demo Student 01",
             "demo.student01@example.edu",
@@ -160,8 +164,9 @@ async def test_mock_seed_matches_the_synthetic_cast() -> None:
         demo_student_04["program"],
         demo_student_04["branch"],
         demo_student_04["secondary_branch"],
-    ) == ("BTech", "CSE", "EE")
-    assert demo_student_04["is_dual_major"] is True
+    ) == ("BTech Dual Major", "CSE", "EE")
+    # The dual major is which programme they are in, not a flag beside it.
+    assert demo_student_04["program_structure"] == "dual_major"
     demo_student_07 = next(row for row in students if row["full_name"] == "Demo Student 07")
     assert demo_student_07["program"] == "MTech"
 

@@ -32,19 +32,11 @@ PRO1_INVENTORY: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("Program", "admin", ("program_id",)),
     ("Primary branch", "admin", ("primary_branch_id",)),
     # PRO-1 states the secondary branch as belonging to dual majors and asks it
-    # of them conditionally. The condition needs somewhere to live, so the
-    # inventory row covers the pair: the flag that says a student holds a second
-    # major, and the branch it names (the design review 4.32).
-    (
-        "Secondary branch (dual majors)",
-        "admin",
-        (
-            "is_dual_major",
-            "is_dual_degree",
-            "secondary_program_id",
-            "secondary_branch_id",
-        ),
-    ),
+    # of them conditionally. The condition now lives on the programme -- "BTech
+    # Dual Major" is a programme, not a flag on the student -- so the row is the
+    # branch alone (the design review 4.32, amended by the programme-structure
+    # release).
+    ("Secondary branch (dual majors)", "admin", ("secondary_branch_id",)),
     ("Graduating year", "admin", ("graduating_year",)),
     # Academic standing collection amendment: docs/ACADEMIC-ELIGIBILITY.md.
     ("Year of study", "admin", ("study_year", "study_year_session")),

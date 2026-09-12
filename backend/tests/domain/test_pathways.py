@@ -10,8 +10,13 @@ from uuid import UUID
 
 import pytest
 
-from app.domain.pathways import SECOND_DISCIPLINE_YEAR, eligible_disciplines
+from app.domain.pathways import (
+    SECOND_DISCIPLINE_YEAR,
+    derived_rule_facts,
+    eligible_disciplines,
+)
 from app.domain.rules import RuleContext, evaluate, parse_rule
+from app.domain.shared import ProgramStructure
 
 CONTEXT = RuleContext(not_placement_placed=True)
 EE = UUID("00000000-0000-0000-0000-0000000000ee")
@@ -20,8 +25,11 @@ CSE = UUID("00000000-0000-0000-0000-000000000c5e")
 LABELS = {EE: "Electrical Engineering", ICDT: "ICDT", CSE: "Computer Science"}
 
 
-def _single(branch: UUID) -> dict[str, object]:
-    return {"primary_branch_id": branch}
+def _single(branch: UUID | None) -> dict[str, object]:
+    return {
+        "primary_branch_id": branch,
+        "program_structure": ProgramStructure.SINGLE.value,
+    }
 
 
 def _dual_major(
@@ -30,7 +38,7 @@ def _dual_major(
     return {
         "primary_branch_id": primary,
         "secondary_branch_id": secondary,
-        "is_dual_major": True,
+        "program_structure": ProgramStructure.DUAL_MAJOR.value,
         "study_year": year,
     }
 
@@ -39,7 +47,7 @@ def _dual_degree(primary: UUID, secondary: UUID | None) -> dict[str, object]:
     return {
         "primary_branch_id": primary,
         "secondary_branch_id": secondary,
-        "is_dual_degree": True,
+        "program_structure": ProgramStructure.DUAL_DEGREE.value,
     }
 
 
@@ -63,7 +71,11 @@ def test_ELG2_dual_degree_answers_with_its_postgraduate_discipline_alone() -> No
 
 @pytest.mark.parametrize("profile", [
     {},
-    {"primary_branch_id": None},
+    # A profile naming no programme: the shape of the enrollment is unknown,
+    # which is not the same as a single-discipline one.
+    {"primary_branch_id": EE},
+    {"program_structure": "a shape this build does not know"},
+    _single(None),
     _dual_major(EE, CSE, None),
     _dual_major(EE, CSE, True),
     _dual_major(None, CSE, 4),
@@ -153,3 +165,45 @@ def test_ELG2_the_ixana_defect_a_single_discipline_student_is_not_excluded() -> 
     third_year = _dual_major(CSE, ICDT, 3)
     third_year["discipline_id"] = eligible_disciplines(third_year)
     assert evaluate(corrected, third_year, CONTEXT).verdict is False
+
+
+def test_ELG2_a_rule_naming_a_degree_still_matches_the_programmes_built_on_it() -> None:
+    """The migration must not quietly narrow the rules it carries across.
+
+    "BTech Dual Major" is a new programme, and a saved rule naming BTech was
+    written when its dual majors were BTech with a flag. The rule keeps meaning
+    what its author meant: enrolled in a programme built on BTech.
+    """
+    btech = UUID("00000000-0000-0000-0000-0000000b7ec8")
+    dual_major = UUID("00000000-0000-0000-0000-00000000d117")
+    mtech = UUID("00000000-0000-0000-0000-00000000117e")
+
+    facts = derived_rule_facts({
+        "program_id": dual_major,
+        "program_primary_degree_id": btech,
+        "program_secondary_degree_id": btech,
+        "program_structure": ProgramStructure.DUAL_MAJOR.value,
+    })
+    assert facts["eligible_program_ids"] == frozenset({dual_major, btech})
+
+    rule = parse_rule({"field": "program_id", "op": "in", "value": [str(btech)]})
+    assert evaluate(rule, facts, CONTEXT).verdict is True
+    # And naming the combined programme alone still selects only it.
+    exact = parse_rule({"field": "program_id", "op": "in", "value": [str(dual_major)]})
+    assert evaluate(exact, facts, CONTEXT).verdict is True
+    assert evaluate(
+        parse_rule({"field": "program_id", "op": "in", "value": [str(mtech)]}),
+        facts,
+        CONTEXT,
+    ).verdict is False
+
+
+def test_ELG2_the_declared_programme_is_kept_beside_the_widened_set() -> None:
+    """Per-programme CTC and the record screens read the one they are in."""
+    dual_major = UUID("00000000-0000-0000-0000-00000000d117")
+    profile: dict[str, object] = {
+        "program_id": dual_major,
+        "program_structure": ProgramStructure.DUAL_MAJOR.value,
+    }
+    profile.update(derived_rule_facts(profile))
+    assert profile["program_id"] == dual_major
