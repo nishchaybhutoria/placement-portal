@@ -1230,6 +1230,7 @@ function EligibilityTab({
               minors: taxonomy.minors,
             }}
             disabled={disabled}
+            outcome={data.job.outcome}
             onChange={setRule}
           />
         </CardBody>

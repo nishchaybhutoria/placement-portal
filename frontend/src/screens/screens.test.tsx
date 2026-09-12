@@ -1099,15 +1099,15 @@ describe("job builder", () => {
     ).toBeInTheDocument();
 
     // The palette inside an option is filtered per option, not globally:
-    // "branch is CSE" in one and "branch is EE" in the other is the entire
-    // point, and a globally filtered palette would hide the second one.
+    // "discipline is CSE" in one and "discipline is EE" in the other is the
+    // entire point, and a globally filtered palette would hide the second one.
     const optionOne = screen.getByText("Option 1").closest("li")!;
     const optionTwo = screen.getByText("Option 2").closest("li")!;
     expect(
-      within(optionOne).getByRole("button", { name: /Primary branches/ }),
+      within(optionOne).getByRole("button", { name: /Disciplines/ }),
     ).toBeInTheDocument();
     expect(
-      within(optionTwo).getByRole("button", { name: /Primary branches/ }),
+      within(optionTwo).getByRole("button", { name: /Disciplines/ }),
     ).toBeInTheDocument();
 
     // And the JSON escape hatch was never opened.

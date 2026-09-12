@@ -35,6 +35,7 @@ type ClauseKind =
   | "graduating_year"
   | "program"
   | "secondary_program"
+  | "discipline"
   | "branch"
   | "secondary_branch"
   | "minor"
@@ -56,18 +57,38 @@ const CLAUSES: ClauseDefinition[] = [
     hint: "Usually 0 — nobody currently carrying a backlog.",
   },
   { kind: "total_backlogs", label: "Maximum total backlogs", hint: "Counts history, not just current." },
-  { kind: "graduating_year", label: "Graduating year", hint: "Exactly this batch." },
+  {
+    kind: "graduating_year",
+    label: "Graduating years",
+    hint: "One or more batches, comma separated — pathways often differ, e.g. 2026, 2027.",
+  },
   { kind: "program", label: "Primary programs", hint: "Any primary degree you pick." },
   {
     kind: "secondary_program",
     label: "Secondary programs",
     hint: "The postgraduate degree in a dual-degree enrollment.",
   },
-  { kind: "branch", label: "Primary branches", hint: "Any primary discipline you pick." },
+  {
+    kind: "discipline",
+    label: "Disciplines",
+    hint:
+      "The disciplines this role recruits in. Matches whichever of the student's own " +
+      "disciplines they may apply in — a dual major's second discipline counts from " +
+      "their fourth year, and a dual degree answers with its postgraduate discipline.",
+  },
+  {
+    kind: "branch",
+    label: "Primary branch column (advanced)",
+    hint:
+      "Matches the primary column alone. Prefer Disciplines: naming both branch " +
+      "columns excludes every single-discipline student, whose secondary is blank.",
+  },
   {
     kind: "secondary_branch",
-    label: "Secondary branches",
-    hint: "The second major or postgraduate discipline.",
+    label: "Secondary branch column (advanced)",
+    hint:
+      "Matches the secondary column alone, which is blank unless the student is a " +
+      "dual major or dual degree. Prefer Disciplines.",
   },
   { kind: "minor", label: "Minor", hint: "Either declared minor may match." },
   {
@@ -94,6 +115,8 @@ interface Clause {
   number?: string;
   /** Taxonomy clauses. */
   ids?: string[];
+  /** Multi-valued numeric clauses, e.g. several graduating years. */
+  numbers?: string[];
 }
 
 /**
@@ -175,15 +198,27 @@ function toNode(clause: Clause): Rule | null {
       return clause.number !== undefined && clause.number !== ""
         ? { field: "total_backlogs", op: "lte", value: Number(clause.number) }
         : null;
-    case "graduating_year":
-      return clause.number
-        ? { field: "graduating_year", op: "eq", value: Number(clause.number) }
-        : null;
+    case "graduating_year": {
+      const years = (clause.numbers ?? [])
+        .map((entry) => Number(entry))
+        .filter((year) => Number.isInteger(year));
+      if (years.length === 0) return null;
+      // One year stays `eq`: it keeps rules saved before this clause took a
+      // list byte-identical, and "graduating year 2027" reads better than
+      // "one of 2027" in the summary a student is shown.
+      return years.length === 1
+        ? { field: "graduating_year", op: "eq", value: years[0] as number }
+        : { field: "graduating_year", op: "in", value: years };
+    }
     case "program":
       return clause.ids?.length ? { field: "program_id", op: "in", value: clause.ids } : null;
     case "secondary_program":
       return clause.ids?.length
         ? { field: "secondary_program_id", op: "in", value: clause.ids }
+        : null;
+    case "discipline":
+      return clause.ids?.length
+        ? { field: "discipline_id", op: "in", value: clause.ids }
         : null;
     case "branch":
       return clause.ids?.length
@@ -285,11 +320,15 @@ function nodeToClause(node: Rule, id: string): Clause | null {
   if (field === "total_backlogs" && op === "lte")
     return { id, kind: "total_backlogs", number: String(value) };
   if (field === "graduating_year" && op === "eq")
-    return { id, kind: "graduating_year", number: String(value) };
+    return { id, kind: "graduating_year", numbers: [String(value)] };
+  if (field === "graduating_year" && op === "in")
+    return { id, kind: "graduating_year", numbers: (value as number[]).map(String) };
   if (field === "program_id" && op === "in")
     return { id, kind: "program", ids: value as string[] };
   if (field === "secondary_program_id" && op === "in")
     return { id, kind: "secondary_program", ids: value as string[] };
+  if (field === "discipline_id" && op === "in")
+    return { id, kind: "discipline", ids: value as string[] };
   if (field === "primary_branch_id" && op === "in")
     return { id, kind: "branch", ids: value as string[] };
   if (field === "secondary_branch_id" && op === "in")
@@ -305,13 +344,20 @@ export function RuleEditor({
   rule,
   taxonomy,
   disabled,
+  outcome,
   onChange,
 }: {
   rule: Rule | null;
   taxonomy: Taxonomy;
   disabled: boolean;
+  /** The job's outcome, so a clause the standing gate already enforces is not offered. */
+  outcome?: string | null;
   onChange: (next: Rule | null) => void;
 }) {
+  // ELG-3 already closes placement roles to a placed student before the rule
+  // runs, under its own override domain. Offering the same condition here
+  // invites a rule an outcome-gate override cannot lift.
+  const placementOutcome = outcome === "placement";
   const initial = useMemo(() => decompile(rule), [rule]);
   const [clauses, setClauses] = useState<Row[]>(initial ?? []);
   // A tree the clause list cannot round-trip opens in raw mode rather than
@@ -398,6 +444,7 @@ export function RuleEditor({
                       group={row}
                       taxonomy={taxonomy}
                       disabled={disabled}
+                      placementOutcome={placementOutcome}
                       onChange={(next) =>
                         update(clauses.map((item, i) => (i === index ? next : item)))
                       }
@@ -408,6 +455,7 @@ export function RuleEditor({
                       clause={row}
                       taxonomy={taxonomy}
                       disabled={disabled}
+                      placementOutcome={placementOutcome}
                       onChange={(next) =>
                         update(clauses.map((item, i) => (i === index ? next : item)))
                       }
@@ -429,6 +477,7 @@ export function RuleEditor({
             <AddClauseButtons
               taken={clauses.filter((row): row is Clause => !isGroup(row))}
               disabled={disabled}
+              placementOutcome={placementOutcome}
               onAdd={(kind) =>
                 update([...clauses, { id: `${kind}-${Date.now()}`, kind }])
               }
@@ -493,16 +542,20 @@ function newGroup(mode: "any" | "none"): Group {
 function AddClauseButtons({
   taken,
   disabled,
+  placementOutcome,
   onAdd,
 }: {
   taken: Clause[];
   disabled: boolean;
+  placementOutcome: boolean;
   onAdd: (kind: ClauseKind) => void;
 }) {
   return (
     <>
       {CLAUSES.filter(
-        (definition) => !taken.some((clause) => clause.kind === definition.kind),
+        (definition) =>
+          !taken.some((clause) => clause.kind === definition.kind) &&
+          !(definition.kind === "not_placed" && placementOutcome),
       ).map((definition) => (
         <Button
           key={definition.kind}
@@ -523,12 +576,14 @@ function GroupRow({
   group,
   taxonomy,
   disabled,
+  placementOutcome,
   onChange,
   onRemove,
 }: {
   group: Group;
   taxonomy: Taxonomy;
   disabled: boolean;
+  placementOutcome: boolean;
   onChange: (next: Group) => void;
   onRemove: () => void;
 }) {
@@ -612,6 +667,7 @@ function GroupRow({
                       clause={clause}
                       taxonomy={taxonomy}
                       disabled={disabled}
+                      placementOutcome={placementOutcome}
                       onChange={(next) =>
                         setOptions(
                           group.options.map((item, i) =>
@@ -652,6 +708,7 @@ function GroupRow({
               <AddClauseButtons
                 taken={option.clauses}
                 disabled={disabled}
+                placementOutcome={placementOutcome}
                 onAdd={(kind) =>
                   setOptions(
                     group.options.map((item, i) =>
@@ -696,12 +753,14 @@ function ClauseRow({
   clause,
   taxonomy,
   disabled,
+  placementOutcome,
   onChange,
   onRemove,
 }: {
   clause: Clause;
   taxonomy: Taxonomy;
   disabled: boolean;
+  placementOutcome: boolean;
   onChange: (next: Clause) => void;
   onRemove: () => void;
 }) {
@@ -709,7 +768,9 @@ function ClauseRow({
   const options =
     clause.kind === "program" || clause.kind === "secondary_program"
       ? taxonomy.programs
-      : clause.kind === "branch" || clause.kind === "secondary_branch"
+      : clause.kind === "discipline" ||
+          clause.kind === "branch" ||
+          clause.kind === "secondary_branch"
         ? taxonomy.branches
         : clause.kind === "minor"
           ? taxonomy.minors
@@ -771,9 +832,30 @@ function ClauseRow({
               </label>
             ))}
           </div>
+        ) : clause.kind === "graduating_year" ? (
+          <Input
+            aria-label="Graduating years"
+            type="text"
+            inputMode="numeric"
+            placeholder="2026, 2027"
+            className="w-64"
+            disabled={disabled}
+            value={(clause.numbers ?? []).join(", ")}
+            onChange={(event) =>
+              onChange({
+                ...clause,
+                numbers: event.target.value
+                  .split(",")
+                  .map((entry) => entry.trim())
+                  .filter((entry) => entry !== ""),
+              })
+            }
+          />
         ) : clause.kind === "dual_major" || clause.kind === "dual_degree" || clause.kind === "not_placed" ? (
           <p className="text-body-sm text-muted-foreground">
-            This clause takes no value — adding it is the whole condition.
+            {clause.kind === "not_placed" && placementOutcome
+              ? "Already enforced for placement roles before a student can apply, so this clause changes nothing. Remove it — an override of the standing gate cannot lift a rule."
+              : "This clause takes no value — adding it is the whole condition."}
           </p>
         ) : (
           <Input

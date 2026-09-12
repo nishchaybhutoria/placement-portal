@@ -196,4 +196,64 @@ describe("rule compilation", () => {
     expect(compile([])).toBeNull();
     expect(decompile(null)).toEqual([]);
   });
+
+  it("states a discipline condition once instead of naming both branch columns", () => {
+    // The defect this clause exists for: ANDing the two columns excluded every
+    // single-discipline student, whose secondary branch is blank.
+    expect(compile([{ id: "1", kind: "discipline", ids: [CSE, EE] }])).toEqual({
+      field: "discipline_id",
+      op: "in",
+      value: [CSE, EE],
+    });
+    roundTrip([{ id: "1", kind: "discipline", ids: [CSE, EE] }]);
+  });
+
+  it("carries several graduating years, and keeps a single year as `eq`", () => {
+    // Pathways differ: the roster gives dual degrees their own graduating year.
+    expect(compile([{ id: "1", kind: "graduating_year", numbers: ["2026", "2027"] }])).toEqual({
+      field: "graduating_year",
+      op: "in",
+      value: [2026, 2027],
+    });
+    expect(compile([{ id: "1", kind: "graduating_year", numbers: ["2027"] }])).toEqual({
+      field: "graduating_year",
+      op: "eq",
+      value: 2027,
+    });
+    expect(compile([{ id: "1", kind: "graduating_year", numbers: [] }])).toBeNull();
+    roundTrip([{ id: "1", kind: "graduating_year", numbers: ["2026", "2027"] }]);
+    // A rule saved before the clause took a list still opens in the controls.
+    expect(decompile({ field: "graduating_year", op: "eq", value: 2027 })).toEqual([
+      { id: "0", kind: "graduating_year", numbers: ["2027"] },
+    ]);
+  });
+
+  it("round-trips a per-pathway rule of the shape the roster describes", () => {
+    // "BTech graduating 2027 in CSE, or a dual degree graduating 2026 in EE."
+    roundTrip([
+      {
+        id: "1",
+        kind: "group",
+        mode: "any",
+        options: [
+          {
+            id: "1-0",
+            clauses: [
+              { id: "1-0-0", kind: "program", ids: [BTECH] },
+              { id: "1-0-1", kind: "discipline", ids: [CSE] },
+              { id: "1-0-2", kind: "graduating_year", numbers: ["2027"] },
+            ],
+          },
+          {
+            id: "1-1",
+            clauses: [
+              { id: "1-1-0", kind: "program", ids: [DUAL] },
+              { id: "1-1-1", kind: "discipline", ids: [EE] },
+              { id: "1-1-2", kind: "graduating_year", numbers: ["2026"] },
+            ],
+          },
+        ],
+      },
+    ]);
+  });
 });
