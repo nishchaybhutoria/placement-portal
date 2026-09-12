@@ -46,6 +46,8 @@ PRO1_INVENTORY: tuple[tuple[str, str, tuple[str, ...]], ...] = (
         ),
     ),
     ("Graduating year", "admin", ("graduating_year",)),
+    # Academic standing collection amendment: docs/ACADEMIC-ELIGIBILITY.md.
+    ("Year of study", "admin", ("study_year", "study_year_session")),
     ("CPI (0-10, 2 dp)", "admin", ("cpi",)),
     ("Active backlog count", "admin", ("active_backlogs",)),
     ("Total (ever) backlog count", "admin", ("total_backlogs",)),

@@ -36,6 +36,7 @@ from app.modules.offers.external import ExternalOfferRow, _external_offer
 from app.modules.offers.planning import OfferApplication
 from app.modules.offers.termination import _candidate_payload, _duplicate_restore_target
 from app.modules.overrides.service import applicable
+from app.modules.profiles.academics import load_academic_standing
 
 
 def _engine(request: Request) -> AsyncEngine:
@@ -436,6 +437,7 @@ async def student_dashboard(engine: AsyncEngine, enrollment_id: UUID) -> dict[st
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with factory() as tx:
         now = cast(datetime, await tx.scalar(sa.select(sa.func.now())))
+        academic_standing = await load_academic_standing(tx, enrollment_id)
         applications = await _load_offer_applications(tx, enrollment_ids=(enrollment_id,))
         cycle_rows = (
             (
@@ -567,6 +569,7 @@ async def student_dashboard(engine: AsyncEngine, enrollment_id: UUID) -> dict[st
         )
         return {
             "enrollment_id": str(enrollment_id),
+            "academic_standing": academic_standing,
             "memberships": [
                 {
                     "id": str(row["id"]),

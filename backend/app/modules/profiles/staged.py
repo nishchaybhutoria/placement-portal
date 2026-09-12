@@ -23,6 +23,7 @@ from app.core.errors import (
 )
 from app.core.plan import ActorContext, Plan, Reason, Rejection, ScopeIds, StateOp
 from app.core.registry import Registry
+from app.domain.academics import academic_standing_reasons
 from app.modules.identity.commands import (
     LoginInput,
     LoginState,
@@ -219,6 +220,7 @@ def _row_problems(
             resolved[key] = coerce_field(key, value)
         except FieldValueError as error:
             problems.append(error.human)
+    problems.extend(reason.human for reason in academic_standing_reasons(resolved))
     for key in TAXONOMY_FIELDS:
         identifier = resolved.get(key)
         if isinstance(identifier, UUID) and identifier not in state.active_ids:

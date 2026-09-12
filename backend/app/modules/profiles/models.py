@@ -16,6 +16,14 @@ class Profile(UUIDPrimaryKeyMixin, UpdatedAtMixin, Base):
     __tablename__ = "profiles"
     __table_args__ = (
         sa.UniqueConstraint("enrollment_id", name="uq_profiles_enrollment_id"),
+        sa.CheckConstraint("study_year BETWEEN 1 AND 8", name="ck_profiles_study_year_range"),
+        sa.CheckConstraint(
+            "study_year_session BETWEEN 1900 AND 2100", name="ck_profiles_study_year_session_range"
+        ),
+        sa.CheckConstraint(
+            "(study_year IS NULL) = (study_year_session IS NULL)",
+            name="ck_profiles_study_year_pair",
+        ),
         sa.CheckConstraint(
             "NOT (is_dual_major AND is_dual_degree)", name="ck_profiles_one_dual_kind"
         ),
@@ -55,6 +63,9 @@ class Profile(UUIDPrimaryKeyMixin, UpdatedAtMixin, Base):
     secondary_branch_id: Mapped[UUID | None] = mapped_column(
         sa.ForeignKey("branches.id", ondelete="RESTRICT")
     )
+    # Nullable for the additive collection release: never guess existing students' standing.
+    study_year: Mapped[int | None] = mapped_column(sa.Integer())
+    study_year_session: Mapped[int | None] = mapped_column(sa.Integer())
     graduating_year: Mapped[int | None] = mapped_column(sa.Integer())
     cpi: Mapped[Decimal | None] = mapped_column(sa.Numeric(4, 2))
     active_backlogs: Mapped[int | None] = mapped_column(sa.Integer())

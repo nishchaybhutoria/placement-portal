@@ -32,6 +32,7 @@ class SettingKey(StrEnum):
     STRIKES_PER_PENALTY = "strikes_per_penalty"
     SESSION_HOURS = "session_hours"
     SES_SENDER = "ses_sender"
+    ACADEMIC_SESSION_START_YEAR = "academic_session_start_year"
 
 
 class UpsertTaxonomyItemInput(BaseModel):
@@ -100,6 +101,11 @@ class SetSettingInput(BaseModel):
         elif self.key is SettingKey.SESSION_HOURS:
             if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
                 raise ValueError("session_hours must be a positive integer")
+        elif self.key is SettingKey.ACADEMIC_SESSION_START_YEAR:
+            if value is not None and (
+                isinstance(value, bool) or not isinstance(value, int) or not 1900 <= value <= 2100
+            ):
+                raise ValueError("academic_session_start_year must be 1900–2100 or null")
         elif not isinstance(value, str):
             raise ValueError("ses_sender must be a string")
         return self

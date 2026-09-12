@@ -30,6 +30,8 @@ from app.core.errors import (
 )
 from app.core.plan import ActorContext, Plan, Reason, Rejection, ScopeIds, StateOp
 from app.core.registry import Registry
+from app.domain.academics import academic_standing_reasons
+from app.modules.profiles.academics import load_academic_session
 from app.modules.profiles.fields import (
     ADMIN_FIELDS,
     DECLARABLE_FIELDS,
@@ -157,6 +159,7 @@ class ProfileState:
     active_taxonomy_ids: frozenset[UUID]
     program_branch_pairs: frozenset[tuple[UUID, UUID]]
     roll_conflict: bool
+    academic_session: int | None = None
 
     @property
     def current(self) -> dict[str, object]:
@@ -307,6 +310,7 @@ async def _load_profile_state(
         active_taxonomy_ids=frozenset(active),
         program_branch_pairs=frozenset(pairs),
         roll_conflict=roll_conflict,
+        academic_session=await load_academic_session(tx, lock=lock),
     )
 
 
@@ -515,6 +519,9 @@ def _decide_declare(
         )
     coerced, reasons = coerce_fields(input_value.fields, DECLARABLE_FIELDS)
     reasons.extend(taxonomy_reasons(coerced, state))
+    reasons.extend(academic_standing_reasons(
+        coerced, current_session=state.academic_session, student=True,
+    ))
 
     current = state.current
     # PRO-1: admin-managed fields the administration already populated stay theirs;
@@ -608,6 +615,9 @@ def _decide_field_update(
         )
     coerced, reasons = coerce_fields(fields, allowed)
     reasons.extend(taxonomy_reasons(coerced, state))
+    reasons.extend(academic_standing_reasons(
+        coerced, current_session=state.academic_session, student=require_declared,
+    ))
 
     current = state.current
     effective = dict(current)

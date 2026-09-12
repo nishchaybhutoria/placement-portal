@@ -5646,7 +5646,7 @@ export interface components {
          * SettingKey
          * @enum {string}
          */
-        SettingKey: "strikes_per_penalty" | "session_hours" | "ses_sender";
+        SettingKey: "strikes_per_penalty" | "session_hours" | "ses_sender" | "academic_session_start_year";
         /** SetUserRoleCommandPreview */
         SetUserRoleCommandPreview: {
             /** Events */

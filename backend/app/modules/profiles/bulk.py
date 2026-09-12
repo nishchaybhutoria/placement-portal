@@ -27,6 +27,7 @@ from app.core.errors import (
 )
 from app.core.plan import ActorContext, Plan, Rejection, ScopeIds, StateOp
 from app.core.registry import Registry
+from app.domain.academics import academic_standing_reasons
 from app.modules.profiles.commands import program_branch_reasons
 from app.modules.profiles.fields import (
     BULK_FIELDS,
@@ -306,6 +307,10 @@ def resolve_row_fields(
                         key,
                     )
                 )
+    reasons.extend(
+        _reason(reason.code, reason.human, reason.path)
+        for reason in academic_standing_reasons(resolved)
+    )
     return resolved, raw, reasons
 
 

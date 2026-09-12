@@ -9,6 +9,8 @@ from uuid import UUID
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
+from app.domain.academics import academic_standing_status
+from app.modules.profiles.academics import load_academic_session
 from app.modules.profiles.fields import (
     DECLARABLE_FIELDS,
     FIELDS,
@@ -130,6 +132,7 @@ async def me_profile(engine: AsyncEngine, enrollment_id: UUID) -> dict[str, obje
             )
         ).mappings().all()
         taxonomies, program_branches = await taxonomy_options(connection)
+        current_session = await load_academic_session(connection)
 
     values: dict[str, object] = {column: None for column in PROFILE_COLUMNS}
     if profile is not None:
@@ -148,6 +151,7 @@ async def me_profile(engine: AsyncEngine, enrollment_id: UUID) -> dict[str, obje
         "declared_at": declared_at.isoformat() if declared_at is not None else None,
         "fields": _editable_registry(values, declared=declared_at is not None),
         "values": values,
+        "academic_standing": academic_standing_status(values, current_session),
         "resumes": [
             {
                 "id": str(cast(UUID, row["id"])),

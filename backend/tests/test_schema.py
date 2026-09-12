@@ -100,6 +100,8 @@ DOMAIN_COLUMNS: dict[str, set[str]] = {
         "is_dual_degree",
         "secondary_program_id",
         "secondary_branch_id",
+        "study_year",
+        "study_year_session",
         "graduating_year",
         "cpi",
         "active_backlogs",

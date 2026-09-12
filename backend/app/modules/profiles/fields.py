@@ -49,6 +49,10 @@ FIELDS: tuple[ProfileField, ...] = (
     ProfileField("secondary_program_id", FieldOwner.ADMIN, "profiles", "Secondary program"),
     ProfileField("secondary_branch_id", FieldOwner.ADMIN, "profiles", "Secondary branch"),
     ProfileField("graduating_year", FieldOwner.ADMIN, "profiles", "Graduating year"),
+    ProfileField("study_year", FieldOwner.ADMIN, "profiles", "Year of study"),
+    ProfileField(
+        "study_year_session", FieldOwner.ADMIN, "profiles", "Study-year session (start year)"
+    ),
     ProfileField("cpi", FieldOwner.ADMIN, "profiles", "CPI"),
     ProfileField("active_backlogs", FieldOwner.ADMIN, "profiles", "Active backlog count"),
     ProfileField("total_backlogs", FieldOwner.ADMIN, "profiles", "Total backlog count"),
@@ -96,7 +100,10 @@ BULK_INITIAL_ONLY_FIELDS: frozenset[str] = frozenset({"contact_number"})
 #: the semesterly roster remains the authoritative refresh (they are absent
 #: from ``BULK_INITIAL_ONLY_FIELDS`` for exactly that reason).
 STUDENT_MAINTAINED_ADMIN_FIELDS: frozenset[str] = frozenset(
-    {"graduating_year", "cpi", "active_backlogs", "total_backlogs"}
+    {
+        "graduating_year", "cpi", "active_backlogs", "total_backlogs",
+        "study_year", "study_year_session",
+    }
 )
 #: Profile fields stored as booleans; the rule engine treats these as
 #: equality-only (LLD section 9.1 via `domain/rule_schema.BOOLEAN_FIELDS`).
@@ -252,7 +259,9 @@ def coerce_field(key: str, value: object) -> object:
         return _decimal(key, value, maximum="10")
     if key in {"tenth_percent", "twelfth_percent"}:
         return _decimal(key, value, maximum="100")
-    if key in {"graduating_year", "tenth_year", "twelfth_year"}:
+    if key == "study_year":
+        return _integer(key, value, minimum=1, maximum=8)
+    if key in {"graduating_year", "tenth_year", "twelfth_year", "study_year_session"}:
         return _integer(key, value, minimum=1900, maximum=2100)
     if key in {"active_backlogs", "total_backlogs"}:
         return _integer(key, value, minimum=0, maximum=99)

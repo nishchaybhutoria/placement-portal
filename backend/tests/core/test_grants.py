@@ -34,7 +34,7 @@ async def _table_privileges(table_name: str) -> set[str]:
 async def test_procrastinate_privileges_are_migration_managed_without_superuser() -> None:
     revision_rows = await _catalog_rows("SELECT version_num FROM alembic_version")
     assert [str(row["version_num"]) for row in revision_rows] == [
-        "0015_override_scope_domains"
+        "0016_academic_standing"
     ]
 
     role_rows = await _catalog_rows("SELECT rolsuper FROM pg_roles WHERE rolname = 'cds_app'")
