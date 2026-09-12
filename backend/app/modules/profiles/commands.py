@@ -7,8 +7,10 @@ before/after pair the specification asks for.
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import cast
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
@@ -31,6 +33,8 @@ from app.core.errors import (
 from app.core.plan import ActorContext, Plan, Reason, Rejection, ScopeIds, StateOp
 from app.core.registry import Registry
 from app.domain.academics import academic_standing_reasons
+from app.domain.pathways import ProgramPathway
+from app.domain.shared import ProgramStructure
 from app.modules.profiles.academics import load_academic_session
 from app.modules.profiles.fields import (
     ADMIN_FIELDS,
@@ -158,6 +162,7 @@ class ProfileState:
     known_taxonomy_ids: frozenset[UUID]
     active_taxonomy_ids: frozenset[UUID]
     program_branch_pairs: frozenset[tuple[UUID, UUID]]
+    program_pathways: Mapping[UUID, ProgramPathway]
     roll_conflict: bool
     academic_session: int | None = None
 
@@ -256,6 +261,16 @@ async def _load_profile_state(
     known: set[UUID] = set()
     active: set[UUID] = set()
     pairs: set[tuple[UUID, UUID]] = set()
+    pathways = await load_program_pathways(tx)
+    # A combined programme draws each discipline from a component degree, so
+    # that degree's own pairs decide whether the discipline is on offer.
+    candidates |= {
+        component
+        for candidate in tuple(candidates)
+        if (pathway := pathways.get(candidate)) is not None
+        for component in (pathway.primary_degree_id, pathway.secondary_degree_id)
+        if component is not None
+    }
     if candidates:
         rows = (
             await tx.execute(
@@ -309,6 +324,7 @@ async def _load_profile_state(
         known_taxonomy_ids=frozenset(known),
         active_taxonomy_ids=frozenset(active),
         program_branch_pairs=frozenset(pairs),
+        program_pathways=pathways,
         roll_conflict=roll_conflict,
         academic_session=await load_academic_session(tx, lock=lock),
     )
@@ -396,75 +412,88 @@ def taxonomy_reasons(coerced: dict[str, object], state: ProfileState) -> list[Re
     return reasons
 
 
+async def load_program_pathways(tx: AsyncSession) -> dict[UUID, ProgramPathway]:
+    """Every programme's shape, for the validators that ask what a slot means.
+
+    Loaded whole rather than by candidate id: the catalogue is a handful of
+    rows, and a row that is missing reads as a plain single-discipline degree,
+    which would silently accept a secondary discipline nothing offers.
+    """
+    rows = (
+        await tx.execute(
+            sa.text(
+                "SELECT id, structure, primary_degree_id, secondary_degree_id "
+                "FROM programs"
+            )
+        )
+    ).mappings().all()
+    return {
+        cast(UUID, row["id"]): ProgramPathway(
+            structure=ProgramStructure(str(row["structure"])),
+            primary_degree_id=cast("UUID | None", row["primary_degree_id"]),
+            secondary_degree_id=cast("UUID | None", row["secondary_degree_id"]),
+        )
+        for row in rows
+    }
+
+
 def program_branch_reasons(
-    effective: dict[str, object], pairs: frozenset[tuple[UUID, UUID]]
+    effective: dict[str, object],
+    pairs: frozenset[tuple[UUID, UUID]],
+    pathways: Mapping[UUID, ProgramPathway] | None = None,
 ) -> list[Reason]:
-    """PRO-1: a declared branch must belong to the declared program.
+    """PRO-1: a declared discipline must belong to the declared programme.
 
-    Also the one cross-field rule the dual-major flag brings with it: a second
-    major is what being a dual major *means* (the design review section 4.32), so a
-    secondary branch on a student who is not one is a contradiction rather than
-    a harmless extra.  Requiring the converse -- a dual major who has named no
-    secondary branch yet -- is deliberately *not* done here: PRO-1 makes that a
-    requirement for joining a cycle, which `check_profile_completeness` already
-    enforces, so the office can record the fact before the branch is settled.
+    The programme decides whether a second discipline applies at all, so the
+    contradictions the two dual flags made possible -- both set at once, a
+    secondary programme without a dual degree, a secondary branch on neither --
+    cannot be written down any more and are not checked for here.
 
-    The two branches may be the *same* branch, for a dual major as much as for
-    a dual degree.  Continuing into an MTech in the discipline just read for
-    the BTech is the ordinary dual degree, and the office reports the same of
-    dual majors, so the pair repeating a branch is a real enrollment rather
-    than a typo.  What still cannot repeat is a branch its program does not
-    offer, checked just above -- that is where a genuine contradiction shows.
+    Requiring the converse of a dual major -- one who has named no secondary
+    discipline yet -- is deliberately *not* done here: PRO-1 makes that a
+    requirement for joining a cycle, which ``check_profile_completeness``
+    already enforces, so the office can record the programme before the
+    discipline is settled.
+
+    The two disciplines may be the *same* discipline, for a dual major as much
+    as for a dual degree.  Continuing into an MTech in the discipline just read
+    for the BTech is the ordinary dual degree, and the office reports the same
+    of dual majors, so the pair repeating is a real enrollment rather than a
+    typo.  What still cannot repeat is a discipline its degree does not offer.
     """
     program = effective.get("program_id")
-    secondary_program = effective.get("secondary_program_id")
-    dual_major = bool(effective.get("is_dual_major"))
-    dual_degree = bool(effective.get("is_dual_degree"))
-    reasons: list[Reason] = []
-
-    if dual_major and dual_degree:
-        reasons.append(Reason(
-            code=INVALID_FIELD_VALUE,
-            human="A student cannot be both a dual major and a dual degree",
-            path="is_dual_degree",
-        ))
-    if dual_degree != isinstance(secondary_program, UUID):
-        reasons.append(Reason(
-            code=INVALID_FIELD_VALUE,
-            human="A dual degree must name its secondary program",
-            path="secondary_program_id",
-        ))
-    if dual_major and isinstance(secondary_program, UUID):
-        reasons.append(Reason(
-            code=INVALID_FIELD_VALUE,
-            human="A dual major does not have a secondary program",
-            path="secondary_program_id",
-        ))
-
     primary = effective.get("primary_branch_id")
     secondary = effective.get("secondary_branch_id")
-    if isinstance(program, UUID) and isinstance(primary, UUID) and (program, primary) not in pairs:
+    reasons: list[Reason] = []
+    if not isinstance(program, UUID):
+        return reasons
+    pathway = (pathways or {}).get(program, ProgramPathway(ProgramStructure.SINGLE))
+
+    if isinstance(primary, UUID) and (program, primary) not in pairs:
         reasons.append(Reason(
             code=PROGRAM_BRANCH_MISMATCH,
             human="Primary branch is not offered by the declared program",
             path="primary_branch_id",
         ))
-    branch_program = secondary_program if dual_degree else program
-    if (isinstance(branch_program, UUID) and isinstance(secondary, UUID)
-            and (branch_program, secondary) not in pairs):
-        reasons.append(Reason(
-            code=PROGRAM_BRANCH_MISMATCH,
-            human=("Secondary branch is not offered by the secondary program"
-                   if dual_degree else
-                   "Secondary branch is not offered by the declared program"),
-            path="secondary_branch_id",
-        ))
-    if isinstance(secondary, UUID) and not (dual_major or dual_degree):
-        reasons.append(Reason(
-            code=INVALID_FIELD_VALUE,
-            human="Only a dual major or dual degree has a secondary branch",
-            path="secondary_branch_id",
-        ))
+    if isinstance(secondary, UUID):
+        if not pathway.holds_second_discipline:
+            reasons.append(Reason(
+                code=INVALID_FIELD_VALUE,
+                human="Only a dual major or dual degree has a secondary branch",
+                path="secondary_branch_id",
+            ))
+        else:
+            source = pathway.discipline_source(secondary=True) or program
+            if (source, secondary) not in pairs:
+                reasons.append(Reason(
+                    code=PROGRAM_BRANCH_MISMATCH,
+                    human=(
+                        "Secondary branch is not offered by the postgraduate degree"
+                        if pathway.structure is ProgramStructure.DUAL_DEGREE
+                        else "Secondary branch is not offered by the declared program"
+                    ),
+                    path="secondary_branch_id",
+                ))
     return reasons
 
 
@@ -547,7 +576,9 @@ def _decide_declare(
 
     effective = dict(current)
     effective.update({key: value for key, value in applied.items() if key in PROFILE_COLUMNS})
-    reasons.extend(program_branch_reasons(effective, state.program_branch_pairs))
+    reasons.extend(program_branch_reasons(
+        effective, state.program_branch_pairs, state.program_pathways
+    ))
     if "roll_number" in applied and state.roll_conflict:
         reasons.append(
             Reason(
@@ -622,7 +653,9 @@ def _decide_field_update(
     current = state.current
     effective = dict(current)
     effective.update({key: value for key, value in coerced.items() if key in PROFILE_COLUMNS})
-    reasons.extend(program_branch_reasons(effective, state.program_branch_pairs))
+    reasons.extend(program_branch_reasons(
+        effective, state.program_branch_pairs, state.program_pathways
+    ))
     if "roll_number" in coerced and coerced["roll_number"] is not None and state.roll_conflict:
         reasons.append(
             Reason(

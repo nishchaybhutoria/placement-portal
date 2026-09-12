@@ -11,14 +11,25 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from app.modules.taxonomies.commands import TaxonomyKind
 
 
+def _optional_id(value: object) -> str | None:
+    return str(value) if value is not None else None
+
+
 async def admin_taxonomies(engine: AsyncEngine) -> dict[str, object]:
     result: dict[str, object] = {}
     async with engine.connect() as connection:
         for kind in TaxonomyKind:
+            # A programme carries the shape of the enrollment it admits, and
+            # the degrees each of its disciplines is drawn from (ELG-2).
+            extra = (
+                ", structure, primary_degree_id, secondary_degree_id"
+                if kind is TaxonomyKind.PROGRAM
+                else ""
+            )
             rows = (
                 await connection.execute(
                     sa.text(
-                        f"SELECT id, name, is_active FROM {kind.value} "  # noqa: S608
+                        f"SELECT id, name, is_active{extra} FROM {kind.value} "  # noqa: S608
                         "ORDER BY name, id"
                     )
                 )
@@ -28,6 +39,17 @@ async def admin_taxonomies(engine: AsyncEngine) -> dict[str, object]:
                     "id": str(row["id"]),
                     "name": str(row["name"]),
                     "is_active": bool(row["is_active"]),
+                    **(
+                        {
+                            "structure": str(row["structure"]),
+                            "primary_degree_id": _optional_id(row["primary_degree_id"]),
+                            "secondary_degree_id": _optional_id(
+                                row["secondary_degree_id"]
+                            ),
+                        }
+                        if kind is TaxonomyKind.PROGRAM
+                        else {}
+                    ),
                 }
                 for row in rows
             ]

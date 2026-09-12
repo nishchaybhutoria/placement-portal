@@ -11,10 +11,33 @@ from app.core.db import Base, CreatedAtMixin, UpdatedAtMixin, UUIDPrimaryKeyMixi
 
 class Program(UUIDPrimaryKeyMixin, UpdatedAtMixin, Base):
     __tablename__ = "programs"
-    __table_args__ = (sa.UniqueConstraint("name", name="uq_programs_name"),)
+    __table_args__ = (
+        sa.UniqueConstraint("name", name="uq_programs_name"),
+        # A combined programme names both degrees its disciplines come from; a
+        # single one names neither and offers its own.
+        sa.CheckConstraint(
+            "(structure = 'single') = "
+            "(primary_degree_id IS NULL AND secondary_degree_id IS NULL)",
+            name="ck_programs_structure_components",
+        ),
+        sa.CheckConstraint(
+            "structure IN ('single', 'dual_major', 'dual_degree')",
+            name="ck_programs_structure",
+        ),
+    )
 
     name: Mapped[str] = mapped_column(sa.Text(), nullable=False)
     is_active: Mapped[bool] = mapped_column(sa.Boolean(), nullable=False)
+    #: How many disciplines this programme enrols a student in (ELG-2).
+    structure: Mapped[str] = mapped_column(
+        sa.Text(), nullable=False, server_default="single"
+    )
+    primary_degree_id: Mapped[UUID | None] = mapped_column(
+        sa.ForeignKey("programs.id", ondelete="RESTRICT")
+    )
+    secondary_degree_id: Mapped[UUID | None] = mapped_column(
+        sa.ForeignKey("programs.id", ondelete="RESTRICT")
+    )
 
 
 class Branch(UUIDPrimaryKeyMixin, UpdatedAtMixin, Base):

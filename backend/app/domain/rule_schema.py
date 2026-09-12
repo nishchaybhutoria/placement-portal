@@ -94,8 +94,26 @@ BOOLEAN_FIELDS = frozenset({RuleField.IS_DUAL_MAJOR, RuleField.IS_DUAL_DEGREE})
 #: Fields whose *actual* value is a set of ids rather than one id, so a
 #: comparison asks whether any of the student's values answers the rule
 #: (ELG-2).  The expected side is still ordinary ids.
-SET_FIELDS = frozenset({RuleField.DISCIPLINE_ID})
+#:
+#: ``program_id`` is one of them because a combined programme is built out
+#: of plain degrees: a student in "BTech Dual Major" is in a BTech, and a
+#: rule that named BTech before the programme carried its own structure has
+#: to keep meaning what it meant.
+SET_FIELDS = frozenset({RuleField.DISCIPLINE_ID, RuleField.PROGRAM_ID})
 ORDERED_FIELDS = INTEGER_FIELDS | DECIMAL_FIELDS
+#: Where a rule field reads its *actual* value, when that is not a column of
+#: the same name.  ``program_id`` on the profile is the one programme the
+#: student declared, which the per-programme CTC and the record screens read;
+#: the rule asks a wider question, so it reads the derived set beside it.
+ACTUAL_KEY: dict[RuleField, str] = {
+    RuleField.PROGRAM_ID: "eligible_program_ids",
+}
+
+
+def actual_key(field: RuleField) -> str:
+    return ACTUAL_KEY.get(field, field.value)
+
+
 # The taxonomy each id-valued field draws from, so a caller can resolve the
 # display names a rule's UUIDs stand for.
 TAXONOMY_OF_FIELD: dict[RuleField, str] = {

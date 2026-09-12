@@ -41,12 +41,10 @@ FIELDS: tuple[ProfileField, ...] = (
     ProfileField("roll_number", FieldOwner.ADMIN, "enrollments", "Roll number"),
     ProfileField("program_id", FieldOwner.ADMIN, "profiles", "Program"),
     ProfileField("primary_branch_id", FieldOwner.ADMIN, "profiles", "Primary branch"),
-    # A student completing two majors at once, one primary and one secondary
-    # (the design review section 4.32).  It qualifies the student, not their program:
-    # two students on the same BTech differ on exactly this.
-    ProfileField("is_dual_major", FieldOwner.ADMIN, "profiles", "Dual major"),
-    ProfileField("is_dual_degree", FieldOwner.ADMIN, "profiles", "Dual degree"),
-    ProfileField("secondary_program_id", FieldOwner.ADMIN, "profiles", "Secondary program"),
+    # Whether there is a second discipline at all, and which degree it belongs
+    # to, is the programme's to say: "BTech Dual Major" and "BTech-MTech Dual
+    # Degree" are programmes, so the profile names one programme and the
+    # disciplines it asks for (app.domain.pathways).
     ProfileField("secondary_branch_id", FieldOwner.ADMIN, "profiles", "Secondary branch"),
     ProfileField("graduating_year", FieldOwner.ADMIN, "profiles", "Graduating year"),
     ProfileField("study_year", FieldOwner.ADMIN, "profiles", "Year of study"),
@@ -105,12 +103,8 @@ STUDENT_MAINTAINED_ADMIN_FIELDS: frozenset[str] = frozenset(
         "study_year", "study_year_session",
     }
 )
-#: Profile fields stored as booleans; the rule engine treats these as
-#: equality-only (LLD section 9.1 via `domain/rule_schema.BOOLEAN_FIELDS`).
-BOOLEAN_FIELDS: frozenset[str] = frozenset({"is_dual_major", "is_dual_degree"})
 TAXONOMY_FIELDS: dict[str, str] = {
     "program_id": "programs",
-    "secondary_program_id": "programs",
     "primary_branch_id": "branches",
     "secondary_branch_id": "branches",
     "minor1_id": "minors",
@@ -202,21 +196,6 @@ def _decimal(key: str, value: object, *, maximum: str) -> Decimal:
 
 #: What a spreadsheet may write in a yes/no column (PRO-2).  Listed rather than
 #: guessed at, because "0" and "no" have to mean false and `bool("0")` does not.
-_TRUE = frozenset({"true", "t", "yes", "y", "1"})
-_FALSE = frozenset({"false", "f", "no", "n", "0"})
-
-
-def _boolean(key: str, value: object) -> bool:
-    if isinstance(value, bool):
-        return value
-    candidate = str(value).strip().casefold()
-    if candidate in _TRUE:
-        return True
-    if candidate in _FALSE:
-        return False
-    raise FieldValueError(key, f"{FIELDS_BY_KEY[key].label} must be yes or no")
-
-
 def _uuid(key: str, value: object) -> UUID:
     if isinstance(value, UUID):
         return value
@@ -238,16 +217,10 @@ def coerce_field(key: str, value: object) -> object:
     if value is None:
         if key == "full_name":
             raise FieldValueError(key, "Full name is required")
-        # The column is NOT NULL: a blank yes/no cell clears the fact to
-        # "no", where clearing every other column means "unknown".
-        if key in BOOLEAN_FIELDS:
-            return False
         return None
     if isinstance(value, str) and not value.strip() and key != "full_name":
-        return False if key in BOOLEAN_FIELDS else None
+        return None
 
-    if key in BOOLEAN_FIELDS:
-        return _boolean(key, value)
     if key in TAXONOMY_FIELDS:
         return _uuid(key, value)
     if key == "gender":
@@ -317,24 +290,19 @@ def unlocked_admin_fields(
     profile row it loaded.
 
     ``roll_number`` lives on ``enrollments`` rather than ``profiles`` (the design review
-    section 4.1), so it arrives separately.  ``is_dual_major`` is NOT NULL and
-    can never read blank, which would leave it the one PRO-1 field a student
-    could never state; it is unlocked exactly while ``secondary_branch_id`` is,
-    since 4.32 made the two inseparable.
+    section 4.1), so it arrives separately.  Every remaining admin column is
+    nullable, so the blank test alone decides: the pair of NOT NULL dual flags
+    that needed their own rule are now the programme's structure instead.
 
     The four semesterly academic facts are unlocked unconditionally: see
     ``STUDENT_MAINTAINED_ADMIN_FIELDS``.
     """
     unlocked = {
         key
-        for key in ADMIN_FIELDS - NEVER_UNLOCKED_FIELDS
-        - {"roll_number", "is_dual_major", "is_dual_degree"}
+        for key in ADMIN_FIELDS - NEVER_UNLOCKED_FIELDS - {"roll_number"}
         if is_blank(current.get(key))
     }
     unlocked |= STUDENT_MAINTAINED_ADMIN_FIELDS
     if is_blank(roll_number):
         unlocked.add("roll_number")
-    if is_blank(current.get("secondary_branch_id")):
-        unlocked.add("is_dual_major")
-        unlocked.add("is_dual_degree")
     return frozenset(unlocked)

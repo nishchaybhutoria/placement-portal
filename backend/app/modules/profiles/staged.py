@@ -8,6 +8,7 @@ future login (the design review 4.15 ruling 9).  Rows for one address apply in
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import cast
@@ -25,13 +26,17 @@ from app.core.errors import (
 from app.core.plan import ActorContext, Plan, Reason, Rejection, ScopeIds, StateOp
 from app.core.registry import Registry
 from app.domain.academics import academic_standing_reasons
+from app.domain.pathways import ProgramPathway
 from app.modules.identity.commands import (
     LoginInput,
     LoginState,
     PostLoginHooks,
     post_login_hooks,
 )
-from app.modules.profiles.commands import program_branch_reasons
+from app.modules.profiles.commands import (
+    load_program_pathways,
+    program_branch_reasons,
+)
 from app.modules.profiles.fields import (
     BULK_FIELDS,
     FIELDS_BY_KEY,
@@ -69,6 +74,7 @@ class StagedLoginState:
     known_ids: frozenset[UUID]
     active_ids: frozenset[UUID]
     program_branch_pairs: frozenset[tuple[UUID, UUID]]
+    program_pathways: Mapping[UUID, ProgramPathway]
     roll_conflicts: frozenset[str]
 
 
@@ -200,6 +206,7 @@ async def load_staged_rows(
         known_ids=frozenset(known),
         active_ids=frozenset(active),
         program_branch_pairs=frozenset(pairs),
+        program_pathways=await load_program_pathways(tx),
         roll_conflicts=frozenset(roll_conflicts),
     )
 
@@ -253,7 +260,9 @@ def _row_problems(
     merged.update({key: value for key, value in resolved.items() if key in PROFILE_COLUMNS})
     problems.extend(
         reason.human
-        for reason in program_branch_reasons(merged, state.program_branch_pairs)
+        for reason in program_branch_reasons(
+            merged, state.program_branch_pairs, state.program_pathways
+        )
     )
     if problems:
         return {}, "; ".join(problems), roll_number

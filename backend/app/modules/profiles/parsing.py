@@ -15,6 +15,7 @@ from decimal import Decimal
 
 from app.core.errors import DUPLICATE_ROW, FIELD_NOT_EDITABLE, INVALID_FIELD_VALUE
 from app.core.uploads import UploadParseError, read_table
+from app.domain.pathways import DUAL_MAJOR_SUFFIX, dual_degree_name
 from app.modules.profiles.fields import BULK_FIELDS, FIELDS, FIELDS_BY_KEY
 
 EMAIL_HEADERS = frozenset({"institute_email", "email"})
@@ -99,18 +100,24 @@ def normalize_header(header: str) -> str:
 HEADER_ALIASES = _header_aliases()
 
 
-def _canonical_program(raw: str) -> tuple[str, bool, bool, str | None]:
+def _canonical_program(raw: str) -> tuple[str, bool]:
+    """The roster's programme cell as one programme name, and whether it is combined.
+
+    A dual enrollment is a programme of its own -- "BTech Dual Major",
+    "BTech-MTech Dual Degree" -- named exactly as the taxonomy holds it, so the
+    upsert resolves it like any other programme rather than setting flags.
+    """
     normalized = " ".join(re.sub(r"[^a-z0-9]+", " ", raw.casefold()).split())
     compact = normalized.replace(" ", "")
     if "dualmajor" in compact:
-        return "BTech", True, False, None
+        return f"BTech{DUAL_MAJOR_SUFFIX}", True
     if "dual" in normalized:
         if "btech" not in compact:
             raise UploadParseError(f"Dual-degree program '{raw}' does not name BTech")
         second = "MTech" if "mtech" in compact else "MSc" if "msc" in compact else None
         if second is None:
             raise UploadParseError(f"Dual-degree program '{raw}' must identify MTech or MSc")
-        return "BTech", False, True, second
+        return dual_degree_name("BTech", second), True
     programs = {
         "btech": "BTech",
         "mtech": "MTech",
@@ -119,7 +126,7 @@ def _canonical_program(raw: str) -> tuple[str, bool, bool, str | None]:
         "phd": "PhD",
     }
     try:
-        return programs[compact], False, False, None
+        return programs[compact], False
     except KeyError as error:
         raise UploadParseError(f"Unknown program '{raw}'") from error
 
@@ -152,9 +159,6 @@ def _adapt_pre_registration(
         "gender",
         "program_id",
         "primary_branch_id",
-        "is_dual_major",
-        "is_dual_degree",
-        "secondary_program_id",
         "secondary_branch_id",
     ]
     if year_match:
@@ -166,18 +170,16 @@ def _adapt_pre_registration(
             index = indexes[name]
             return current[index] if index < len(current) else ""
 
-        program, dual_major, dual_degree, secondary_program = _canonical_program(
-            _cell_text(cell("prog"))
-        )
+        program, combined = _canonical_program(_cell_text(cell("prog")))
         primary = _discipline(cell("dept_disp"), row_number=row_number, column="primary discipline")
         secondary = _discipline(
             cell("secondary_disp"), row_number=row_number, column="secondary discipline"
         )
-        if (dual_major or dual_degree) and secondary is None:
+        if combined and secondary is None:
             raise UploadParseError(
                 f"Row {row_number}: {program} dual record needs a secondary discipline"
             )
-        if not (dual_major or dual_degree) and secondary is not None:
+        if not combined and secondary is not None:
             raise UploadParseError(
                 f"Row {row_number}: a non-dual program has a secondary discipline"
             )
@@ -189,9 +191,6 @@ def _adapt_pre_registration(
             cell("gender") if "gender" in indexes else "",
             program,
             primary or "",
-            dual_major,
-            dual_degree,
-            secondary_program or "",
             secondary or "",
         ]
         if year_match:

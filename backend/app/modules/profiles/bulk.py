@@ -8,6 +8,7 @@ at that user's next sign-in (``staged.py``).  Each changed row writes its own
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import cast
@@ -28,7 +29,11 @@ from app.core.errors import (
 from app.core.plan import ActorContext, Plan, Rejection, ScopeIds, StateOp
 from app.core.registry import Registry
 from app.domain.academics import academic_standing_reasons
-from app.modules.profiles.commands import program_branch_reasons
+from app.domain.pathways import ProgramPathway
+from app.modules.profiles.commands import (
+    load_program_pathways,
+    program_branch_reasons,
+)
 from app.modules.profiles.fields import (
     BULK_FIELDS,
     BULK_INITIAL_ONLY_FIELDS,
@@ -83,6 +88,7 @@ class BulkState:
     known_ids: frozenset[UUID] = frozenset()
     active_ids: frozenset[UUID] = frozenset()
     program_branch_pairs: frozenset[tuple[UUID, UUID]] = frozenset()
+    program_pathways: Mapping[UUID, ProgramPathway] = field(default_factory=dict)
     roll_conflicts: frozenset[str] = frozenset()
 
 
@@ -239,6 +245,7 @@ async def _load_bulk(tx: AsyncSession, input_value: BaseModel, *, lock: bool) ->
         program_branch_pairs=frozenset(
             (row["program_id"], row["branch_id"]) for row in pair_rows
         ),
+        program_pathways=await load_program_pathways(tx),
         roll_conflicts=frozenset(roll_conflicts),
     )
 
@@ -315,11 +322,13 @@ def resolve_row_fields(
 
 
 def _pair_reasons(
-    effective: dict[str, object], pairs: frozenset[tuple[UUID, UUID]]
+    effective: dict[str, object],
+    pairs: frozenset[tuple[UUID, UUID]],
+    pathways: Mapping[UUID, ProgramPathway],
 ) -> list[dict[str, object]]:
     return [
         _reason(reason.code, reason.human, reason.path)
-        for reason in program_branch_reasons(effective, pairs)
+        for reason in program_branch_reasons(effective, pairs, pathways)
     ]
 
 
@@ -445,7 +454,9 @@ def _decide_bulk(
                     key,
                 ))
         effective.update({key: value for key, value in resolved.items() if key in PROFILE_COLUMNS})
-        reasons.extend(_pair_reasons(effective, state.program_branch_pairs))
+        reasons.extend(_pair_reasons(
+            effective, state.program_branch_pairs, state.program_pathways
+        ))
         if reasons:
             result["reasons"] = reasons
             results.append(result)

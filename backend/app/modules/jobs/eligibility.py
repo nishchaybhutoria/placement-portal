@@ -26,10 +26,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import CYCLE_NOT_FOUND
 from app.core.plan import ActorContext, Plan, Reason, Rejection, ScopeIds, StateOp
 from app.core.registry import Registry
-from app.domain.pathways import eligible_disciplines
+from app.domain.pathways import derived_rule_facts
 from app.domain.rules import (
     RuleContext,
-    RuleField,
     evaluate,
     parse_rule,
     summarize,
@@ -54,11 +53,15 @@ MEMBER_PROFILE_SELECT = ", ".join(f"p.{column}" for column in PROFILE_COLUMNS)
 ACTIVE_MEMBERS = f"""
     SELECT
         e.id AS enrollment_id, e.roll_number, u.full_name, u.email,
+        prog.structure AS program_structure,
+        prog.primary_degree_id AS program_primary_degree_id,
+        prog.secondary_degree_id AS program_secondary_degree_id,
         {MEMBER_PROFILE_SELECT}
     FROM cycle_memberships m
     JOIN enrollments e ON e.id = m.enrollment_id
     JOIN users u ON u.id = e.user_id
     LEFT JOIN profiles p ON p.enrollment_id = e.id
+    LEFT JOIN programs prog ON prog.id = p.program_id
     WHERE m.cycle_id = :cycle_id AND m.status = 'active'
     ORDER BY u.full_name, e.id
 """
@@ -130,7 +133,7 @@ def member_profiles_with_placement(
         profile["placement_placed_global"] = (
             cast(UUID, row["enrollment_id"]) in placed
         )
-        profile[RuleField.DISCIPLINE_ID.value] = eligible_disciplines(profile)
+        profile.update(derived_rule_facts(profile))
         profiles.append(profile)
     return tuple(profiles)
 

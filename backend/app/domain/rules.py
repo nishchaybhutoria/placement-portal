@@ -36,6 +36,7 @@ from app.domain.rule_schema import (
     RuleField,
     RuleNode,
     Scalar,
+    actual_key,
     is_rule_node,
     normalize_actual,
     normalize_expected,
@@ -79,6 +80,7 @@ __all__ = [
     "RuleNode",
     "Scalar",
     "Shortfall",
+    "actual_key",
     "evaluate",
     "field_shortfall",
     "is_rule_node",
@@ -210,7 +212,7 @@ def requirement_of(node: RuleNode, labels: Labels) -> str:
 def _evaluate_field(
     node: FieldNode, profile: Mapping[str, object], path: str, labels: Labels
 ) -> tuple[bool, tuple[_Failure, ...]]:
-    raw_actual = profile.get(node.field.value)
+    raw_actual = profile.get(actual_key(node.field))
     if node.field in SET_FIELDS:
         if _compare_set(raw_actual, node.value, node.op):
             return True, ()

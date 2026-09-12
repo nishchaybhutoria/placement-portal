@@ -21,6 +21,7 @@ and asserts the verdicts and their reason lists are identical.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import cast
@@ -36,6 +37,7 @@ from app.domain.gates import (
     apply_eligibility_override,
     evaluate_gates,
 )
+from app.domain.pathways import derived_rule_facts
 from app.domain.policy import resolve_policy
 from app.domain.rules import Labels, RuleContext, evaluate, profile_taxonomy_ids, taxonomy_ids
 from app.domain.shared import CycleKind, MembershipStatus, Outcome, RuleDomain
@@ -160,6 +162,19 @@ class Verdict:
     applied_override_ids: tuple[UUID, ...] = ()
 
 
+def _evaluable_profile(row: object) -> dict[str, object]:
+    """The loaded row plus the facts a rule reads but no column holds (ELG-2).
+
+    Snapshotted with the rest, so the ELG-4 record of what the rule saw stays
+    complete when a fact is derived rather than stored.
+    """
+    if row is None:
+        return {}
+    profile = dict(cast("Mapping[str, object]", row))
+    profile.update(derived_rule_facts(profile))
+    return profile
+
+
 async def load_student_context(
     executor: Executor,
     *,
@@ -192,10 +207,16 @@ async def load_student_context(
                 # snapshot is "the registry fields", so the name and roll number
                 # come along -- an application that cannot say whose it was is
                 # not a snapshot.
-                f"SELECT {MEMBER_PROFILE_SELECT}, u.full_name, e.roll_number "  # noqa: S608
+                f"SELECT {MEMBER_PROFILE_SELECT}, u.full_name, e.roll_number, "  # noqa: S608
+                # The programme shape the rule reads, and which the ELG-4
+                # snapshot must therefore record alongside it.
+                "prog.structure AS program_structure, "
+                "prog.primary_degree_id AS program_primary_degree_id, "
+                "prog.secondary_degree_id AS program_secondary_degree_id "
                 "FROM enrollments e "
                 "JOIN users u ON u.id = e.user_id "
                 "LEFT JOIN profiles p ON p.enrollment_id = e.id "
+                "LEFT JOIN programs prog ON prog.id = p.program_id "
                 "WHERE e.id = :enrollment_id"
             ),
             {"enrollment_id": enrollment_id},
@@ -225,7 +246,7 @@ async def load_student_context(
         membership_status=(
             MembershipStatus(membership) if membership is not None else MembershipStatus.PENDING
         ),
-        profile=dict(profile_row) if profile_row is not None else {},
+        profile=_evaluable_profile(profile_row),
         penalty_active=penalty_active,
         penalty_blocks_applications=policy.penalty_blocks_applications.value,
         placement_placed_global=facts.placement_placed_global,

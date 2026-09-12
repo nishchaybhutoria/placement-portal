@@ -24,10 +24,27 @@ Not to be confused with :mod:`app.domain.discipline`, which is the
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from uuid import UUID
+
+from app.domain.shared import ProgramStructure
 
 #: A dual major's second discipline opens at the start of their fourth year.
 SECOND_DISCIPLINE_YEAR = 4
+
+#: How a combined programme is named.  One place decides it, so the registrar
+#: parser, the seeds and migration 0017 cannot drift into naming the same
+#: enrollment two different things and minting a duplicate programme.
+DUAL_MAJOR_SUFFIX = " Dual Major"
+DUAL_DEGREE_SUFFIX = " Dual Degree"
+
+
+def dual_major_name(base: str) -> str:
+    return f"{base}{DUAL_MAJOR_SUFFIX}"
+
+
+def dual_degree_name(undergraduate: str, postgraduate: str) -> str:
+    return f"{undergraduate}\N{EN DASH}{postgraduate}{DUAL_DEGREE_SUFFIX}"
 
 
 def _identifier(value: object) -> UUID | None:
@@ -36,6 +53,38 @@ def _identifier(value: object) -> UUID | None:
 
 def _study_year(value: object) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+@dataclass(frozen=True, slots=True)
+class ProgramPathway:
+    """One programme's shape, and where each of its disciplines comes from.
+
+    ``primary_degree_id`` and ``secondary_degree_id`` name the programmes whose
+    discipline lists each slot draws on.  A dual major draws both from the same
+    degree; a dual degree draws its second from the postgraduate one.  A single
+    programme offers its own disciplines and leaves both unset.
+    """
+
+    structure: ProgramStructure
+    primary_degree_id: UUID | None = None
+    secondary_degree_id: UUID | None = None
+
+    @property
+    def holds_second_discipline(self) -> bool:
+        return self.structure is not ProgramStructure.SINGLE
+
+    def discipline_source(self, *, secondary: bool) -> UUID | None:
+        return self.secondary_degree_id if secondary else self.primary_degree_id
+
+
+def program_structure(value: object) -> ProgramStructure | None:
+    """Read a stored structure conservatively; an unknown one is not assumed."""
+    if isinstance(value, ProgramStructure):
+        return value
+    try:
+        return ProgramStructure(value) if isinstance(value, str) else None
+    except ValueError:
+        return None
 
 
 def eligible_disciplines(profile: Mapping[str, object]) -> frozenset[UUID] | None:
@@ -53,12 +102,16 @@ def eligible_disciplines(profile: Mapping[str, object]) -> frozenset[UUID] | Non
     """
     primary = _identifier(profile.get("primary_branch_id"))
     secondary = _identifier(profile.get("secondary_branch_id"))
+    structure = program_structure(profile.get("program_structure"))
+    if structure is None:
+        # No programme recorded, or one whose shape this build does not know.
+        return None
 
-    if bool(profile.get("is_dual_degree")):
+    if structure is ProgramStructure.DUAL_DEGREE:
         # The postgraduate half is the degree a dual degree recruits into.
         return frozenset({secondary}) if secondary is not None else None
 
-    if bool(profile.get("is_dual_major")):
+    if structure is ProgramStructure.DUAL_MAJOR:
         if primary is None:
             return None
         year = _study_year(profile.get("study_year"))
@@ -69,3 +122,39 @@ def eligible_disciplines(profile: Mapping[str, object]) -> frozenset[UUID] | Non
         return frozenset({primary, secondary})
 
     return frozenset({primary}) if primary is not None else None
+
+
+def derived_rule_facts(profile: Mapping[str, object]) -> dict[str, object]:
+    """The facts a rule reads that no profile column holds any more (ELG-2).
+
+    ``is_dual_major``, ``is_dual_degree`` and ``secondary_program_id`` were
+    profile columns before the programme carried its own structure.  Rules
+    saved while they were keep evaluating, because a rule naming a fact the
+    portal still knows must not start failing on the day the fact moves house.
+
+    New rules should say ``discipline_id`` instead: it is the question those
+    three were being combined to ask, and it does not need the author to know
+    how an enrollment happens to be stored.
+    """
+    structure = program_structure(profile.get("program_structure"))
+    program = _identifier(profile.get("program_id"))
+    return {
+        # Every programme the student counts as being in: the one they declared
+        # and the degrees it is built from.  A rule naming BTech keeps matching
+        # a BTech dual major, which is what its author meant.  Kept beside the
+        # declared programme rather than over it, because the per-programme CTC
+        # and the record screens still want the one they are actually in.
+        "eligible_program_ids": frozenset(
+            identifier
+            for identifier in (
+                program,
+                _identifier(profile.get("program_primary_degree_id")),
+                _identifier(profile.get("program_secondary_degree_id")),
+            )
+            if identifier is not None
+        ),
+        "discipline_id": eligible_disciplines(profile),
+        "is_dual_major": structure is ProgramStructure.DUAL_MAJOR,
+        "is_dual_degree": structure is ProgramStructure.DUAL_DEGREE,
+        "secondary_program_id": profile.get("program_secondary_degree_id"),
+    }

@@ -39,7 +39,14 @@ from app.bootstrap import build_executor, build_registry
 from app.core.db import create_engine
 from app.core.executor import Executor
 from app.core.plan import ActorContext
-from app.domain.shared import CycleKind, OfferExpiry, Outcome, Role
+from app.domain.pathways import dual_major_name
+from app.domain.shared import (
+    CycleKind,
+    OfferExpiry,
+    Outcome,
+    ProgramStructure,
+    Role,
+)
 from app.modules.companies.commands import CompanyIdInput, ContactCreateInput, CreateCompanyInput
 from app.modules.cycles.commands import CoordinatorInput, CreateCycleInput, UpdateCyclePolicyInput
 from app.modules.identity.admin_commands import SetUserRoleInput
@@ -70,6 +77,11 @@ PROGRAMS: dict[str, tuple[str, ...]] = {
     "BTech": BRANCHES,
     "MTech": BRANCHES,
 }
+#: A dual major is a programme of its own (app.domain.pathways), so the handout
+#: roster's one dual-major student has somewhere to be enrolled.
+COMBINED_PROGRAMS: tuple[tuple[str, ProgramStructure, str, str], ...] = (
+    (dual_major_name("BTech"), ProgramStructure.DUAL_MAJOR, "BTech", "BTech"),
+)
 SECTORS: tuple[str, ...] = (
     "Technology & Software",
     "Core Engineering & Manufacturing",
@@ -94,6 +106,15 @@ class MockPerson:
 PRIMARY_COORDINATOR = MockPerson("demo.coordinator01@example.edu", "Demo Coordinator 01")
 WINTER_COORDINATOR = MockPerson("demo.coordinator02@example.edu", "Demo Coordinator 02")
 COORDINATORS: tuple[MockPerson, ...] = (PRIMARY_COORDINATOR, WINTER_COORDINATOR)
+
+
+def _seeded_program(student: MockStudent) -> str:
+    """A student with a second major is in the dual-major programme."""
+    return (
+        dual_major_name(student.program)
+        if student.secondary_branch is not None
+        else student.program
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -489,11 +510,24 @@ async def _seed_taxonomy(
     taxonomy: dict[tuple[TaxonomyKind, str], UUID] = {}
 
     async def upsert(
-        kind: TaxonomyKind, name: str, *, branch_ids: list[UUID] | None = None
+        kind: TaxonomyKind,
+        name: str,
+        *,
+        branch_ids: list[UUID] | None = None,
+        structure: ProgramStructure | None = None,
+        primary_degree_id: UUID | None = None,
+        secondary_degree_id: UUID | None = None,
     ) -> None:
         result = await executor.run(
             "upsert_taxonomy_item",
-            UpsertTaxonomyItemInput(kind=kind, name=name, branch_ids=branch_ids),
+            UpsertTaxonomyItemInput(
+                kind=kind,
+                name=name,
+                branch_ids=branch_ids,
+                structure=structure,
+                primary_degree_id=primary_degree_id,
+                secondary_degree_id=secondary_degree_id,
+            ),
             admin_actor,
         )
         taxonomy[(kind, name)] = UUID(str(result.summary["item_id"]))
@@ -505,6 +539,21 @@ async def _seed_taxonomy(
             TaxonomyKind.PROGRAM,
             program,
             branch_ids=[taxonomy[(TaxonomyKind.BRANCH, branch)] for branch in branches],
+        )
+    for name, structure, primary, secondary in COMBINED_PROGRAMS:
+        await upsert(
+            TaxonomyKind.PROGRAM,
+            name,
+            branch_ids=sorted(
+                {
+                    taxonomy[(TaxonomyKind.BRANCH, branch)]
+                    for component in (primary, secondary)
+                    for branch in PROGRAMS[component]
+                }
+            ),
+            structure=structure,
+            primary_degree_id=taxonomy[(TaxonomyKind.PROGRAM, primary)],
+            secondary_degree_id=taxonomy[(TaxonomyKind.PROGRAM, secondary)],
         )
     for sector in SECTORS:
         await upsert(TaxonomyKind.SECTOR, sector)
@@ -539,9 +588,10 @@ async def _seed_students_with_profiles(
                     enrollment_id=cast(UUID, actor.current_enrollment_id),
                     fields={
                         "roll_number": student.roll_number,
-                        "program_id": str(taxonomy[(TaxonomyKind.PROGRAM, student.program)]),
+                        "program_id": str(
+                            taxonomy[(TaxonomyKind.PROGRAM, _seeded_program(student))]
+                        ),
                         "primary_branch_id": str(taxonomy[(TaxonomyKind.BRANCH, student.branch)]),
-                        "is_dual_major": student.secondary_branch is not None,
                         **(
                             {
                                 "secondary_branch_id": str(

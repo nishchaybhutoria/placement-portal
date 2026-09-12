@@ -14,6 +14,7 @@ snapshot it was created with, so nothing re-reads it.
 
 from __future__ import annotations
 
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -315,6 +316,10 @@ def _jsonable(value: object) -> object:
         return str(value)
     if isinstance(value, (datetime, date)):
         return value.isoformat()
+    if isinstance(value, AbstractSet):
+        # A set-valued fact (the disciplines a rule could match) renders as a
+        # sorted list, so two snapshots of the same profile compare equal.
+        return sorted(str(_jsonable(item)) for item in cast("AbstractSet[object]", value))
     return value
 
 

@@ -144,9 +144,9 @@ def decide_membership_transition(
 # Behavior PRO-1's "Required to join a cycle" column.  The institute email is
 # absent deliberately: it is NOT NULL on users, so it cannot be missing and is
 # not a checkable requirement.  Secondary branch is conditional rather than
-# absent -- PRO-1 requires it "if dual major", which `profiles.is_dual_major`
-# expresses: the student who has a second major is exactly the student asked to
-# name it (the design review section 4.32).
+# absent -- PRO-1 requires it "if dual major", which the declared programme's
+# structure expresses: the student in a programme carrying a second discipline
+# is exactly the student asked to name it (the design review section 4.32).
 REQUIRED_JOIN_FIELDS: tuple[str, ...] = (
     "full_name",
     "roll_number",
@@ -165,13 +165,9 @@ REQUIRED_JOIN_FIELDS: tuple[str, ...] = (
     "twelfth_percent",
     "twelfth_year",
 )
-# Required only of a dual major -- the student with a second major to name
-# (Behavior PRO-1).
+# Required only of a programme that enrols a second discipline -- a dual major
+# or a dual degree, which the programme itself says (Behavior PRO-1).
 CONDITIONAL_JOIN_FIELDS: tuple[str, ...] = ("secondary_branch_id",)
-DUAL_DEGREE_JOIN_FIELDS: tuple[str, ...] = (
-    "secondary_program_id",
-    "secondary_branch_id",
-)
 
 # Mirrors the M6 field registry's labels; tests/domain/test_memberships.py
 # asserts the two agree, so a relabelling there cannot drift from here without
@@ -193,29 +189,32 @@ JOIN_FIELD_LABELS: Mapping[str, str] = {
     "tenth_year": "10th year",
     "twelfth_percent": "12th percentage",
     "twelfth_year": "12th year",
-    "secondary_program_id": "Secondary program",
     "secondary_branch_id": "Secondary branch",
 }
 
 
-def required_join_fields(
-    *, dual_major: bool, dual_degree: bool = False
-) -> tuple[str, ...]:
-    """The PRO-1 requirement list for one student's degree structure."""
-    if dual_degree:
-        return REQUIRED_JOIN_FIELDS + DUAL_DEGREE_JOIN_FIELDS
-    return REQUIRED_JOIN_FIELDS + (CONDITIONAL_JOIN_FIELDS if dual_major else ())
+def required_join_fields(*, second_discipline: bool) -> tuple[str, ...]:
+    """The PRO-1 requirement list for one programme's structure.
+
+    A dual degree no longer names a secondary *programme*: its programme is the
+    combined one, which already says which postgraduate degree it carries.
+    """
+    return REQUIRED_JOIN_FIELDS + (CONDITIONAL_JOIN_FIELDS if second_discipline else ())
 
 
 def check_profile_completeness(
-    profile: Mapping[str, object], *, resume_count: int, declared: bool
+    profile: Mapping[str, object],
+    *,
+    resume_count: int,
+    declared: bool,
+    second_discipline: bool = False,
 ) -> tuple[Reason, ...]:
     """Return the CYC-3 join checklist as one reason per unmet requirement.
 
     Every failure is returned, never just the first: the student needs the
-    whole list to fix their profile in one pass.  ``is_dual_major`` is a profile
-    column like any other here, so a dual major is additionally required to name
-    a secondary branch (Behavior PRO-1).
+    whole list to fix their profile in one pass.  A programme that enrols a
+    second discipline additionally requires it to be named (Behavior PRO-1);
+    ``second_discipline`` is the caller's reading of the declared programme.
     """
     reasons: list[Reason] = []
     if not declared:
@@ -226,10 +225,7 @@ def check_profile_completeness(
                 path="declared_at",
             )
         )
-    for key in required_join_fields(
-        dual_major=bool(profile.get("is_dual_major", False)),
-        dual_degree=bool(profile.get("is_dual_degree", False)),
-    ):
+    for key in required_join_fields(second_discipline=second_discipline):
         if is_blank(profile.get(key)):
             reasons.append(
                 Reason(

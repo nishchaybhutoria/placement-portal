@@ -15,6 +15,20 @@ class Gender(StrEnum):
     OTHER = "other"
 
 
+class ProgramStructure(StrEnum):
+    """How many disciplines a programme enrols a student in, and of what kind.
+
+    The programme carries this, not the profile: "BTech-MTech Dual Degree" is a
+    programme the office admits students into, and a student is in one
+    programme.  Two booleans on the profile could say a student was both, or
+    neither while naming a second discipline; a programme cannot.
+    """
+
+    SINGLE = "single"
+    DUAL_MAJOR = "dual_major"
+    DUAL_DEGREE = "dual_degree"
+
+
 class CycleKind(StrEnum):
     PLACEMENT = "placement"
     INTERNSHIP = "internship"

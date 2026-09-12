@@ -21,10 +21,15 @@ from app.domain.memberships import (
     legal_membership_transitions,
     required_join_fields,
 )
-from app.domain.pathways import eligible_disciplines
+from app.domain.pathways import derived_rule_facts, program_structure
 from app.domain.policy import resolve_policy
-from app.domain.rules import RuleContext, RuleField, evaluate, taxonomy_ids
-from app.domain.shared import CycleKind, MembershipStatus, RuleDomain
+from app.domain.rules import RuleContext, evaluate, taxonomy_ids
+from app.domain.shared import (
+    CycleKind,
+    MembershipStatus,
+    ProgramStructure,
+    RuleDomain,
+)
 from app.domain.transitions import TransitionActor
 from app.modules.applications.verdict import gate_overrides
 from app.modules.cycles.commands import POLICY_COLUMNS
@@ -457,9 +462,15 @@ async def cycles_joinable(
             await connection.execute(
                 sa.text(
                     f"SELECT {', '.join('p.' + column for column in PROFILE_COLUMNS)}, "  # noqa: S608
-                    "p.declared_at, e.roll_number, u.full_name "
+                    "p.declared_at, e.roll_number, u.full_name, "
+                    # The programme says whether a second discipline applies and
+                    # which of the student's disciplines a rule may match.
+                    "prog.structure AS program_structure, "
+                    "prog.primary_degree_id AS program_primary_degree_id, "
+                    "prog.secondary_degree_id AS program_secondary_degree_id "
                     "FROM enrollments e JOIN users u ON u.id = e.user_id "
                     "LEFT JOIN profiles p ON p.enrollment_id = e.id "
+                    "LEFT JOIN programs prog ON prog.id = p.program_id "
                     "WHERE e.id = :enrollment_id"
                 ),
                 {"enrollment_id": enrollment_id},
@@ -511,11 +522,16 @@ async def cycles_joinable(
     profile = dict(profile_row) if profile_row is not None else {}
     # The join rule reads the disciplines the student may be matched on, which
     # no column holds (ELG-2, app.domain.pathways).
-    profile[RuleField.DISCIPLINE_ID.value] = eligible_disciplines(profile)
+    profile.update(derived_rule_facts(profile))
+    structure = program_structure(profile.get("program_structure"))
+    second_discipline = (
+        structure is not None and structure is not ProgramStructure.SINGLE
+    )
     checklist = check_profile_completeness(
         profile,
         resume_count=int(resume_count or 0),
         declared=profile.get("declared_at") is not None,
+        second_discipline=second_discipline,
     )
 
     #: The statuses a student can leave on their own initiative (CYC-3.5).
@@ -606,10 +622,7 @@ async def cycles_joinable(
         "enrollment_id": str(enrollment_id),
         "profile_complete": not checklist,
         "required_fields": list(
-            required_join_fields(
-                dual_major=bool(profile.get("is_dual_major", False)),
-                dual_degree=bool(profile.get("is_dual_degree", False)),
-            )
+            required_join_fields(second_discipline=second_discipline)
         ),
         "resumes": [
             {

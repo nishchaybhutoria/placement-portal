@@ -36,6 +36,7 @@ from app.bootstrap import build_executor, build_registry
 from app.core.db import create_engine
 from app.core.executor import Executor
 from app.core.plan import ActorContext, Result
+from app.domain.pathways import dual_degree_name, dual_major_name
 from app.domain.shared import (
     ApplicationStatus,
     Attendance,
@@ -46,6 +47,7 @@ from app.domain.shared import (
     OfferExpiry,
     Outcome,
     OutcomeTag,
+    ProgramStructure,
     QuestionType,
     Role,
     RuleDomain,
@@ -140,6 +142,14 @@ PROGRAMS: dict[str, tuple[str, ...]] = {
     "MA": ("Humanities and Social Sciences",),
     "PhD": BRANCHES,
 }
+#: Combined programmes, named by the degrees they are built from. A dual major
+#: draws both disciplines from the same degree; a dual degree draws its second
+#: from the postgraduate one (app.domain.pathways).
+COMBINED_PROGRAMS: tuple[tuple[str, ProgramStructure, str, str], ...] = (
+    (dual_major_name("BTech"), ProgramStructure.DUAL_MAJOR, "BTech", "BTech"),
+    (dual_degree_name("BTech", "MTech"), ProgramStructure.DUAL_DEGREE, "BTech", "MTech"),
+    (dual_degree_name("BTech", "MSc"), ProgramStructure.DUAL_DEGREE, "BTech", "MSc"),
+)
 SECTORS = ("Technology", "Consulting", "Finance", "Core Engineering")
 ROUND_TYPES = (
     "Aptitude Test",
@@ -178,6 +188,15 @@ class SeedStudent:
     total_backlogs: int = 0
     #: The second major, for a dual major (the design review section 4.32).
     secondary_branch: str | None = None
+
+
+def _seeded_program(student: SeedStudent) -> str:
+    """A student with a second major is in the dual-major programme."""
+    return (
+        dual_major_name(student.program)
+        if student.secondary_branch is not None
+        else student.program
+    )
 
 
 STUDENTS: tuple[SeedStudent, ...] = (
@@ -405,11 +424,12 @@ async def _seed_students(
                     enrollment_id=actor.current_enrollment_id,  # type: ignore[arg-type]
                     fields={
                         "roll_number": student.roll_number,
-                        "program_id": str(taxonomy[(TaxonomyKind.PROGRAM, student.program)]),
+                        "program_id": str(
+                            taxonomy[(TaxonomyKind.PROGRAM, _seeded_program(student))]
+                        ),
                         "primary_branch_id": str(
                             taxonomy[(TaxonomyKind.BRANCH, student.branch)]
                         ),
-                        "is_dual_major": student.secondary_branch is not None,
                         **(
                             {
                                 "secondary_branch_id": str(
@@ -756,6 +776,9 @@ async def run_seed(
             name: str,
             *,
             branch_ids: list[UUID] | None = None,
+            structure: ProgramStructure | None = None,
+            primary_degree_id: UUID | None = None,
+            secondary_degree_id: UUID | None = None,
         ) -> UUID:
             result = await executor.run(
                 "upsert_taxonomy_item",
@@ -763,6 +786,9 @@ async def run_seed(
                     kind=kind,
                     name=name,
                     branch_ids=branch_ids,
+                    structure=structure,
+                    primary_degree_id=primary_degree_id,
+                    secondary_degree_id=secondary_degree_id,
                 ),
                 admin_actor,
             )
@@ -780,6 +806,21 @@ async def run_seed(
                     taxonomy_ids[(TaxonomyKind.BRANCH, branch)]
                     for branch in branches
                 ],
+            )
+        for name, structure, primary, secondary in COMBINED_PROGRAMS:
+            await upsert(
+                TaxonomyKind.PROGRAM,
+                name,
+                branch_ids=sorted(
+                    {
+                        taxonomy_ids[(TaxonomyKind.BRANCH, branch)]
+                        for component in (primary, secondary)
+                        for branch in PROGRAMS[component]
+                    }
+                ),
+                structure=structure,
+                primary_degree_id=taxonomy_ids[(TaxonomyKind.PROGRAM, primary)],
+                secondary_degree_id=taxonomy_ids[(TaxonomyKind.PROGRAM, secondary)],
             )
         for sector in SECTORS:
             await upsert(TaxonomyKind.SECTOR, sector)

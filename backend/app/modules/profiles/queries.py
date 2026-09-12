@@ -75,13 +75,26 @@ async def taxonomy_options(
         ("branches", "branches"),
         ("minors", "minors"),
     ):
+        # A programme carries its structure: the form asks for a second
+        # discipline when the programme has one, rather than the student
+        # ticking a box that could disagree with it.
+        columns = (
+            "id, name, structure" if table == "programs" else "id, name"
+        )
         rows = (
             await connection.execute(
-                sa.text(f"SELECT id, name FROM {table} WHERE is_active ORDER BY name, id")
+                sa.text(  # noqa: S608
+                    f"SELECT {columns} FROM {table} WHERE is_active ORDER BY name, id"
+                )
             )
         ).mappings().all()
         taxonomies[key] = [
-            {"id": str(cast(UUID, row["id"])), "name": str(row["name"])} for row in rows
+            {
+                "id": str(cast(UUID, row["id"])),
+                "name": str(row["name"]),
+                **({"structure": str(row["structure"])} if table == "programs" else {}),
+            }
+            for row in rows
         ]
     branch_rows = (
         await connection.execute(

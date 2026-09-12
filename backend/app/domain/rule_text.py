@@ -43,6 +43,7 @@ from app.domain.rule_schema import (
     NotNode,
     RuleField,
     RuleNode,
+    actual_key,
     is_rule_node,
     normalize_actual,
     parse_rule,
@@ -175,7 +176,7 @@ def field_shortfall(
     a student can act on -- they learn whether to fix their profile or move on.
     """
     clause = requirement(node, labels)
-    raw = profile.get(node.field.value)
+    raw = profile.get(actual_key(node.field))
     if node.field in SET_FIELDS:
         return _set_field_shortfall(clause, raw, labels)
     if raw is None:
@@ -284,7 +285,7 @@ def profile_taxonomy_ids(profile: Mapping[str, object]) -> frozenset[UUID]:
     """
     found: set[UUID] = set()
     for field in UUID_FIELDS:
-        value = profile.get(field.value)
+        value = profile.get(actual_key(field))
         if isinstance(value, UUID):
             found.add(value)
         elif field in SET_FIELDS and isinstance(value, AbstractSet):
