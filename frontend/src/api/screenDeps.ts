@@ -20,16 +20,17 @@ export const SCREEN_DEPS: Record<CommandName, readonly ScreenId[]> = {
   set_user_role: ["admin/users"],
 
   // Profiles
-  declare_profile: ["me/profile", "cycles/joinable"],
+  declare_profile: ["me/profile", "me/dashboard", "cycles/joinable"],
   // An admin field is the student's to supply while it is still blank, and the
   // join checklist reads exactly those fields — so filling one can make a cycle
   // joinable (the design review §4.33).
-  update_student_fields: ["me/profile", "cycles/joinable"],
+  update_student_fields: ["me/profile", "me/dashboard", "cycles/joinable"],
   // An admin correction changes the record staff read it from, the student's
   // own form, and the join checklist that gates every cycle they are not yet
   // in — clearing a required field is exactly what makes one unjoinable again.
   admin_update_profile: [
     "me/profile",
+    "me/dashboard",
     "cycles/joinable",
     "staff/student/{enrollment_id}",
   ],
@@ -47,12 +48,12 @@ export const SCREEN_DEPS: Record<CommandName, readonly ScreenId[]> = {
   ],
 
   // Bulk upsert staging
-  bulk_upsert_profiles: ["admin/bulk-upsert"],
+  bulk_upsert_profiles: ["admin/bulk-upsert", "me/profile", "me/dashboard", "staff/student/{enrollment_id}"],
   delete_staged_row: ["admin/bulk-upsert"],
 
   // Taxonomies & settings
   upsert_taxonomy_item: ["admin/taxonomies", "staff/taxonomies", "me/profile"],
-  set_setting: ["admin/settings", "admin/discipline"],
+  set_setting: ["admin/settings", "admin/discipline", "me/profile", "me/dashboard"],
   update_template: ["admin/templates"],
   resend_notification: ["admin/templates"],
 

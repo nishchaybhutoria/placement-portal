@@ -285,6 +285,7 @@ function EditProfile({
 }
 
 const PROFILE_NUMBERS = new Set([
+  "study_year_session",
   "graduating_year",
   "cpi",
   "active_backlogs",
@@ -335,6 +336,14 @@ function profileChoice(key: string, label: string, data: StudentRecordPayload): 
       initialValue: live === true ? "true" : "false",
       options: BOOLEAN_OPTIONS,
       coerce: "boolean",
+    };
+  }
+  if (key === "study_year") {
+    return {
+      name: key, label, kind: "select", initialValue,
+      options: Array.from({ length: 8 }, (_, index) => ({
+        value: String(index + 1), label: `Year ${index + 1}`,
+      })),
     };
   }
   if (key === "gender") {

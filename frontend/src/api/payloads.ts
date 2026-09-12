@@ -461,6 +461,7 @@ export interface StaffCycleExternalPayload {
 
 export interface DashboardPayload {
   enrollment_id: string;
+  academic_standing?: AcademicStandingPayload;
   memberships: {
     id: string;
     status: string;
@@ -735,7 +736,19 @@ export interface BoardRowPayload {
 
 /* ------------------------------------------------------------ profiles --- */
 
+export interface AcademicStandingPayload {
+  status: "unconfigured" | "missing" | "stale" | "current";
+  current_session: number | null;
+  current_session_label: string | null;
+  study_year: number | null;
+  recorded_session: number | null;
+  min_year: number;
+  max_year: number;
+  collection_only: boolean;
+}
+
 export interface MeProfilePayload {
+  academic_standing?: AcademicStandingPayload;
   enrollment: {
     id: string;
     is_current: boolean;

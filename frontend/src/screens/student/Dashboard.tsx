@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { payload, type DashboardPayload } from "@/api/payloads";
 import { useScreen } from "@/api/useScreen";
 import { PageHeader } from "@/components/PageHeader";
+import { AcademicStandingNotice } from "@/components/AcademicStandingNotice";
 import { OfferActionPlan } from "@/components/CommandSummaryDetails";
 import { PreviewConfirm } from "@/components/PreviewConfirm";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ export function Dashboard() {
   return (
     <>
       <PageHeader title="Dashboard" subtitle="Offers, upcoming rounds, and your current record." />
+      <AcademicStandingNotice standing={data.academic_standing} />
       <OfferCards data={data} />
       <ApplicationStatuses applications={data.applications} />
       <Card>

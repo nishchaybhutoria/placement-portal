@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { payload, type MeProfilePayload } from "@/api/payloads";
 import { useCommand, useScreen } from "@/api/useScreen";
 import { PageHeader } from "@/components/PageHeader";
+import { AcademicStandingNotice } from "@/components/AcademicStandingNotice";
 import { PreviewConfirm } from "@/components/PreviewConfirm";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -41,6 +42,7 @@ export function Profile() {
             : "Declare this enrollment once, then keep your own contact, link, and semesterly academic fields current."
         }
       />
+      <AcademicStandingNotice standing={data.academic_standing} onProfile />
       <ProfileFields data={data} />
       <ResumeLibrary data={data} />
     </>
@@ -113,9 +115,11 @@ function ProfileFields({ data }: { data: MeProfilePayload }) {
             // the field appears when the answer does.
             .filter(
               (field) =>
-                !["secondary_program_id", "secondary_branch_id"].includes(field.key) ||
-                values["is_dual_degree"] ||
-                (field.key === "secondary_branch_id" && values["is_dual_major"]),
+                field.key !== "study_year_session" && (
+                  !["secondary_program_id", "secondary_branch_id"].includes(field.key) ||
+                  values["is_dual_degree"] ||
+                  (field.key === "secondary_branch_id" && values["is_dual_major"])
+                ),
             )
             .map((field) => (
               <ProfileField
@@ -162,6 +166,38 @@ function ProfileField({
   onSiblingChange?: (key: string, value: unknown) => void;
 }) {
   const stringValue = value === null || value === undefined ? "" : String(value);
+  if (field.key === "study_year") {
+    const session = data.academic_standing?.current_session;
+    const currentValue = allValues.study_year_session === session ? stringValue : "";
+    return (
+      <div id="academic-standing">
+        <Field
+          label="Year of study"
+          hint={session
+            ? `Your actual year now, for ${data.academic_standing?.current_session_label} — not your graduating year or a future internship year.`
+            : "The office must configure the current academic session before you can record your year."}
+        >
+          {(input) => (
+            <Select
+              {...input}
+              value={currentValue}
+              disabled={!session}
+              onChange={(event) => {
+                const year = event.target.value ? Number(event.target.value) : null;
+                onChange(year);
+                onSiblingChange?.("study_year_session", year === null ? null : session);
+              }}
+            >
+              <option value="">Select year…</option>
+              {Array.from({ length: 8 }, (_, index) => (
+                <option key={index + 1} value={index + 1}>Year {index + 1}</option>
+              ))}
+            </Select>
+          )}
+        </Field>
+      </div>
+    );
+  }
   const taxonomy = taxonomyFor(field.key);
   if (taxonomy) {
     let options = data.taxonomies[taxonomy];

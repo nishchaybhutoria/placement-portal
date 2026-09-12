@@ -23,6 +23,12 @@ type Row = SettingsPayload["settings"][number];
  */
 const KEYS = [
   {
+    key: "academic_session_start_year",
+    label: "Current academic session (start year)",
+    hint: "For 2026–27, enter 2026. Changing this asks students to confirm their study year again; it does not increment years or change memberships. Blank pauses collection.",
+    kind: "number" as const,
+  },
+  {
     key: "strikes_per_penalty",
     label: "Strikes per penalty",
     hint: "How many strikes convert into one penalty. Blank means no threshold.",
@@ -112,7 +118,7 @@ function SettingRow({
                 input: {
                   key: definition.key,
                   value:
-                    definition.key === "strikes_per_penalty" && value === ""
+                    (definition.key === "strikes_per_penalty" || definition.key === "academic_session_start_year") && value === ""
                       ? null
                       : definition.kind === "number"
                         ? Number(value)
@@ -129,7 +135,9 @@ function SettingRow({
       <p className="text-body-sm text-muted-foreground">
         {row
           ? `Overridden${row.updated_at ? ` on ${formatDate(row.updated_at)}` : ""}.`
-          : "No override — the code default is in force."}
+          : definition.key === "academic_session_start_year"
+            ? "Not configured — academic standing collection is paused. No academic session is guessed."
+            : "No override — the code default is in force."}
       </p>
       {save.isError ? <ErrorState error={save.error} title="Could not save" /> : null}
     </div>
