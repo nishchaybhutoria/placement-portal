@@ -26,8 +26,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import CYCLE_NOT_FOUND
 from app.core.plan import ActorContext, Plan, Reason, Rejection, ScopeIds, StateOp
 from app.core.registry import Registry
+from app.domain.pathways import eligible_disciplines
 from app.domain.rules import (
     RuleContext,
+    RuleField,
     evaluate,
     parse_rule,
     summarize,
@@ -116,13 +118,19 @@ class JobEligibilityState:
 def member_profiles_with_placement(
     rows: Sequence[sa.RowMapping], placed: Collection[UUID]
 ) -> tuple[dict[str, object], ...]:
-    """Add the batch-loaded DER-1 fact to profiles before pure evaluation."""
+    """Add the derived facts a rule reads to profiles before pure evaluation.
+
+    The batch-loaded DER-1 placement fact, and the disciplines the student may
+    be matched on (ELG-2) -- which no column holds, because it depends on the
+    enrollment's shape and, for a dual major, their year of study.
+    """
     profiles: list[dict[str, object]] = []
     for row in rows:
         profile: dict[str, object] = dict(row)
         profile["placement_placed_global"] = (
             cast(UUID, row["enrollment_id"]) in placed
         )
+        profile[RuleField.DISCIPLINE_ID.value] = eligible_disciplines(profile)
         profiles.append(profile)
     return tuple(profiles)
 

@@ -1,0 +1,71 @@
+"""Which disciplines a student may be matched on (ELG-2, the eligibility roster).
+
+The institute states the dual-major rule once, for every company at once, in
+the heading of the eligibility roster itself:
+
+    The students enrolled in dual major programs will become eligible for
+    internship in the second discipline only at the beginning of fourth year.
+    It should be noted that they are eligible for internship in their primary
+    discipline starting third year.
+
+So it belongs to the enrollment, not to any one job: a rule names the
+disciplines a role recruits in, and this decides which of the student's own
+disciplines are allowed to answer.  A dual degree answers with its
+postgraduate discipline alone, because that is the degree it recruits into.
+
+Keeping the decision here is what lets a rule outlive a change in how the
+enrollment is stored.  A rule says "discipline is one of EE, ICDT"; it never
+says "primary branch or, if a dual major in fourth year, secondary branch".
+
+Not to be confused with :mod:`app.domain.discipline`, which is the
+*disciplinary* strike and penalty ledger.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from uuid import UUID
+
+#: A dual major's second discipline opens at the start of their fourth year.
+SECOND_DISCIPLINE_YEAR = 4
+
+
+def _identifier(value: object) -> UUID | None:
+    return value if isinstance(value, UUID) else None
+
+
+def _study_year(value: object) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def eligible_disciplines(profile: Mapping[str, object]) -> frozenset[UUID] | None:
+    """The disciplines this student may be matched on, or ``None`` if unknowable.
+
+    ``None`` is not "no disciplines".  It means the profile does not yet say
+    enough to decide, and the caller must reject naming what is missing rather
+    than quietly excluding the student -- a dual major whose year of study is
+    blank has an answer, and the portal simply has not been told it yet.
+
+    A discipline the student holds but the profile has not recorded is not
+    inferred.  The returned set is what is *known* to be theirs, so a student
+    whose primary discipline already matches is never held up waiting for a
+    second one to be filled in.
+    """
+    primary = _identifier(profile.get("primary_branch_id"))
+    secondary = _identifier(profile.get("secondary_branch_id"))
+
+    if bool(profile.get("is_dual_degree")):
+        # The postgraduate half is the degree a dual degree recruits into.
+        return frozenset({secondary}) if secondary is not None else None
+
+    if bool(profile.get("is_dual_major")):
+        if primary is None:
+            return None
+        year = _study_year(profile.get("study_year"))
+        if year is None:
+            return None
+        if year < SECOND_DISCIPLINE_YEAR or secondary is None:
+            return frozenset({primary})
+        return frozenset({primary, secondary})
+
+    return frozenset({primary}) if primary is not None else None

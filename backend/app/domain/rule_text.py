@@ -25,12 +25,14 @@ deleted program must still render.
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import cast
 from uuid import UUID
 
 from app.domain.rule_schema import (
+    SET_FIELDS,
     UUID_FIELDS,
     AllNode,
     AnyNode,
@@ -56,6 +58,7 @@ _FIELD_NOUNS: dict[RuleField, str] = {
     RuleField.SECONDARY_PROGRAM_ID: "secondary program",
     RuleField.PRIMARY_BRANCH_ID: "primary branch",
     RuleField.SECONDARY_BRANCH_ID: "secondary branch",
+    RuleField.DISCIPLINE_ID: "discipline",
     RuleField.GRADUATING_YEAR: "graduating year",
     RuleField.CPI: "CPI",
     RuleField.ACTIVE_BACKLOGS: "active backlogs",
@@ -139,6 +142,30 @@ class Shortfall:
     inline: str
 
 
+def _set_field_shortfall(clause: str, raw: object, labels: Labels) -> Shortfall:
+    """A failing set-valued leaf, naming the values the student may answer with.
+
+    An unknown set and an empty one read the same to a student -- the portal
+    cannot say which disciplines are theirs -- so both point at the profile
+    rather than claiming they hold none.
+    """
+    values = cast("AbstractSet[object] | None", raw if isinstance(raw, AbstractSet) else None)
+    if not values:
+        return Shortfall(
+            standalone=(
+                f"Requires {clause}; your profile does not yet say which "
+                "disciplines you may apply in."
+            ),
+            inline=f"{clause} (your disciplines are not recorded yet)",
+        )
+    listed = ", ".join(sorted(render_value(value, labels) for value in values))
+    held = "yours is" if len(values) == 1 else "yours are"
+    return Shortfall(
+        standalone=f"Requires {clause}; {held} {listed}.",
+        inline=f"{clause} ({held} {listed})",
+    )
+
+
 def field_shortfall(
     node: FieldNode, profile: Mapping[str, object], labels: Labels
 ) -> Shortfall:
@@ -149,6 +176,8 @@ def field_shortfall(
     """
     clause = requirement(node, labels)
     raw = profile.get(node.field.value)
+    if node.field in SET_FIELDS:
+        return _set_field_shortfall(clause, raw, labels)
     if raw is None:
         return Shortfall(
             standalone=f"Requires {clause}; your profile does not record this yet.",
@@ -258,6 +287,10 @@ def profile_taxonomy_ids(profile: Mapping[str, object]) -> frozenset[UUID]:
         value = profile.get(field.value)
         if isinstance(value, UUID):
             found.add(value)
+        elif field in SET_FIELDS and isinstance(value, AbstractSet):
+            found.update(
+                item for item in cast("AbstractSet[object]", value) if isinstance(item, UUID)
+            )
     return frozenset(found)
 
 

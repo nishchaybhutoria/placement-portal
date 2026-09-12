@@ -21,8 +21,9 @@ from app.domain.memberships import (
     legal_membership_transitions,
     required_join_fields,
 )
+from app.domain.pathways import eligible_disciplines
 from app.domain.policy import resolve_policy
-from app.domain.rules import RuleContext, evaluate, taxonomy_ids
+from app.domain.rules import RuleContext, RuleField, evaluate, taxonomy_ids
 from app.domain.shared import CycleKind, MembershipStatus, RuleDomain
 from app.domain.transitions import TransitionActor
 from app.modules.applications.verdict import gate_overrides
@@ -508,6 +509,9 @@ async def cycles_joinable(
         )
 
     profile = dict(profile_row) if profile_row is not None else {}
+    # The join rule reads the disciplines the student may be matched on, which
+    # no column holds (ELG-2, app.domain.pathways).
+    profile[RuleField.DISCIPLINE_ID.value] = eligible_disciplines(profile)
     checklist = check_profile_completeness(
         profile,
         resume_count=int(resume_count or 0),

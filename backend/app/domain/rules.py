@@ -9,6 +9,7 @@ site for eligibility rules.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from decimal import InvalidOperation
 from typing import cast
@@ -22,6 +23,7 @@ from app.domain.rule_schema import (
     DECIMAL_FIELDS,
     INTEGER_FIELDS,
     ORDERED_FIELDS,
+    SET_FIELDS,
     TAXONOMY_OF_FIELD,
     UUID_FIELDS,
     AllNode,
@@ -60,6 +62,7 @@ __all__ = [
     "INTEGER_FIELDS",
     "NO_RULE_SUMMARY",
     "ORDERED_FIELDS",
+    "SET_FIELDS",
     "TAXONOMY_OF_FIELD",
     "UUID_FIELDS",
     "AllNode",
@@ -208,6 +211,10 @@ def _evaluate_field(
     node: FieldNode, profile: Mapping[str, object], path: str, labels: Labels
 ) -> tuple[bool, tuple[_Failure, ...]]:
     raw_actual = profile.get(node.field.value)
+    if node.field in SET_FIELDS:
+        if _compare_set(raw_actual, node.value, node.op):
+            return True, ()
+        return False, (_Failure(path, field_shortfall(node, profile, labels)),)
     passed = False
     if raw_actual is not None:
         try:
@@ -218,6 +225,31 @@ def _evaluate_field(
     if passed:
         return True, ()
     return False, (_Failure(path, field_shortfall(node, profile, labels)),)
+
+
+def _compare_set(raw_actual: object, expected: object, op: ComparisonOp) -> bool:
+    """Answer a rule from the set of values the student is allowed to use.
+
+    An unknown set is never a silent pass, in either direction: a student whose
+    disciplines the portal cannot yet determine fails ``not_in`` exactly as
+    they fail ``in``, and reads a shortfall saying so.
+    """
+    if not isinstance(raw_actual, AbstractSet):
+        return False
+    actual = cast(AbstractSet[object], raw_actual)
+    if not actual:
+        return False
+    if op is ComparisonOp.IN:
+        values = cast(tuple[Scalar, ...], expected)
+        return any(value in values for value in actual)
+    if op is ComparisonOp.NOT_IN:
+        values = cast(tuple[Scalar, ...], expected)
+        return all(value not in values for value in actual)
+    if op is ComparisonOp.EQ:
+        return expected in actual
+    if op is ComparisonOp.NE:
+        return expected not in actual
+    return False
 
 
 def _compare(actual: Scalar, expected: object, op: ComparisonOp) -> bool:

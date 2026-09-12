@@ -197,6 +197,10 @@ def test_ELG2_field_registry_is_exactly_the_approved_academic_set() -> None:
         "secondary_program_id",
         "primary_branch_id",
         "secondary_branch_id",
+        # The disciplines a student may be matched on, derived rather than
+        # stored, so one condition covers single, dual-major and dual-degree
+        # enrollments instead of a rule naming both branch columns at once.
+        "discipline_id",
         "graduating_year",
         "cpi",
         "active_backlogs",

@@ -32,6 +32,9 @@ class RuleField(StrEnum):
     SECONDARY_PROGRAM_ID = "secondary_program_id"
     PRIMARY_BRANCH_ID = "primary_branch_id"
     SECONDARY_BRANCH_ID = "secondary_branch_id"
+    #: The disciplines the student may be matched on, decided by
+    #: ``app.domain.pathways`` rather than read from one column.
+    DISCIPLINE_ID = "discipline_id"
     GRADUATING_YEAR = "graduating_year"
     CPI = "cpi"
     ACTIVE_BACKLOGS = "active_backlogs"
@@ -68,6 +71,7 @@ UUID_FIELDS = frozenset(
         RuleField.SECONDARY_PROGRAM_ID,
         RuleField.PRIMARY_BRANCH_ID,
         RuleField.SECONDARY_BRANCH_ID,
+        RuleField.DISCIPLINE_ID,
         RuleField.MINOR1_ID,
         RuleField.MINOR2_ID,
     }
@@ -87,6 +91,10 @@ DECIMAL_FIELDS = frozenset(
 # A profile column like every other rule field, so a rule can say "dual majors
 # only" (Behavior ELG-2, the design review section 4.32).
 BOOLEAN_FIELDS = frozenset({RuleField.IS_DUAL_MAJOR, RuleField.IS_DUAL_DEGREE})
+#: Fields whose *actual* value is a set of ids rather than one id, so a
+#: comparison asks whether any of the student's values answers the rule
+#: (ELG-2).  The expected side is still ordinary ids.
+SET_FIELDS = frozenset({RuleField.DISCIPLINE_ID})
 ORDERED_FIELDS = INTEGER_FIELDS | DECIMAL_FIELDS
 # The taxonomy each id-valued field draws from, so a caller can resolve the
 # display names a rule's UUIDs stand for.
@@ -95,6 +103,7 @@ TAXONOMY_OF_FIELD: dict[RuleField, str] = {
     RuleField.SECONDARY_PROGRAM_ID: "programs",
     RuleField.PRIMARY_BRANCH_ID: "branches",
     RuleField.SECONDARY_BRANCH_ID: "branches",
+    RuleField.DISCIPLINE_ID: "branches",
     RuleField.MINOR1_ID: "minors",
     RuleField.MINOR2_ID: "minors",
 }
