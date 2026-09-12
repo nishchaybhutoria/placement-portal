@@ -991,6 +991,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/commands/retry_staged_row": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Command Retry Staged Row */
+        post: operations["command_retry_staged_row_api_v1_commands_retry_staged_row_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/commands/revoke_penalty": {
         parameters: {
             query?: never;
@@ -5354,6 +5371,49 @@ export interface components {
              */
             resume_id: string;
         };
+        /** RetryStagedRowCommandPreview */
+        RetryStagedRowCommandPreview: {
+            /** Events */
+            events: {
+                [key: string]: unknown;
+            }[];
+            summary: components["schemas"]["RetryStagedRowSummary"];
+        };
+        /** RetryStagedRowCommandRequest */
+        RetryStagedRowCommandRequest: {
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+            /** Idempotency Key */
+            idempotency_key?: string | null;
+            input: components["schemas"]["RetryStagedRowInput"];
+        };
+        /** RetryStagedRowCommandResult */
+        RetryStagedRowCommandResult: {
+            summary: components["schemas"]["RetryStagedRowSummary"];
+        };
+        /** RetryStagedRowInput */
+        RetryStagedRowInput: {
+            /**
+             * Staged Row Id
+             * Format: uuid
+             */
+            staged_row_id: string;
+        };
+        /** RetryStagedRowSummary */
+        RetryStagedRowSummary: {
+            /** Cleared Error */
+            cleared_error: string;
+            /** Institute Email */
+            institute_email: string;
+            /**
+             * Staged Row Id
+             * Format: uuid
+             */
+            staged_row_id: string;
+        };
         /** RevokePenaltyCommandPreview */
         RevokePenaltyCommandPreview: {
             /** Events */
@@ -8520,6 +8580,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RestoreMembershipCommandResult"] | components["schemas"]["RestoreMembershipCommandPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    command_retry_staged_row_api_v1_commands_retry_staged_row_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetryStagedRowCommandRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetryStagedRowCommandResult"] | components["schemas"]["RetryStagedRowCommandPreview"];
                 };
             };
             /** @description Validation Error */

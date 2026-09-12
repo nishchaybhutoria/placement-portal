@@ -180,6 +180,16 @@ function StagedRows({ data }: { data: AdminBulkUpsertPayload }) {
                         trigger={<Button variant="destructive-ghost" size="sm">Delete</Button>}
                       />
                     ) : null}
+                    {state === "errored" ? (
+                      <PreviewConfirm
+                        command="retry_staged_row"
+                        input={{ staged_row_id: row.id }}
+                        title={`Retry staged row for ${row.institute_email}?`}
+                        description="The row returns to pending and is checked again against current rules when the student next signs in. A row that is still invalid fails again."
+                        confirmLabel="Retry staged row"
+                        trigger={<Button variant="ghost" size="sm">Retry</Button>}
+                      />
+                    ) : null}
                   </li>
                   ))}
                 </ul>

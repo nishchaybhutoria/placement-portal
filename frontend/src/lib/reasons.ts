@@ -68,6 +68,8 @@ export const REASONS = {
   duplicate_row: "This row duplicates another in the same upload.",
   staged_row_not_found: "No such staged row.",
   staged_row_already_applied: "This staged row has already been applied.",
+  staged_row_not_errored:
+    "This staged row is already waiting for the student to sign in.",
   unparsable_upload: "The uploaded file could not be read.",
   company_not_found: "No such company.",
   company_name_conflict: "Another company already uses this name.",

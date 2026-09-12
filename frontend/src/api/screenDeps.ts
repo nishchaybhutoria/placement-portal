@@ -50,6 +50,9 @@ export const SCREEN_DEPS: Record<CommandName, readonly ScreenId[]> = {
   // Bulk upsert staging
   bulk_upsert_profiles: ["admin/bulk-upsert", "me/profile", "me/dashboard", "staff/student/{enrollment_id}"],
   delete_staged_row: ["admin/bulk-upsert"],
+  // Clearing the recorded failure returns the row to pending; it lands on the
+  // student's profile at their next sign-in, not here.
+  retry_staged_row: ["admin/bulk-upsert"],
 
   // Taxonomies & settings
   upsert_taxonomy_item: ["admin/taxonomies", "staff/taxonomies", "me/profile"],

@@ -31,6 +31,8 @@ STUDENT_ENROLLMENT = UUID("00000000-0000-0000-0000-000000000325")
 RESUME_A = UUID("00000000-0000-0000-0000-000000000331")
 RESUME_B = UUID("00000000-0000-0000-0000-000000000332")
 STAGED_ROW = UUID("00000000-0000-0000-0000-000000000341")
+#: retry_staged_row only accepts a row that actually recorded a failure.
+STAGED_ROW_ERRORED = UUID("00000000-0000-0000-0000-000000000342")
 DRIVE_URL = "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view"
 COMPANY_A = UUID("00000000-0000-0000-0000-000000000351")
 COMPANY_B = UUID("00000000-0000-0000-0000-000000000352")
@@ -306,6 +308,15 @@ PREVIEW_FIXTURES = {
     ),
     "delete_staged_row": PreviewFixture(
         input={"staged_row_id": str(STAGED_ROW)},
+        actor=ActorContext(
+            principal_id="00000000-0000-0000-0000-000000000301",
+            user_id=UUID("00000000-0000-0000-0000-000000000301"),
+            role="admin",
+            session_id=UUID("00000000-0000-0000-0000-000000000311"),
+        ),
+    ),
+    "retry_staged_row": PreviewFixture(
+        input={"staged_row_id": str(STAGED_ROW_ERRORED)},
         actor=ActorContext(
             principal_id="00000000-0000-0000-0000-000000000301",
             user_id=UUID("00000000-0000-0000-0000-000000000301"),
@@ -1356,11 +1367,13 @@ async def seed_fixture_world(connection: AsyncConnection) -> None:
     await connection.execute(
         sa.text(
             "INSERT INTO staged_profile_rows "
-            "(id, institute_email, payload, uploaded_by) "
+            "(id, institute_email, payload, uploaded_by, error) "
             "VALUES (:staged, 'nobody@example.edu', "
-            "CAST('{\"fields\": {}}' AS jsonb), :admin)"
+            "CAST('{\"fields\": {}}' AS jsonb), :admin, NULL), "
+            "(:errored, 'stranded@example.edu', "
+            "CAST('{\"fields\": {}}' AS jsonb), :admin, 'A rule that has since changed')"
         ),
-        {"staged": STAGED_ROW, "admin": ADMIN},
+        {"staged": STAGED_ROW, "errored": STAGED_ROW_ERRORED, "admin": ADMIN},
     )
     await connection.execute(
         sa.text(

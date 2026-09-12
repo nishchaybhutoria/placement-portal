@@ -137,6 +137,9 @@ FIXTURES = {
     "delete_staged_row": MatrixFixture(
         {"staged_row_id": str(STAGED_ROW)}, frozenset({"admin"})
     ),
+    "retry_staged_row": MatrixFixture(
+        {"staged_row_id": str(STAGED_ROW)}, frozenset({"admin"})
+    ),
     "create_company": MatrixFixture({"name": "Acme"}, STAFF),
     "update_company": MatrixFixture({"company_id": str(COMPANY)}, STAFF),
     "deactivate_company": MatrixFixture(
