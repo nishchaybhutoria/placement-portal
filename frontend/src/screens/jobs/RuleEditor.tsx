@@ -1,5 +1,5 @@
 import { Plus, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { TaxonomyItem } from "@/api/payloads";
 import { Button } from "@/components/ui/button";
@@ -160,6 +160,62 @@ export interface Taxonomy {
   programs: TaxonomyItem[];
   branches: TaxonomyItem[];
   minors: TaxonomyItem[];
+}
+
+function clauseProblem(clause: Clause): string | null {
+  if (
+    clause.kind === "dual_major" ||
+    clause.kind === "dual_degree" ||
+    clause.kind === "not_placed"
+  ) return null;
+  if (clause.kind === "graduating_year") {
+    const values = clause.numbers ?? [];
+    return values.length > 0 && values.every((value) => Number.isInteger(Number(value)))
+      ? null
+      : "Choose at least one whole graduating year.";
+  }
+  if (
+    clause.kind === "program" ||
+    clause.kind === "secondary_program" ||
+    clause.kind === "discipline" ||
+    clause.kind === "branch" ||
+    clause.kind === "secondary_branch" ||
+    clause.kind === "minor"
+  ) return clause.ids?.length ? null : "Choose at least one option.";
+  const value = clause.number;
+  if (value === undefined || value.trim() === "" || !Number.isFinite(Number(value))) {
+    return "Enter a number.";
+  }
+  if (clause.kind !== "cpi" && !Number.isInteger(Number(value))) {
+    return "Enter a whole number.";
+  }
+  return null;
+}
+
+/** Why a visual draft cannot be saved; an empty top-level list is valid null. */
+export function rowProblems(rows: Row[]): string[] {
+  const problems: string[] = [];
+  for (const row of rows) {
+    if (!isGroup(row)) {
+      const problem = clauseProblem(row);
+      if (problem) problems.push(problem);
+      continue;
+    }
+    if (row.options.length === 0) {
+      problems.push("A group needs at least one option.");
+      continue;
+    }
+    for (const option of row.options) {
+      if (option.clauses.length === 0) {
+        problems.push("Every group option needs at least one condition.");
+      }
+      for (const clause of option.clauses) {
+        const problem = clauseProblem(clause);
+        if (problem) problems.push(problem);
+      }
+    }
+  }
+  return problems;
 }
 
 /** Compile the row list to the tree the server stores. */
@@ -346,6 +402,7 @@ export function RuleEditor({
   disabled,
   outcome,
   onChange,
+  onValidityChange,
 }: {
   rule: Rule | null;
   taxonomy: Taxonomy;
@@ -353,6 +410,7 @@ export function RuleEditor({
   /** The job's outcome, so a clause the standing gate already enforces is not offered. */
   outcome?: string | null;
   onChange: (next: Rule | null) => void;
+  onValidityChange?: (valid: boolean) => void;
 }) {
   // ELG-3 already closes placement roles to a placed student before the rule
   // runs, under its own override domain. Offering the same condition here
@@ -365,10 +423,15 @@ export function RuleEditor({
   const [raw, setRaw] = useState(initial === null);
   const [text, setText] = useState(() => JSON.stringify(rule ?? null, null, 2));
   const [rawError, setRawError] = useState<string | undefined>(undefined);
+  const visualProblems = rowProblems(clauses);
+
+  useEffect(() => {
+    onValidityChange?.(raw ? rawError === undefined : visualProblems.length === 0);
+  }, [onValidityChange, raw, rawError, visualProblems.length]);
 
   function update(next: Row[]) {
     setClauses(next);
-    onChange(compile(next));
+    if (rowProblems(next).length === 0) onChange(compile(next));
   }
 
   function applyRaw(value: string) {
@@ -379,7 +442,7 @@ export function RuleEditor({
       return;
     }
     try {
-      const parsed = JSON.parse(value) as Rule;
+      const parsed = parseRuleJson(value);
       setRawError(undefined);
       onChange(parsed);
     } catch (error) {
@@ -401,12 +464,23 @@ export function RuleEditor({
           variant="ghost"
           size="sm"
           onClick={() => {
-            if (!raw) setText(JSON.stringify(compiled, null, 2));
-            else {
-              const recovered = decompile(safeParse(text));
-              if (recovered) setClauses(recovered);
+            if (!raw) {
+              setText(JSON.stringify(compiled, null, 2));
+              setRaw(true);
+              return;
             }
-            setRaw((open) => !open);
+            try {
+              const recovered = decompile(parseRuleJson(text));
+              if (recovered === null) {
+                setRawError("This tree cannot be represented by the visual clauses.");
+                return;
+              }
+              setClauses(recovered);
+              setRawError(undefined);
+              setRaw(false);
+            } catch (error) {
+              setRawError(error instanceof Error ? error.message : "Not valid JSON");
+            }
           }}
         >
           {raw ? "Back to clauses" : "Edit as JSON"}
@@ -431,6 +505,11 @@ export function RuleEditor({
         </Field>
       ) : (
         <>
+          {visualProblems.length > 0 ? (
+            <p role="alert" className="text-body-sm text-destructive">
+              Complete or remove every unfinished condition before saving.
+            </p>
+          ) : null}
           {clauses.length === 0 ? (
             <p className="rounded border border-border bg-muted p-gap-lg text-body-md text-muted-foreground">
               No clauses. The job is open to every active member of the cycle.
@@ -475,7 +554,6 @@ export function RuleEditor({
             className="flex flex-wrap gap-gap-md"
           >
             <AddClauseButtons
-              taken={clauses.filter((row): row is Clause => !isGroup(row))}
               disabled={disabled}
               placementOutcome={placementOutcome}
               onAdd={(kind) =>
@@ -509,12 +587,83 @@ export function RuleEditor({
   );
 }
 
-function safeParse(text: string): Rule | null {
-  try {
-    return JSON.parse(text) as Rule;
-  } catch {
-    return null;
+export function parseRuleJson(text: string): Rule | null {
+  assertNoDuplicateJsonKeys(text);
+  const parsed = JSON.parse(text) as unknown;
+  if (parsed === null) return null;
+  if (typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("A rule must be a JSON object or null.");
   }
+  return parsed as Rule;
+}
+
+/** Detect object-key duplication before JSON.parse discards the earlier value. */
+function assertNoDuplicateJsonKeys(text: string): void {
+  let index = 0;
+  const whitespace = () => {
+    while (/\s/.test(text[index] ?? "")) index += 1;
+  };
+  const stringToken = (): string => {
+    const start = index;
+    index += 1;
+    while (index < text.length) {
+      if (text[index] === "\\") {
+        index += 2;
+      } else if (text[index] === '"') {
+        index += 1;
+        return JSON.parse(text.slice(start, index)) as string;
+      } else {
+        index += 1;
+      }
+    }
+    throw new SyntaxError("Unterminated JSON string");
+  };
+  const value = (): void => {
+    whitespace();
+    if (text[index] === "{") {
+      index += 1;
+      whitespace();
+      const keys = new Set<string>();
+      if (text[index] === "}") { index += 1; return; }
+      while (index < text.length) {
+        if (text[index] !== '"') throw new SyntaxError("Expected a JSON object key");
+        const key = stringToken();
+        if (keys.has(key)) throw new SyntaxError(`Duplicate JSON key: ${key}`);
+        keys.add(key);
+        whitespace();
+        if (text[index] !== ":") throw new SyntaxError("Expected ':' after JSON key");
+        index += 1;
+        value();
+        whitespace();
+        if (text[index] === "}") { index += 1; return; }
+        if (text[index] !== ",") throw new SyntaxError("Expected ',' in JSON object");
+        index += 1;
+        whitespace();
+      }
+      throw new SyntaxError("Unterminated JSON object");
+    }
+    if (text[index] === "[") {
+      index += 1;
+      whitespace();
+      if (text[index] === "]") { index += 1; return; }
+      while (index < text.length) {
+        value();
+        whitespace();
+        if (text[index] === "]") { index += 1; return; }
+        if (text[index] !== ",") throw new SyntaxError("Expected ',' in JSON array");
+        index += 1;
+      }
+      throw new SyntaxError("Unterminated JSON array");
+    }
+    if (text[index] === '"') { stringToken(); return; }
+    const match = /^(?:true|false|null|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)/
+      .exec(text.slice(index));
+    if (!match) throw new SyntaxError("Invalid JSON value");
+    index += match[0].length;
+  };
+  value();
+  whitespace();
+  if (index !== text.length) throw new SyntaxError("Unexpected text after JSON value");
 }
 
 function newGroup(mode: "any" | "none"): Group {
@@ -532,20 +681,12 @@ function newGroup(mode: "any" | "none"): Group {
   };
 }
 
-/**
- * The clause palette, filtered by what is already present *at this level*.
- *
- * Filtering globally would be wrong now that groups exist: "branch is CSE" in
- * one option and "branch is EE" in another is the whole point of a group, and
- * a palette that hid the second one would make the rule unbuildable again.
- */
+/** The clause palette; predicates may repeat wherever the rule needs them. */
 function AddClauseButtons({
-  taken,
   disabled,
   placementOutcome,
   onAdd,
 }: {
-  taken: Clause[];
   disabled: boolean;
   placementOutcome: boolean;
   onAdd: (kind: ClauseKind) => void;
@@ -553,9 +694,7 @@ function AddClauseButtons({
   return (
     <>
       {CLAUSES.filter(
-        (definition) =>
-          !taken.some((clause) => clause.kind === definition.kind) &&
-          !(definition.kind === "not_placed" && placementOutcome),
+        (definition) => !(definition.kind === "not_placed" && placementOutcome),
       ).map((definition) => (
         <Button
           key={definition.kind}
@@ -706,7 +845,6 @@ function GroupRow({
               className="mt-gap-md flex flex-wrap gap-gap-md"
             >
               <AddClauseButtons
-                taken={option.clauses}
                 disabled={disabled}
                 placementOutcome={placementOutcome}
                 onAdd={(kind) =>

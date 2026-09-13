@@ -1173,6 +1173,7 @@ function EligibilityTab({
 }) {
   const taxonomies = useScreen("staff/taxonomies");
   const [rule, setRule] = useState<Rule | null>(data.eligibility.rule);
+  const [ruleValid, setRuleValid] = useState(true);
   const save = useCommand("update_job_eligibility");
   const taxonomy = taxonomies.data
     ? payload<TaxonomiesPayload>(taxonomies.data)
@@ -1205,7 +1206,7 @@ function EligibilityTab({
               description="Students who already applied under the old rule keep their applications — an eligibility edit never reaches back."
               confirmLabel="Save rule"
               trigger={
-                <Button variant="primary" size="sm" disabled={disabled}>
+                <Button variant="primary" size="sm" disabled={disabled || !ruleValid}>
                   Save rule
                 </Button>
               }
@@ -1232,6 +1233,7 @@ function EligibilityTab({
             disabled={disabled}
             outcome={data.job.outcome}
             onChange={setRule}
+            onValidityChange={setRuleValid}
           />
         </CardBody>
       </Card>
@@ -1242,6 +1244,7 @@ function EligibilityTab({
         rule={rule}
         saved={data.eligibility.rule}
         impact={data.eligibility.impact}
+        valid={ruleValid}
       />
     </div>
   );

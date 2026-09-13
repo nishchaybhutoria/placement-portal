@@ -29,12 +29,14 @@ export function ImpactPanel({
   rule,
   saved,
   impact,
+  valid,
 }: {
   cycleId: string;
   jobId: string;
   rule: Rule | null;
   saved: Rule | null;
   impact: Impact;
+  valid: boolean;
 }) {
   const preview = usePreview("update_job_eligibility");
   const edited = JSON.stringify(rule) !== JSON.stringify(saved);
@@ -45,7 +47,7 @@ export function ImpactPanel({
   const settled = useDebouncedValue(JSON.stringify(rule), RULE_DEBOUNCE_MS);
 
   useEffect(() => {
-    if (!edited) return;
+    if (!edited || !valid) return;
     previewMutate({
       input: {
         cycle_id: cycleId,
@@ -53,7 +55,7 @@ export function ImpactPanel({
         eligibility_rule: JSON.parse(settled) as Rule | null,
       },
     });
-  }, [edited, settled, cycleId, jobId, previewMutate]);
+  }, [edited, valid, settled, cycleId, jobId, previewMutate]);
 
   // The dry run returns the same three fields the screen carries for the saved
   // rule, so both paths render through one shape.
@@ -83,7 +85,11 @@ export function ImpactPanel({
         ) : null}
       </CardHeader>
       <CardBody className="flex flex-col gap-gap-lg">
-        {edited && preview.isPending ? (
+        {!valid ? (
+          <p role="status" className="text-body-sm text-muted-foreground">
+            Complete the draft to preview who qualifies.
+          </p>
+        ) : edited && preview.isPending ? (
           <>
             <Skeleton className="h-8 w-32" />
             <Skeleton className="h-40 w-full" />

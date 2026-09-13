@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { compile, decompile, type Row } from "./RuleEditor";
+import {
+  compile,
+  decompile,
+  parseRuleJson,
+  rowProblems,
+  type Row,
+} from "./RuleEditor";
 
 /**
  * The compile/decompile pair, which is the whole contract of the editor.
@@ -120,23 +126,27 @@ describe("rule compilation", () => {
     ).toEqual({ field: "is_dual_major", op: "eq", value: true });
   });
 
-  it("ignores an option with nothing in it, and a group with no options", () => {
+  it("marks empty options invalid instead of silently saving around them", () => {
+    const unfinished: Row[] = [
+      {
+        id: "1",
+        kind: "group",
+        mode: "any",
+        options: [
+          { id: "1-0", clauses: [{ id: "a", kind: "dual_major" }] },
+          { id: "1-1", clauses: [] },
+        ],
+      },
+    ];
+    expect(rowProblems(unfinished)).toEqual([
+      "Every group option needs at least one condition.",
+    ]);
     expect(
-      compile([
-        {
-          id: "1",
-          kind: "group",
-          mode: "any",
-          options: [
-            { id: "1-0", clauses: [{ id: "a", kind: "dual_major" }] },
-            { id: "1-1", clauses: [] },
-          ],
-        },
+      rowProblems([
+        { id: "cpi", kind: "cpi" },
+        { id: "program", kind: "program", ids: [] },
       ]),
-    ).toEqual({ field: "is_dual_major", op: "eq", value: true });
-    expect(
-      compile([{ id: "1", kind: "group", mode: "any", options: [{ id: "x", clauses: [] }] }]),
-    ).toBeNull();
+    ).toHaveLength(2);
   });
 
   it("keeps the minor pair a clause, not a group the coordinator built", () => {
@@ -226,6 +236,19 @@ describe("rule compilation", () => {
     expect(decompile({ field: "graduating_year", op: "eq", value: 2027 })).toEqual([
       { id: "0", kind: "graduating_year", numbers: ["2027"] },
     ]);
+  });
+
+  it("rejects duplicate JSON keys before JSON.parse can discard one", () => {
+    expect(() =>
+      parseRuleJson('{"field":"cpi","op":"gte","value":8,"value":9}'),
+    ).toThrow(/Duplicate JSON key: value/);
+    expect(parseRuleJson('{"field":"cpi","op":"gte","value":8}')).toEqual({
+      field: "cpi",
+      op: "gte",
+      value: 8,
+    });
+    expect(parseRuleJson("null")).toBeNull();
+    expect(() => parseRuleJson("[]")).toThrow(/JSON object or null/);
   });
 
   it("round-trips a per-pathway rule of the shape the roster describes", () => {
