@@ -15,23 +15,20 @@ jobs:
   secrets:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    permissions:
-      contents: read
-      # On pull_request the action lists the PR's commits before scanning.
-      pull-requests: read
     steps:
       - name: Check out complete history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Scan for committed secrets
-        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_VERSION: 8.28.0
-          # Findings fail the job and land in the step summary; PR comments
-          # would need write access the token lacks on fork pull requests.
-          GITLEAKS_ENABLE_COMMENTS: "false"
+        # Use the open-source CLI directly: the GitHub Action requires a
+        # license for organization-owned repositories. Pin the image digest.
+        run: |
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --volume "$GITHUB_WORKSPACE:/repo:ro" \
+            ghcr.io/gitleaks/gitleaks:v8.28.0@sha256:cdbb7c955abce02001a9f6c9f602fb195b7fadc1e812065883f695d1eeaba854 \
+            git /repo --redact --verbose
 
   dependencies:
     runs-on: ubuntu-latest
