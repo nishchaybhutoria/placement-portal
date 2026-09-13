@@ -196,7 +196,7 @@ def test_PRO1_a_dual_programme_may_be_recorded_before_the_second_branch() -> Non
 
     assert program_branch_reasons(
         {"program_id": combined, "primary_branch_id": primary},
-        frozenset({(combined, primary)}),
+        frozenset({(btech, primary)}),
         _pathways(combined, ProgramStructure.DUAL_MAJOR, btech, btech),
     ) == []
 

@@ -16,7 +16,11 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.core.db import create_engine
-from app.core.errors import INVALID_FIELD_VALUE, TAXONOMY_ITEM_NOT_FOUND
+from app.core.errors import (
+    INVALID_FIELD_VALUE,
+    PROGRAM_BRANCH_MISMATCH,
+    TAXONOMY_ITEM_NOT_FOUND,
+)
 from app.domain.pathways import dual_degree_name, dual_major_name
 from tests.profiles.conftest import build_test_executor, seed_admin, seed_taxonomy
 from tests.profiles.test_profile_commands import _reasons, _run
@@ -56,6 +60,88 @@ async def test_TAX_an_admin_builds_a_dual_degree_out_of_two_plain_degrees() -> N
         assert stored["structure"] == "dual_degree"
         assert stored["primary_degree_id"] == taxonomy.program_id
         assert stored["secondary_degree_id"] == taxonomy.other_program_id
+    finally:
+        await engine.dispose()
+        await migration.dispose()
+
+
+async def test_TAX_component_only_edits_are_saved_previewed_and_audited() -> None:
+    """Changing a component is a real taxonomy edit, even if structure is stable."""
+    executor, engine = build_test_executor()
+    migration = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
+    try:
+        replacement_degree_id = uuid4()
+        async with migration.begin() as connection:
+            admin = await seed_admin(connection)
+            taxonomy = await seed_taxonomy(connection)
+            await connection.execute(
+                sa.text(
+                    "INSERT INTO programs (id, name, is_active) "
+                    "VALUES (:id, 'MSc', true)"
+                ),
+                {"id": replacement_degree_id},
+            )
+        payload: dict[str, object] = {
+            "kind": "programs",
+            "item_id": str(taxonomy.dual_degree_program_id),
+            "structure": "dual_degree",
+            "primary_degree_id": str(taxonomy.program_id),
+            "secondary_degree_id": str(replacement_degree_id),
+        }
+        command = executor.registry.commands["upsert_taxonomy_item"]
+        input_value = command.input_model.model_validate(payload)
+        preview = await executor.run(
+            "upsert_taxonomy_item", input_value, admin, dry_run=True
+        )
+        result = await _run(
+            executor, "upsert_taxonomy_item", payload, admin
+        )
+        async with migration.connect() as connection:
+            stored = (
+                await connection.execute(
+                    sa.text(
+                        "SELECT primary_degree_id, secondary_degree_id FROM programs "
+                        "WHERE id = :id"
+                    ),
+                    {"id": taxonomy.dual_degree_program_id},
+                )
+            ).mappings().one()
+            audit = (
+                await connection.execute(
+                    sa.text(
+                        "SELECT details FROM audit_log "
+                        "WHERE action = 'upsert_taxonomy_item' "
+                        "ORDER BY created_at DESC, id DESC LIMIT 1"
+                    )
+                )
+            ).mappings().one()["details"]
+    finally:
+        await engine.dispose()
+        await migration.dispose()
+
+    assert preview.summary == result.summary
+    assert result.summary["action"] == "updated"
+    assert stored["primary_degree_id"] == taxonomy.program_id
+    assert stored["secondary_degree_id"] == replacement_degree_id
+    assert audit["before"]["secondary_degree_id"] == str(taxonomy.other_program_id)
+    assert audit["after"]["secondary_degree_id"] == str(replacement_degree_id)
+
+
+async def test_TAX_a_combined_programme_cannot_name_itself_as_a_component() -> None:
+    """The command rejects a recursive structure before the database FK sees it."""
+    executor, engine = build_test_executor()
+    migration = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
+    try:
+        async with migration.begin() as connection:
+            admin = await seed_admin(connection)
+            taxonomy = await seed_taxonomy(connection)
+        assert await _reasons(executor, "upsert_taxonomy_item", {
+            "kind": "programs",
+            "item_id": str(taxonomy.dual_degree_program_id),
+            "structure": "dual_degree",
+            "primary_degree_id": str(taxonomy.dual_degree_program_id),
+            "secondary_degree_id": str(taxonomy.other_program_id),
+        }, admin) == [(INVALID_FIELD_VALUE, "primary_degree_id")]
     finally:
         await engine.dispose()
         await migration.dispose()
@@ -174,6 +260,58 @@ async def test_TAX_a_degree_a_combined_programme_is_built_from_is_not_deleted() 
     finally:
         await engine.dispose()
         await migration.dispose()
+
+
+async def test_PRO1_each_discipline_must_belong_to_its_component_degree() -> None:
+    """A combined programme's union must not admit a PG branch in the UG slot."""
+    from tests.profiles.conftest import seed_student
+
+    executor, engine = build_test_executor()
+    migration = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
+    try:
+        async with migration.begin() as connection:
+            admin = await seed_admin(connection)
+            taxonomy = await seed_taxonomy(connection)
+            student = await seed_student(connection, "component-branches@example.edu")
+            # CSE belongs only to MTech, while EE belongs only to BTech. The
+            # combined programme deliberately retains both in its display union.
+            await connection.execute(
+                sa.text(
+                    "DELETE FROM program_branches "
+                    "WHERE (program_id = :btech AND branch_id = :cse) "
+                    "OR (program_id = :mtech AND branch_id = :ee)"
+                ),
+                {
+                    "btech": taxonomy.program_id,
+                    "mtech": taxonomy.other_program_id,
+                    "cse": taxonomy.branch_id,
+                    "ee": taxonomy.second_branch_id,
+                },
+            )
+        invalid = await _reasons(executor, "admin_update_profile", {
+            "enrollment_id": str(student.enrollment_id),
+            "fields": {
+                "program_id": str(taxonomy.dual_degree_program_id),
+                "primary_branch_id": str(taxonomy.branch_id),
+                "secondary_branch_id": str(taxonomy.branch_id),
+            },
+        }, admin)
+        valid = await _run(executor, "admin_update_profile", {
+            "enrollment_id": str(student.enrollment_id),
+            "fields": {
+                "program_id": str(taxonomy.dual_degree_program_id),
+                "primary_branch_id": str(taxonomy.second_branch_id),
+                "secondary_branch_id": str(taxonomy.branch_id),
+            },
+        }, admin)
+    finally:
+        await engine.dispose()
+        await migration.dispose()
+
+    assert invalid == [(PROGRAM_BRANCH_MISMATCH, "primary_branch_id")]
+    assert valid.summary["changed_fields"] == [
+        "primary_branch_id", "program_id", "secondary_branch_id"
+    ]
 
 
 async def test_ELG2_the_profile_form_reads_the_shape_from_the_programme() -> None:

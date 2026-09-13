@@ -157,6 +157,8 @@ class TaxonomyState:
     inactive_branch_ids: tuple[UUID, ...]
     new_map_ids: tuple[tuple[UUID, UUID], ...]
     existing_structure: str | None
+    existing_primary_degree_id: UUID | None
+    existing_secondary_degree_id: UUID | None
     combined_components: tuple[UUID, ...]
     nonsingle_components: tuple[UUID, ...]
 
@@ -214,7 +216,7 @@ async def _load_taxonomy(
         )
     lock_clause = " FOR UPDATE" if lock else ""
     columns = (
-        "id, name, is_active, structure"
+        "id, name, is_active, structure, primary_degree_id, secondary_degree_id"
         if input_value.kind is TaxonomyKind.PROGRAM
         else "id, name, is_active"
     )
@@ -349,6 +351,16 @@ async def _load_taxonomy(
             if existing is not None and input_value.kind is TaxonomyKind.PROGRAM
             else None
         ),
+        existing_primary_degree_id=(
+            existing["primary_degree_id"]
+            if existing is not None and input_value.kind is TaxonomyKind.PROGRAM
+            else None
+        ),
+        existing_secondary_degree_id=(
+            existing["secondary_degree_id"]
+            if existing is not None and input_value.kind is TaxonomyKind.PROGRAM
+            else None
+        ),
         combined_components=combined_components,
         nonsingle_components=nonsingle_components,
     )
@@ -381,6 +393,9 @@ def _item_snapshot(
     name: str,
     is_active: bool,
     branch_ids: tuple[UUID, ...] | None,
+    structure: str | None,
+    primary_degree_id: UUID | None,
+    secondary_degree_id: UUID | None,
 ) -> dict[str, object]:
     snapshot: dict[str, object] = {
         "id": str(item_id),
@@ -388,7 +403,18 @@ def _item_snapshot(
         "is_active": is_active,
     }
     if branch_ids is not None:
-        snapshot["branch_ids"] = [str(branch_id) for branch_id in branch_ids]
+        snapshot.update(
+            {
+                "branch_ids": [str(branch_id) for branch_id in branch_ids],
+                "structure": structure,
+                "primary_degree_id": (
+                    str(primary_degree_id) if primary_degree_id is not None else None
+                ),
+                "secondary_degree_id": (
+                    str(secondary_degree_id) if secondary_degree_id is not None else None
+                ),
+            }
+        )
     return snapshot
 
 
@@ -446,6 +472,9 @@ def _decide_taxonomy(
             name=state.existing_name,
             is_active=bool(state.existing_active),
             branch_ids=before_branches,
+            structure=state.existing_structure,
+            primary_degree_id=state.existing_primary_degree_id,
+            secondary_degree_id=state.existing_secondary_degree_id,
         )
         if state.existing_name is not None
         else None
@@ -472,6 +501,9 @@ def _decide_taxonomy(
                 name=state.existing_name,
                 is_active=False,
                 branch_ids=before_branches,
+                structure=state.existing_structure,
+                primary_degree_id=state.existing_primary_degree_id,
+                secondary_degree_id=state.existing_secondary_degree_id,
             )
             active_after: bool | None = False
         else:
@@ -496,6 +528,23 @@ def _decide_taxonomy(
             )
             if component is not None
         )
+        recursive_path = next(
+            (
+                path
+                for path, component in (
+                    ("primary_degree_id", input_value.primary_degree_id),
+                    ("secondary_degree_id", input_value.secondary_degree_id),
+                )
+                if component == state.item_id
+            ),
+            None,
+        )
+        if recursive_path is not None:
+            return Rejection(reasons=[Reason(
+                code=INVALID_FIELD_VALUE,
+                human="A combined program cannot be built out of itself",
+                path=recursive_path,
+            )])
         if len(state.combined_components) != len(requested_components):
             return Rejection(reasons=[Reason(
                 code=TAXONOMY_ITEM_NOT_FOUND,
@@ -531,7 +580,16 @@ def _decide_taxonomy(
             else {}
         )
         structure_changed = bool(structure_values) and (
-            state.existing_structure != structure_values["structure"]
+            (
+                state.existing_structure,
+                state.existing_primary_degree_id,
+                state.existing_secondary_degree_id,
+            )
+            != (
+                structure_values["structure"],
+                structure_values["primary_degree_id"],
+                structure_values["secondary_degree_id"],
+            )
         )
         if creating:
             values: dict[str, object] = {
@@ -581,11 +639,29 @@ def _decide_taxonomy(
                 )
                 for branch_id, map_id in state.new_map_ids
             )
+        structure_after = (
+            str(structure_values["structure"])
+            if structure_values
+            else state.existing_structure
+        )
+        primary_degree_after = (
+            input_value.primary_degree_id
+            if structure_values
+            else state.existing_primary_degree_id
+        )
+        secondary_degree_after = (
+            input_value.secondary_degree_id
+            if structure_values
+            else state.existing_secondary_degree_id
+        )
         after = _item_snapshot(
             item_id=state.item_id,
             name=name_after,
             is_active=active_after,
             branch_ids=branch_ids_after,
+            structure=structure_after,
+            primary_degree_id=primary_degree_after,
+            secondary_degree_id=secondary_degree_after,
         )
         changed = before != after
         action = "created" if creating else ("updated" if changed else "unchanged")

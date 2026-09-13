@@ -469,10 +469,15 @@ def program_branch_reasons(
         return reasons
     pathway = (pathways or {}).get(program, ProgramPathway(ProgramStructure.SINGLE))
 
-    if isinstance(primary, UUID) and (program, primary) not in pairs:
+    primary_source = pathway.discipline_source(secondary=False) or program
+    if isinstance(primary, UUID) and (primary_source, primary) not in pairs:
         reasons.append(Reason(
             code=PROGRAM_BRANCH_MISMATCH,
-            human="Primary branch is not offered by the declared program",
+            human=(
+                "Primary branch is not offered by the undergraduate degree"
+                if pathway.holds_second_discipline
+                else "Primary branch is not offered by the declared program"
+            ),
             path="primary_branch_id",
         ))
     if isinstance(secondary, UUID):
