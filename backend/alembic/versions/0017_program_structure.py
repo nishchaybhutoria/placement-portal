@@ -59,37 +59,95 @@ def upgrade() -> None:
 
     connection = op.get_bind()
 
-    # One combined programme per dual-major base degree that profiles use.
+    # One combined programme per dual-major base degree used by either a
+    # profile or an unapplied staged row. IDs are derived from the component
+    # identity, not the display name: downgrade leaves these rows in place, and
+    # the same IDs let a later re-upgrade recognize its own rows without
+    # repurposing an unrelated programme that happens to have the same name.
     connection.execute(sa.text("""
-        INSERT INTO programs (id, name, is_active, structure,
-                              primary_degree_id, secondary_degree_id, updated_at)
-        SELECT gen_random_uuid(), base.name || ' Dual Major', true, 'dual_major',
-               base.id, base.id, now()
-        FROM (
+        WITH used AS (
             SELECT DISTINCT p.program_id AS id FROM profiles p
             WHERE p.is_dual_major AND p.program_id IS NOT NULL
-        ) used
-        JOIN programs base ON base.id = used.id
-        ON CONFLICT (name) DO NOTHING
-    """))
-
-    # One per (undergraduate, postgraduate) dual-degree pair that profiles use.
-    connection.execute(sa.text("""
+            UNION
+            SELECT DISTINCT (s.payload->'fields'->>'program_id')::uuid AS id
+            FROM staged_profile_rows s
+            WHERE s.applied_at IS NULL
+              AND s.payload->'fields'->>'is_dual_major' = 'true'
+              AND s.payload->'fields'->>'program_id'
+                  ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        ), candidates AS (
+            SELECT (
+                substr(md5('cds:dual_major:' || base.id::text), 1, 8) || '-' ||
+                substr(md5('cds:dual_major:' || base.id::text), 9, 4) || '-' ||
+                substr(md5('cds:dual_major:' || base.id::text), 13, 4) || '-' ||
+                substr(md5('cds:dual_major:' || base.id::text), 17, 4) || '-' ||
+                substr(md5('cds:dual_major:' || base.id::text), 21, 12)
+            )::uuid AS id,
+            base.name || ' Dual Major' AS name,
+            base.id AS component_id
+            FROM used JOIN programs base ON base.id = used.id
+        )
         INSERT INTO programs (id, name, is_active, structure,
                               primary_degree_id, secondary_degree_id, updated_at)
-        SELECT gen_random_uuid(),
-               ug.name || E'–' || pg.name || ' Dual Degree', true, 'dual_degree',
-               ug.id, pg.id, now()
-        FROM (
+        SELECT id, name, true, 'dual_major', component_id, component_id, now()
+        FROM candidates
+        ON CONFLICT (id) DO UPDATE SET
+            name = excluded.name,
+            structure = excluded.structure,
+            primary_degree_id = excluded.primary_degree_id,
+            secondary_degree_id = excluded.secondary_degree_id,
+            updated_at = excluded.updated_at
+    """))
+
+    # One per (undergraduate, postgraduate) dual-degree pair used by a profile
+    # or unapplied staging. Malformed legacy identifiers remain staged for the
+    # application adapter to reject; the migration never guesses their degree.
+    connection.execute(sa.text("""
+        WITH used AS (
             SELECT DISTINCT p.program_id AS ug_id, p.secondary_program_id AS pg_id
             FROM profiles p
             WHERE p.is_dual_degree
               AND p.program_id IS NOT NULL
               AND p.secondary_program_id IS NOT NULL
-        ) used
-        JOIN programs ug ON ug.id = used.ug_id
-        JOIN programs pg ON pg.id = used.pg_id
-        ON CONFLICT (name) DO NOTHING
+            UNION
+            SELECT DISTINCT
+                   (s.payload->'fields'->>'program_id')::uuid AS ug_id,
+                   (s.payload->'fields'->>'secondary_program_id')::uuid AS pg_id
+            FROM staged_profile_rows s
+            WHERE s.applied_at IS NULL
+              AND s.payload->'fields'->>'is_dual_degree' = 'true'
+              AND s.payload->'fields'->>'program_id'
+                  ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+              AND s.payload->'fields'->>'secondary_program_id'
+                  ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        ), candidates AS (
+            SELECT (
+                substr(md5('cds:dual_degree:' || ug.id::text || ':' || pg.id::text), 1, 8) || '-' ||
+                substr(md5('cds:dual_degree:' || ug.id::text || ':' || pg.id::text), 9, 4) || '-' ||
+                substr(md5('cds:dual_degree:' || ug.id::text || ':' ||
+                       pg.id::text), 13, 4) || '-' ||
+                substr(md5('cds:dual_degree:' || ug.id::text || ':' ||
+                       pg.id::text), 17, 4) || '-' ||
+                substr(md5('cds:dual_degree:' || ug.id::text || ':' || pg.id::text), 21, 12)
+            )::uuid AS id,
+            ug.name || E'–' || pg.name || ' Dual Degree' AS name,
+            ug.id AS primary_degree_id,
+            pg.id AS secondary_degree_id
+            FROM used
+            JOIN programs ug ON ug.id = used.ug_id
+            JOIN programs pg ON pg.id = used.pg_id
+        )
+        INSERT INTO programs (id, name, is_active, structure,
+                              primary_degree_id, secondary_degree_id, updated_at)
+        SELECT id, name, true, 'dual_degree', primary_degree_id,
+               secondary_degree_id, now()
+        FROM candidates
+        ON CONFLICT (id) DO UPDATE SET
+            name = excluded.name,
+            structure = excluded.structure,
+            primary_degree_id = excluded.primary_degree_id,
+            secondary_degree_id = excluded.secondary_degree_id,
+            updated_at = excluded.updated_at
     """))
 
     connection.execute(sa.text("""

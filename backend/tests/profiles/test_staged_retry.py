@@ -53,9 +53,12 @@ async def test_PRO2_retry_reapplies_a_row_stranded_by_a_corrected_rule() -> None
                 connection,
                 "stranded@example.edu",
                 {
-                    "program_id": str(taxonomy.dual_major_program_id),
+                    "program_id": str(taxonomy.program_id),
+                    "secondary_program_id": str(taxonomy.other_program_id),
                     "primary_branch_id": str(taxonomy.branch_id),
                     "secondary_branch_id": str(taxonomy.branch_id),
+                    "is_dual_major": False,
+                    "is_dual_degree": True,
                 },
                 uploaded_by=cast(UUID, admin.user_id),
             )
@@ -100,7 +103,7 @@ async def test_PRO2_retry_reapplies_a_row_stranded_by_a_corrected_rule() -> None
             ).mappings().one()
             assert profile["primary_branch_id"] == taxonomy.branch_id
             assert profile["secondary_branch_id"] == taxonomy.branch_id
-            assert profile["program_id"] == taxonomy.dual_major_program_id
+            assert profile["program_id"] == taxonomy.dual_degree_program_id
             applied = await connection.scalar(
                 sa.text("SELECT applied_at FROM staged_profile_rows WHERE id = :id"),
                 {"id": staged_id},

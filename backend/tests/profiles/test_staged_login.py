@@ -138,6 +138,87 @@ async def test_PRO2_staged_rows_apply_at_first_sign_in() -> None:
 
 
 @pytest.mark.asyncio
+async def test_PRO2_pre_0017_staged_fields_are_adapted_without_rewriting_source() -> None:
+    """Pending uploads keep provenance while obsolete flags map to programmes."""
+    executor, engine = build_test_executor()
+    migration = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
+    try:
+        async with migration.begin() as connection:
+            admin = await seed_admin(connection)
+            taxonomy = await seed_taxonomy(connection)
+            staged_ids = {
+                "legacy-single@example.edu": await _stage(
+                    connection,
+                    "legacy-single@example.edu",
+                    {
+                        "program_id": str(taxonomy.program_id),
+                        "primary_branch_id": str(taxonomy.branch_id),
+                        "is_dual_major": False,
+                        "is_dual_degree": False,
+                    },
+                    uploaded_by=cast(UUID, admin.user_id),
+                ),
+                "legacy-major@example.edu": await _stage(
+                    connection,
+                    "legacy-major@example.edu",
+                    {
+                        "program_id": str(taxonomy.program_id),
+                        "primary_branch_id": str(taxonomy.branch_id),
+                        "secondary_branch_id": str(taxonomy.second_branch_id),
+                        "is_dual_major": True,
+                        "is_dual_degree": False,
+                    },
+                    uploaded_by=cast(UUID, admin.user_id),
+                ),
+                "legacy-degree@example.edu": await _stage(
+                    connection,
+                    "legacy-degree@example.edu",
+                    {
+                        "program_id": str(taxonomy.program_id),
+                        "secondary_program_id": str(taxonomy.other_program_id),
+                        "primary_branch_id": str(taxonomy.branch_id),
+                        "secondary_branch_id": str(taxonomy.branch_id),
+                        "is_dual_major": False,
+                        "is_dual_degree": True,
+                    },
+                    uploaded_by=cast(UUID, admin.user_id),
+                ),
+            }
+        for email in staged_ids:
+            await _login(executor, email)
+        async with migration.connect() as connection:
+            profiles = {
+                str(row["email"]): row["program_id"]
+                for row in (
+                    await connection.execute(
+                        sa.text(
+                            "SELECT u.email, p.program_id FROM profiles p "
+                            "JOIN enrollments e ON e.id = p.enrollment_id "
+                            "JOIN users u ON u.id = e.user_id"
+                        )
+                    )
+                ).mappings()
+            }
+            stored_payload = await connection.scalar(
+                sa.text("SELECT payload FROM staged_profile_rows WHERE id = :id"),
+                {"id": staged_ids["legacy-degree@example.edu"]},
+            )
+    finally:
+        await engine.dispose()
+        await migration.dispose()
+
+    assert profiles == {
+        "legacy-single@example.edu": taxonomy.program_id,
+        "legacy-major@example.edu": taxonomy.dual_major_program_id,
+        "legacy-degree@example.edu": taxonomy.dual_degree_program_id,
+    }
+    assert stored_payload["fields"]["is_dual_degree"] is True
+    assert stored_payload["fields"]["secondary_program_id"] == str(
+        taxonomy.other_program_id
+    )
+
+
+@pytest.mark.asyncio
 async def test_PRO2_staged_rows_apply_in_creation_order_with_later_values_winning() -> None:
     executor, engine = build_test_executor()
     migration = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])

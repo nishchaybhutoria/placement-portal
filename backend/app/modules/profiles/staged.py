@@ -27,6 +27,7 @@ from app.core.plan import ActorContext, Plan, Reason, Rejection, ScopeIds, State
 from app.core.registry import Registry
 from app.domain.academics import academic_standing_reasons
 from app.domain.pathways import ProgramPathway
+from app.domain.shared import ProgramStructure
 from app.modules.identity.commands import (
     LoginInput,
     LoginState,
@@ -49,6 +50,9 @@ from app.modules.profiles.fields import (
 
 HOOK_NAME = "staged_profile_rows"
 ROW_AUDIT_ACTION = "staged_profile_row.applied"
+LEGACY_PROGRAM_FIELDS = frozenset(
+    {"is_dual_major", "is_dual_degree", "secondary_program_id"}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,6 +215,73 @@ async def load_staged_rows(
     )
 
 
+def _legacy_identifier(value: object) -> UUID | None:
+    if value is None or value == "":
+        return None
+    if isinstance(value, UUID):
+        return value
+    try:
+        return UUID(str(value).strip())
+    except (AttributeError, ValueError):
+        return None
+
+
+def _adapt_legacy_program_fields(
+    fields: Mapping[str, object],
+    pathways: Mapping[UUID, ProgramPathway],
+) -> tuple[dict[str, object], str | None]:
+    """Translate a pre-0017 staged enrollment without altering its payload.
+
+    Old bulk uploads wrote both false flags on every row.  A dual row named its
+    component degree(s), while the canonical profile names the one combined
+    programme with exactly that structure.  Anything less than one exact match
+    is refused rather than guessed.
+    """
+    adapted = dict(fields)
+    if not LEGACY_PROGRAM_FIELDS.intersection(adapted):
+        return adapted, None
+
+    raw_major = adapted.pop("is_dual_major", False)
+    raw_degree = adapted.pop("is_dual_degree", False)
+    raw_secondary = adapted.pop("secondary_program_id", None)
+    if not isinstance(raw_major, bool) or not isinstance(raw_degree, bool):
+        return {}, "Legacy dual-program flags must be true or false"
+    if raw_major and raw_degree:
+        return {}, "A staged enrollment cannot be both dual major and dual degree"
+
+    primary = _legacy_identifier(adapted.get("program_id"))
+    secondary = _legacy_identifier(raw_secondary)
+    if not raw_major and not raw_degree:
+        if secondary is not None:
+            return {}, "A secondary program requires a dual-degree enrollment"
+        return adapted, None
+    if primary is None:
+        return {}, "A legacy dual enrollment must name its primary program"
+    if raw_major and secondary is not None:
+        return {}, "A dual-major enrollment must not name a secondary program"
+    if raw_degree and secondary is None:
+        return {}, "A dual-degree enrollment must name its secondary program"
+
+    expected_structure = (
+        ProgramStructure.DUAL_MAJOR if raw_major else ProgramStructure.DUAL_DEGREE
+    )
+    expected_secondary = primary if raw_major else secondary
+    matches = [
+        program_id
+        for program_id, pathway in pathways.items()
+        if pathway.structure is expected_structure
+        and pathway.primary_degree_id == primary
+        and pathway.secondary_degree_id == expected_secondary
+    ]
+    if len(matches) != 1:
+        return {}, (
+            "No unique combined program matches this staged enrollment; "
+            "an administrator must configure its program mapping"
+        )
+    adapted["program_id"] = matches[0]
+    return adapted, None
+
+
 def _row_problems(
     row: StagedRow,
     state: StagedLoginState,
@@ -220,7 +291,12 @@ def _row_problems(
     """Validate one staged row against the running effective profile (pure)."""
     problems: list[str] = []
     resolved: dict[str, object] = {}
-    for key, value in row.fields.items():
+    fields, legacy_error = _adapt_legacy_program_fields(
+        row.fields, state.program_pathways
+    )
+    if legacy_error is not None:
+        return {}, legacy_error, roll_number
+    for key, value in fields.items():
         if key not in BULK_FIELDS:
             problems.append(f"{key} is not an admin-managed field")
             continue
