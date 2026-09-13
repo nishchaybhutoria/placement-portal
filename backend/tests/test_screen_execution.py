@@ -680,11 +680,11 @@ async def _seed_world() -> World:
             await connection.execute(
                 sa.text(
                     "INSERT INTO jobs (id, cycle_id, company_id, sector_id, outcome, "
-                    "title, description, ctc_lpa, is_published, published_at, "
+                    "title, description, ctc_annual, is_published, published_at, "
                     "application_deadline, eligibility_rule, eligibility_summary) "
                     "VALUES (:id, :cycle_id, :company_id, :sector_id, "
                     "CAST('placement' AS outcome_t), 'Backend Engineer', "
-                    "'Builds the thing.', 18.00, true, now(), "
+                    "'Builds the thing.', 1800000, true, now(), "
                     "now() + interval '20 days', "
                     "CAST(:rule AS jsonb), :summary)"
                 ),
@@ -833,10 +833,10 @@ async def _seed_world() -> World:
                     await connection.execute(
                         sa.text(
                             "INSERT INTO external_offers (id, enrollment_id, "
-                            "company_id, outcome, source, status, ctc_lpa, offered_on, "
+                            "company_id, outcome, source, status, ctc_annual, offered_on, "
                             "responded_on, attached_cycle_id, created_by) VALUES "
                             "(:id, :enrollment, :company, 'placement', 'ppo', "
-                            "'accepted', 27.50, CURRENT_DATE, CURRENT_DATE, :cycle, "
+                            "'accepted', 2750000, CURRENT_DATE, CURRENT_DATE, :cycle, "
                             ":admin)"
                         ),
                         {
@@ -927,8 +927,8 @@ async def _seed_world() -> World:
             )
             await connection.execute(
                 sa.text(
-                    "INSERT INTO job_program_ctc (id, job_id, program_id, ctc_lpa) "
-                    "VALUES (:id, :job_id, :program_id, 21.00)"
+                    "INSERT INTO job_program_ctc (id, job_id, program_id, ctc_annual) "
+                    "VALUES (:id, :job_id, :program_id, 2100000)"
                 ),
                 {"id": uuid4(), "job_id": job_id, "program_id": program_id},
             )

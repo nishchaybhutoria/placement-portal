@@ -11,6 +11,7 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusChip } from "@/components/ui/statusChip";
 import { EmptyState, ErrorState, ScreenSkeleton } from "@/components/ui/states";
 import { formatDateTime, formatZonedDateTime } from "@/lib/date";
+import { lakhs } from "@/lib/text";
 import { Reasons } from "./StudentJobs";
 
 /** One job in full, including the APP-1 form generated from its schema. */
@@ -168,18 +169,17 @@ export function StudentJob() {
               <CardTitle>Compensation</CardTitle>
             </CardHeader>
             <CardBody className="flex flex-col gap-gap-lg">
-              {compensation.ctc_lpa ? (
+              {compensation.ctc_annual ? (
                 <div>
                   <p className="tabular text-display text-foreground">
-                    ₹{compensation.ctc_lpa}
+                    {lakhs(compensation.ctc_annual)}
                   </p>
-                  <p className="text-body-sm text-muted-foreground">
-                    LPA
-                    {/* JOB-2.1: the student sees their own number, never both. */}
-                    {compensation.source === "program"
-                      ? " — the figure for your program"
-                      : ""}
-                  </p>
+                  {/* JOB-2.1: the student sees their own number, never both. */}
+                  {compensation.source === "program" ? (
+                    <p className="text-body-sm text-muted-foreground">
+                      The figure for your program
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
               {compensation.stipend_month ? (
@@ -195,7 +195,7 @@ export function StudentJob() {
                   {compensation.ctc_breakdown}
                 </p>
               ) : null}
-              {!compensation.ctc_lpa && !compensation.stipend_month ? (
+              {!compensation.ctc_annual && !compensation.stipend_month ? (
                 <p className="text-body-md text-muted-foreground">Not published.</p>
               ) : null}
             </CardBody>

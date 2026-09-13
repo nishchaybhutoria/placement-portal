@@ -3301,8 +3301,8 @@ export interface components {
              * Format: uuid
              */
             company_id: string;
-            /** Ctc Lpa */
-            ctc_lpa?: number | string | null;
+            /** Ctc Annual */
+            ctc_annual?: number | string | null;
             /**
              * Enrollment Id
              * Format: uuid
@@ -3362,10 +3362,10 @@ export interface components {
              * Format: uuid
              */
             company_id: string;
+            /** Ctc Annual */
+            ctc_annual?: number | string | null;
             /** Ctc Breakdown */
             ctc_breakdown?: string | null;
-            /** Ctc Lpa */
-            ctc_lpa?: number | string | null;
             /**
              * Cycle Id
              * Format: uuid
@@ -4729,8 +4729,8 @@ export interface components {
         };
         /** ProgramCtcRow */
         ProgramCtcRow: {
-            /** Ctc Lpa */
-            ctc_lpa: number | string;
+            /** Ctc Annual */
+            ctc_annual: number | string;
             /**
              * Program Id
              * Format: uuid
@@ -6117,10 +6117,10 @@ export interface components {
         /** UpdateExternalOfferInput */
         UpdateExternalOfferInput: {
             /**
-             * Clear Ctc Lpa
+             * Clear Ctc Annual
              * @default false
              */
-            clear_ctc_lpa: boolean;
+            clear_ctc_annual: boolean;
             /**
              * Clear Notes
              * @default false
@@ -6148,8 +6148,8 @@ export interface components {
             clear_stipend_month: boolean;
             /** Company Id */
             company_id?: string | null;
-            /** Ctc Lpa */
-            ctc_lpa?: number | string | null;
+            /** Ctc Annual */
+            ctc_annual?: number | string | null;
             expected_status: components["schemas"]["ExternalStatus"];
             /**
              * External Offer Id
@@ -6211,10 +6211,10 @@ export interface components {
             application_deadline?: string | null;
             /** Company Id */
             company_id?: string | null;
+            /** Ctc Annual */
+            ctc_annual?: number | string | null;
             /** Ctc Breakdown */
             ctc_breakdown?: string | null;
-            /** Ctc Lpa */
-            ctc_lpa?: number | string | null;
             /**
              * Cycle Id
              * Format: uuid

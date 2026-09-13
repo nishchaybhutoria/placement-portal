@@ -53,7 +53,7 @@ BASICS_COLUMNS: tuple[str, ...] = (
     "description",
     "location",
     "sector_id",
-    "ctc_lpa",
+    "ctc_annual",
     "ctc_breakdown",
     "stipend_month",
     "application_deadline",
@@ -61,7 +61,7 @@ BASICS_COLUMNS: tuple[str, ...] = (
 )
 JOB_COLUMNS = (
     "id, cycle_id, company_id, outcome, title, description, location, sector_id, "
-    "ctc_lpa, ctc_breakdown, stipend_month, application_deadline, "
+    "ctc_annual, ctc_breakdown, stipend_month, application_deadline, "
     "offer_acceptance_deadline, is_published, published_at, cancelled_at, "
     "eligibility_rule, eligibility_rule_version, eligibility_summary"
 )
@@ -86,9 +86,9 @@ class ProgramCtcRow(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     program_id: UUID
-    ctc_lpa: Decimal
+    ctc_annual: Decimal
 
-    @field_validator("ctc_lpa")
+    @field_validator("ctc_annual")
     @classmethod
     def validate_ctc(cls, value: Decimal) -> Decimal:
         if value < 0:
@@ -108,7 +108,7 @@ class CreateJobInput(BaseModel):
     outcome: Outcome | None = None
     location: str | None = None
     sector_id: UUID | None = None
-    ctc_lpa: Decimal | None = None
+    ctc_annual: Decimal | None = None
     ctc_breakdown: str | None = None
     stipend_month: Decimal | None = None
     application_deadline: datetime | None = None
@@ -120,7 +120,7 @@ class CreateJobInput(BaseModel):
     def validate_title(cls, value: str) -> str:
         return _validated_title(value)
 
-    @field_validator("ctc_lpa", "stipend_month")
+    @field_validator("ctc_annual", "stipend_month")
     @classmethod
     def validate_money(cls, value: Decimal | None) -> Decimal | None:
         return _validated_money(value)
@@ -146,7 +146,7 @@ class UpdateJobBasicsInput(BaseModel):
     description: str | None = None
     location: str | None = None
     sector_id: UUID | None = None
-    ctc_lpa: Decimal | None = None
+    ctc_annual: Decimal | None = None
     ctc_breakdown: str | None = None
     stipend_month: Decimal | None = None
     application_deadline: datetime | None = None
@@ -158,7 +158,7 @@ class UpdateJobBasicsInput(BaseModel):
     def validate_title(cls, value: str | None) -> str | None:
         return None if value is None else _validated_title(value)
 
-    @field_validator("ctc_lpa", "stipend_month")
+    @field_validator("ctc_annual", "stipend_month")
     @classmethod
     def validate_money(cls, value: Decimal | None) -> Decimal | None:
         return _validated_money(value)
@@ -202,7 +202,7 @@ class JobRow:
     description: str
     location: str | None
     sector_id: UUID | None
-    ctc_lpa: Decimal | None
+    ctc_annual: Decimal | None
     ctc_breakdown: str | None
     stipend_month: Decimal | None
     application_deadline: datetime | None
@@ -224,7 +224,7 @@ class JobRow:
             "description": self.description,
             "location": self.location,
             "sector_id": str(self.sector_id) if self.sector_id else None,
-            "ctc_lpa": str(self.ctc_lpa) if self.ctc_lpa is not None else None,
+            "ctc_annual": str(self.ctc_annual) if self.ctc_annual is not None else None,
             "ctc_breakdown": self.ctc_breakdown,
             "stipend_month": (
                 str(self.stipend_month) if self.stipend_month is not None else None
@@ -253,7 +253,7 @@ def job_row(row: sa.RowMapping) -> JobRow:
         description=str(row["description"]),
         location=row["location"],
         sector_id=row["sector_id"],
-        ctc_lpa=row["ctc_lpa"],
+        ctc_annual=row["ctc_annual"],
         ctc_breakdown=row["ctc_breakdown"],
         stipend_month=row["stipend_month"],
         application_deadline=row["application_deadline"],
@@ -297,12 +297,12 @@ async def fetch_program_ctc(tx: AsyncSession, job_id: UUID) -> dict[UUID, Decima
     rows = (
         await tx.execute(
             sa.text(
-                "SELECT program_id, ctc_lpa FROM job_program_ctc WHERE job_id = :job_id"
+                "SELECT program_id, ctc_annual FROM job_program_ctc WHERE job_id = :job_id"
             ),
             {"job_id": job_id},
         )
     ).mappings().all()
-    return {row["program_id"]: row["ctc_lpa"] for row in rows}
+    return {row["program_id"]: row["ctc_annual"] for row in rows}
 
 
 async def unknown_taxonomy_ids(
@@ -653,7 +653,7 @@ def _program_ctc_ops(
 ) -> list[StateOp]:
     """Replace the per-program CTC set wholesale; it is a small edited table."""
     operations: list[StateOp] = []
-    wanted = {row.program_id: row.ctc_lpa for row in rows}
+    wanted = {row.program_id: row.ctc_annual for row in rows}
     for program_id in existing:
         if program_id not in wanted:
             operations.append(
@@ -674,7 +674,7 @@ def _program_ctc_ops(
                         "id": uuid4(),
                         "job_id": job_id,
                         "program_id": program_id,
-                        "ctc_lpa": ctc,
+                        "ctc_annual": ctc,
                     },
                 )
             )
@@ -683,7 +683,7 @@ def _program_ctc_ops(
                 StateOp(
                     op="update",
                     model="job_program_ctc",
-                    values={"ctc_lpa": ctc},
+                    values={"ctc_annual": ctc},
                     where={"job_id": job_id, "program_id": program_id},
                 )
             )
@@ -737,7 +737,7 @@ def _decide_create_job(
         description=input_value.description,
         location=input_value.location,
         sector_id=input_value.sector_id,
-        ctc_lpa=input_value.ctc_lpa,
+        ctc_annual=input_value.ctc_annual,
         ctc_breakdown=input_value.ctc_breakdown,
         stipend_month=input_value.stipend_month,
         application_deadline=input_value.application_deadline,
@@ -763,7 +763,7 @@ def _decide_create_job(
                     "description": job.description,
                     "location": job.location,
                     "sector_id": job.sector_id,
-                    "ctc_lpa": job.ctc_lpa,
+                    "ctc_annual": job.ctc_annual,
                     "ctc_breakdown": job.ctc_breakdown,
                     "stipend_month": job.stipend_month,
                     "application_deadline": job.application_deadline,
@@ -862,7 +862,7 @@ def _decide_update_job_basics(
         ),
         location=field("location", before.location),
         sector_id=field("sector_id", before.sector_id),
-        ctc_lpa=field("ctc_lpa", before.ctc_lpa),
+        ctc_annual=field("ctc_annual", before.ctc_annual),
         ctc_breakdown=field("ctc_breakdown", before.ctc_breakdown),
         stipend_month=field("stipend_month", before.stipend_month),
         application_deadline=field("application_deadline", before.application_deadline),

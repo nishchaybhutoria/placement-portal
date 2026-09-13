@@ -215,13 +215,13 @@ async def test_JOB2_the_detail_shows_this_student_s_program_ctc_not_the_headline
     try:
         async with engine.begin() as connection:
             await connection.execute(
-                sa.text("UPDATE jobs SET ctc_lpa = 18.00 WHERE id = :id"),
+                sa.text("UPDATE jobs SET ctc_annual = 1800000 WHERE id = :id"),
                 {"id": job_id},
             )
             await connection.execute(
                 sa.text(
-                    "INSERT INTO job_program_ctc (id, job_id, program_id, ctc_lpa) "
-                    "VALUES (:id, :job_id, :program_id, 24.50)"
+                    "INSERT INTO job_program_ctc (id, job_id, program_id, ctc_annual) "
+                    "VALUES (:id, :job_id, :program_id, 2450000)"
                 ),
                 {"id": uuid4(), "job_id": job_id, "program_id": program_id},
             )
@@ -240,7 +240,7 @@ async def test_JOB2_the_detail_shows_this_student_s_program_ctc_not_the_headline
     compensation = cast(dict[str, object], detail["compensation"])
     # JOB-2.1: the student sees their own number, not both, and the screen says
     # which one it is so the UI need not guess.
-    assert Decimal(str(compensation["ctc_lpa"])) == Decimal("24.50")
+    assert Decimal(str(compensation["ctc_annual"])) == Decimal("2450000")
     assert compensation["source"] == "program"
 
 

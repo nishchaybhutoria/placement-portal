@@ -240,8 +240,8 @@ async def test_JOB2_per_program_ctc_rows_are_replaced_wholesale() -> None:
                 "sector_id": str(sector_id),
                 "application_deadline": DEADLINE.isoformat(),
                 "program_ctc": [
-                    {"program_id": str(btech), "ctc_lpa": "24.00"},
-                    {"program_id": str(mtech), "ctc_lpa": "26.00"},
+                    {"program_id": str(btech), "ctc_annual": "2400000"},
+                    {"program_id": str(mtech), "ctc_annual": "2600000"},
                 ],
             },
             admin,
@@ -253,7 +253,7 @@ async def test_JOB2_per_program_ctc_rows_are_replaced_wholesale() -> None:
             {
                 "cycle_id": str(cycle_id),
                 "job_id": str(job_id),
-                "program_ctc": [{"program_id": str(btech), "ctc_lpa": "28.00"}],
+                "program_ctc": [{"program_id": str(btech), "ctc_annual": "2800000"}],
             },
             admin,
         )
@@ -266,7 +266,7 @@ async def test_JOB2_per_program_ctc_rows_are_replaced_wholesale() -> None:
             rows = (
                 await connection.execute(
                     sa.text(
-                        "SELECT program_id, ctc_lpa FROM job_program_ctc "
+                        "SELECT program_id, ctc_annual FROM job_program_ctc "
                         "WHERE job_id = :id"
                     ),
                     {"id": job_id},
@@ -275,8 +275,8 @@ async def test_JOB2_per_program_ctc_rows_are_replaced_wholesale() -> None:
     finally:
         await check.dispose()
 
-    assert [(row["program_id"], str(row["ctc_lpa"])) for row in rows] == [
-        (btech, "28.00")
+    assert [(row["program_id"], str(row["ctc_annual"])) for row in rows] == [
+        (btech, "2800000.00")
     ]
 
 

@@ -67,7 +67,7 @@ ACCEPTED_PORTAL_OFFERS_SQL = """
         j.id AS job_id,
         j.company_id,
         COALESCE(o.responded_at, o.extended_at) AS accepted_at,
-        j.ctc_lpa,
+        j.ctc_annual,
         j.stipend_month,
         -- ANA-1 resolves a per-program CTC against the program the eligibility
         -- decision actually saw (the design review 4.30d), which is the snapshot, not
@@ -100,7 +100,7 @@ ACCEPTED_EXTERNAL_OFFERS_SQL = """
         CAST(NULL AS uuid) AS job_id,
         eo.company_id,
         COALESCE(CAST(eo.responded_on AS timestamptz), eo.created_at) AS accepted_at,
-        eo.ctc_lpa,
+        eo.ctc_annual,
         eo.stipend_month,
         -- An external offer has no application and so no snapshot; ANA-1 says
         -- it carries its own recorded compensation, and job_program_ctc never

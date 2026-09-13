@@ -180,7 +180,7 @@ async def test_ANA3_a_doubly_placed_student_is_attributed_once_in_the_filing(
                 created_by=world.admin_id,
                 source="off_campus",
                 attached_cycle_id=world.cycle_id,
-                ctc_lpa="9.00",
+                ctc_annual="900000",
                 responded_on=date(2030, 6, 1),
             )
     finally:

@@ -91,7 +91,7 @@ class ExternalOfferRow:
     company_name: str
     outcome: Outcome
     source: ExternalSource
-    ctc_lpa: Decimal | None
+    ctc_annual: Decimal | None
     stipend_month: Decimal | None
     status: ExternalStatus
     offered_on: date | None
@@ -127,7 +127,7 @@ class ExternalOfferFields(BaseModel):
     company_id: UUID
     outcome: Outcome
     source: ExternalSource
-    ctc_lpa: Decimal | None = Field(default=None, ge=0)
+    ctc_annual: Decimal | None = Field(default=None, ge=0)
     stipend_month: Decimal | None = Field(default=None, ge=0)
     status: ExternalStatus = ExternalStatus.OFFERED
     offered_on: date | None = None
@@ -138,9 +138,9 @@ class ExternalOfferFields(BaseModel):
     @model_validator(mode="after")
     def compensation_matches_outcome(self) -> ExternalOfferFields:
         if self.outcome is Outcome.PLACEMENT and self.stipend_month is not None:
-            raise ValueError("placement external offers use ctc_lpa, not stipend_month")
-        if self.outcome is Outcome.INTERNSHIP and self.ctc_lpa is not None:
-            raise ValueError("internship external offers use stipend_month, not ctc_lpa")
+            raise ValueError("placement external offers use ctc_annual, not stipend_month")
+        if self.outcome is Outcome.INTERNSHIP and self.ctc_annual is not None:
+            raise ValueError("internship external offers use stipend_month, not ctc_annual")
         return self
 
 
@@ -165,9 +165,9 @@ class UpdateExternalOfferInput(BaseModel):
     company_id: UUID | None = None
     outcome: Outcome | None = None
     source: ExternalSource | None = None
-    ctc_lpa: Decimal | None = Field(default=None, ge=0)
+    ctc_annual: Decimal | None = Field(default=None, ge=0)
     stipend_month: Decimal | None = Field(default=None, ge=0)
-    clear_ctc_lpa: bool = False
+    clear_ctc_annual: bool = False
     clear_stipend_month: bool = False
     status: ExternalStatus | None = None
     offered_on: date | None = None
@@ -194,8 +194,8 @@ class UpdateExternalOfferInput(BaseModel):
         ids = [row.application_id for row in self.restore]
         if len(ids) != len(set(ids)):
             raise ValueError("each restoration application may be selected only once")
-        if self.ctc_lpa is not None and self.clear_ctc_lpa:
-            raise ValueError("ctc_lpa cannot be set and cleared together")
+        if self.ctc_annual is not None and self.clear_ctc_annual:
+            raise ValueError("ctc_annual cannot be set and cleared together")
         if self.stipend_month is not None and self.clear_stipend_month:
             raise ValueError("stipend_month cannot be set and cleared together")
         if self.offered_on is not None and self.clear_offered_on:
@@ -310,7 +310,7 @@ async def _external_offer(tx: AsyncSession, external_offer_id: UUID) -> External
         company_name=str(row["company_name"]),
         outcome=Outcome(row["outcome"]),
         source=ExternalSource(row["source"]),
-        ctc_lpa=row["ctc_lpa"],
+        ctc_annual=row["ctc_annual"],
         stipend_month=row["stipend_month"],
         status=ExternalStatus(row["status"]),
         offered_on=row["offered_on"],
@@ -824,7 +824,7 @@ def _decide_create(
                 "company_id": input_value.company_id,
                 "outcome": input_value.outcome.value,
                 "source": input_value.source.value,
-                "ctc_lpa": input_value.ctc_lpa,
+                "ctc_annual": input_value.ctc_annual,
                 "stipend_month": input_value.stipend_month,
                 "status": input_value.status.value,
                 "offered_on": input_value.offered_on,
@@ -1077,8 +1077,8 @@ def _updated_values(
     outcome = input_value.outcome or target.outcome
     ctc = (
         None
-        if input_value.clear_ctc_lpa
-        else (input_value.ctc_lpa if input_value.ctc_lpa is not None else target.ctc_lpa)
+        if input_value.clear_ctc_annual
+        else (input_value.ctc_annual if input_value.ctc_annual is not None else target.ctc_annual)
     )
     stipend = (
         None
@@ -1094,7 +1094,7 @@ def _updated_values(
             reasons=[
                 Reason(
                     code=INVALID_TRANSITION,
-                    human="Placement external offers use ctc_lpa, not stipend_month",
+                    human="Placement external offers record an annual CTC, not a monthly stipend",
                     path="stipend_month",
                 )
             ]
@@ -1104,8 +1104,8 @@ def _updated_values(
             reasons=[
                 Reason(
                     code=INVALID_TRANSITION,
-                    human="Internship external offers use stipend_month, not ctc_lpa",
-                    path="ctc_lpa",
+                    human="Internship external offers record a monthly stipend, not an annual CTC",
+                    path="ctc_annual",
                 )
             ]
         )
@@ -1113,7 +1113,7 @@ def _updated_values(
         "company_id": input_value.company_id or target.company_id,
         "outcome": outcome.value,
         "source": (input_value.source or target.source).value,
-        "ctc_lpa": ctc,
+        "ctc_annual": ctc,
         "stipend_month": stipend,
         "status": (input_value.status or target.status).value,
         "offered_on": (
@@ -1150,7 +1150,7 @@ def _updated_values(
         company_id=cast(UUID, values["company_id"]),
         outcome=outcome,
         source=ExternalSource(cast(str, values["source"])),
-        ctc_lpa=cast("Decimal | None", values["ctc_lpa"]),
+        ctc_annual=cast("Decimal | None", values["ctc_annual"]),
         stipend_month=cast("Decimal | None", values["stipend_month"]),
         status=ExternalStatus(cast(str, values["status"])),
         offered_on=cast("date | None", values["offered_on"]),

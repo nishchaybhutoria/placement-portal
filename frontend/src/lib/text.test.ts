@@ -1,13 +1,26 @@
 import { describe, expect, it } from "vitest";
 
-import { counted, humanise } from "./text";
+import { counted, humanise, lakhs } from "./text";
 
 describe("operator-facing text", () => {
   it("humanises wire values without mangling acronyms", () => {
     expect(humanise("ppo")).toBe("PPO");
     expect(humanise("off_campus")).toBe("Off campus");
-    expect(humanise("ctc_lpa")).toBe("CTC LPA");
+    expect(humanise("ctc_annual")).toBe("CTC annual");
     expect(humanise("application_deadline")).toBe("Application deadline");
+  });
+
+  it("reads an annual CTC in lakhs without rounding the record", () => {
+    // The column is rupees; lakhs is how the figure is quoted. A round number
+    // loses the decimals, and one that is not round keeps them.
+    expect(lakhs("2400000")).toBe("₹24 LPA");
+    expect(lakhs(1853500)).toBe("₹18.54 LPA");
+    expect(lakhs("50000")).toBe("₹0.50 LPA");
+    // Nothing to show is not "null LPA": the caller renders its own empty state.
+    expect(lakhs(null)).toBeNull();
+    expect(lakhs(undefined)).toBeNull();
+    expect(lakhs("")).toBeNull();
+    expect(lakhs("not a number")).toBeNull();
   });
 
   it("pluralises counted nouns", () => {

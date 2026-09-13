@@ -1005,7 +1005,7 @@ describe("job builder", () => {
     expect(Object.keys(input).filter((key) => key.endsWith("_local"))).toEqual([]);
     expect(input["offer_acceptance_deadline"]).toEqual(expect.any(String));
     for (const row of input["program_ctc"] as Record<string, unknown>[]) {
-      expect(Object.keys(row).sort()).toEqual(["ctc_lpa", "program_id"]);
+      expect(Object.keys(row).sort()).toEqual(["ctc_annual", "program_id"]);
     }
   });
 
@@ -1605,11 +1605,11 @@ describe("M12 offer screens", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Record external offer" }));
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByLabelText("CTC (LPA)")).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("CTC (₹ per year)")).toBeInTheDocument();
     expect(within(dialog).queryByLabelText("Stipend per month (INR)")).toBeNull();
 
     fireEvent.change(within(dialog).getByRole("combobox", { name: /^Outcome/ }), { target: { value: "internship" } });
-    expect(within(dialog).queryByLabelText("CTC (LPA)")).toBeNull();
+    expect(within(dialog).queryByLabelText("CTC (₹ per year)")).toBeNull();
     fireEvent.change(within(dialog).getByLabelText("Stipend per month (INR)"), {
       target: { value: "65000" },
     });
@@ -1630,7 +1630,7 @@ describe("M12 offer screens", () => {
     expect(input).toMatchObject({
       outcome: "internship",
       stipend_month: "65000",
-      ctc_lpa: null,
+      ctc_annual: null,
     });
   });
 
@@ -1640,18 +1640,18 @@ describe("M12 offer screens", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "Update status" }));
     const dialog = await screen.findByRole("dialog");
-    const ctc = within(dialog).getByLabelText("CTC (LPA)");
+    const ctc = within(dialog).getByLabelText("CTC (₹ per year)");
     expect(ctc).toBeInTheDocument();
-    fireEvent.change(ctc, { target: { value: "24.50" } });
+    fireEvent.change(ctc, { target: { value: "2450000" } });
     fireEvent.change(within(dialog).getByRole("textbox", { name: /^Reason/ }), {
       target: { value: "Confirmed compensation letter" },
     });
 
     await waitFor(() =>
-      expect(mock.posted("update_external_offer").at(-1)?.["ctc_lpa"]).toBe("24.50"),
+      expect(mock.posted("update_external_offer").at(-1)?.["ctc_annual"]).toBe("2450000"),
     );
     expect(mock.posted("update_external_offer").at(-1)).toMatchObject({
-      ctc_lpa: "24.50",
+      ctc_annual: "2450000",
       stipend_month: null,
     });
   });
@@ -1669,15 +1669,15 @@ describe("M12 offer screens", () => {
 
     fireEvent.click((await screen.findAllByRole("button", { name: "Record PPO" }))[0]!);
     const dialog = await screen.findByRole("dialog");
-    fireEvent.change(within(dialog).getByLabelText("CTC (LPA)"), {
-      target: { value: "30.00" },
+    fireEvent.change(within(dialog).getByLabelText("CTC (₹ per year)"), {
+      target: { value: "3000000" },
     });
     fireEvent.change(within(dialog).getByRole("textbox", { name: /^Reason \/ evidence/ }), {
       target: { value: "PPO letter received" },
     });
 
     await waitFor(() =>
-      expect(mock.posted("create_external_offer").at(-1)?.["ctc_lpa"]).toBe("30.00"),
+      expect(mock.posted("create_external_offer").at(-1)?.["ctc_annual"]).toBe("3000000"),
     );
     expect(mock.posted("create_external_offer").at(-1)).toMatchObject({
       enrollment_id: applicant.enrollment_id,
@@ -1685,7 +1685,7 @@ describe("M12 offer screens", () => {
       outcome: "placement",
       source: "ppo",
       source_application_id: applicant.application_id,
-      ctc_lpa: "30.00",
+      ctc_annual: "3000000",
       stipend_month: null,
     });
   });
@@ -1838,7 +1838,7 @@ describe("student screens", () => {
     expect(await screen.findByRole("heading", { name: "Backend Engineer" })).toBeInTheDocument();
     expect(await screen.findByText(/disciplinary penalty is blocking/i)).toBeInTheDocument();
     // JOB-2.1: one compensation figure, said to be the student's program's.
-    expect(await screen.findByText(/the figure for your program/)).toBeInTheDocument();
+    expect(await screen.findByText(/the figure for your program/i)).toBeInTheDocument();
   });
 
   it("makes the header Apply a control that reaches the form", async () => {

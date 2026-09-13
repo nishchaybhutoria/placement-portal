@@ -105,7 +105,7 @@ def _job_payload(row: sa.RowMapping) -> dict[str, object]:
         "location": row["location"],
         "sector": row["sector_name"],
         "sector_id": str(cast(UUID, row["sector_id"])) if row["sector_id"] else None,
-        "ctc_lpa": _money(row["ctc_lpa"]),
+        "ctc_annual": _money(row["ctc_annual"]),
         "ctc_breakdown": row["ctc_breakdown"],
         "stipend_month": _money(row["stipend_month"]),
         "application_deadline": _iso(row["application_deadline"]),
@@ -230,7 +230,7 @@ async def _program_ctc(connection: AsyncConnection, job_id: UUID) -> list[dict[s
     rows = (
         await connection.execute(
             sa.text(
-                "SELECT jc.program_id, p.name, jc.ctc_lpa FROM job_program_ctc jc "
+                "SELECT jc.program_id, p.name, jc.ctc_annual FROM job_program_ctc jc "
                 "JOIN programs p ON p.id = jc.program_id "
                 "WHERE jc.job_id = :job_id ORDER BY p.name"
             ),
@@ -241,7 +241,7 @@ async def _program_ctc(connection: AsyncConnection, job_id: UUID) -> list[dict[s
         {
             "program_id": str(cast(UUID, row["program_id"])),
             "program": str(row["name"]),
-            "ctc_lpa": _money(row["ctc_lpa"]),
+            "ctc_annual": _money(row["ctc_annual"]),
         }
         for row in rows
     ]
@@ -520,7 +520,11 @@ async def student_job_detail(
         },
         "job": _job_payload(row),
         "compensation": {
-            "ctc_lpa": applicable_ctc["ctc_lpa"] if applicable_ctc else _money(row["ctc_lpa"]),
+            "ctc_annual": (
+                applicable_ctc["ctc_annual"]
+                if applicable_ctc
+                else _money(row["ctc_annual"])
+            ),
             "source": "program" if applicable_ctc else "job",
             "ctc_breakdown": row["ctc_breakdown"],
             "stipend_month": _money(row["stipend_month"]),

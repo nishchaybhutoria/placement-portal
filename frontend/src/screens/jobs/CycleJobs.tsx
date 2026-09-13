@@ -17,7 +17,7 @@ import { Input, Select, Textarea } from "@/components/ui/input";
 import { DataTable, type Column } from "@/components/ui/table";
 import { EmptyState, ErrorState, Skeleton, TableSkeleton } from "@/components/ui/states";
 import { formatDate } from "@/lib/date";
-import { counted } from "@/lib/text";
+import { counted, lakhs } from "@/lib/text";
 
 type Job = StaffCycleJobsPayload["jobs"][number];
 
@@ -70,9 +70,9 @@ export function CycleJobs() {
     },
     {
       key: "ctc",
-      header: "CTC (LPA)",
+      header: "CTC",
       numeric: true,
-      cell: (job) => job.ctc_lpa ?? <span className="text-muted-foreground">—</span>,
+      cell: (job) => lakhs(job.ctc_annual) ?? <span className="text-muted-foreground">—</span>,
     },
     { key: "rounds", header: "Rounds", numeric: true, cell: (job) => job.round_count },
     {

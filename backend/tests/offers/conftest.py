@@ -69,7 +69,7 @@ async def seed_external_offer(
     status: str = "offered",
     attached_cycle_id: UUID | None = None,
     source_application_id: UUID | None = None,
-    ctc_lpa: Decimal | None = None,
+    ctc_annual: Decimal | None = None,
     stipend_month: Decimal | None = None,
     offered_on: date | None = None,
 ) -> UUID:
@@ -77,10 +77,10 @@ async def seed_external_offer(
     await connection.execute(
         sa.text(
             "INSERT INTO external_offers (id, enrollment_id, company_id, outcome, "
-            "source, ctc_lpa, stipend_month, status, offered_on, responded_on, "
+            "source, ctc_annual, stipend_month, status, offered_on, responded_on, "
             "source_application_id, attached_cycle_id, created_by) VALUES "
             "(:id, :enrollment_id, :company_id, CAST(:outcome AS outcome_t), "
-            "CAST(:source AS external_source_t), :ctc_lpa, :stipend_month, "
+            "CAST(:source AS external_source_t), :ctc_annual, :stipend_month, "
             "CAST(:status AS external_status_t), :offered_on, "
             "CASE WHEN :status = 'offered' THEN NULL ELSE CURRENT_DATE END, "
             ":source_application_id, :attached_cycle_id, :created_by)"
@@ -91,7 +91,7 @@ async def seed_external_offer(
             "company_id": company_id,
             "outcome": outcome,
             "source": source,
-            "ctc_lpa": ctc_lpa,
+            "ctc_annual": ctc_annual,
             "stipend_month": stipend_month,
             "status": status,
             "offered_on": offered_on,

@@ -25,6 +25,7 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
 import { Tabs } from "@/components/ui/tabs";
 import { RuleEditor, type Rule } from "./RuleEditor";
 import { ImpactPanel } from "./ImpactPanel";
+import { lakhs } from "@/lib/text";
 
 type Tab = "basics" | "rounds" | "questions" | "eligibility";
 
@@ -229,7 +230,7 @@ const BASICS_FIELDS = [
   "description",
   "location",
   "sector_id",
-  "ctc_lpa",
+  "ctc_annual",
   "ctc_breakdown",
   "stipend_month",
   "application_deadline",
@@ -246,8 +247,8 @@ function basicsInput(draft: Record<string, unknown>): Record<string, unknown> {
     // The screen ships each row with the program's *name* for display, and
     // `ProgramCtcRow` forbids it. Send the two columns the command owns.
     input["program_ctc"] = (
-      input["program_ctc"] as { program_id: string; ctc_lpa: string }[]
-    ).map((row) => ({ program_id: row.program_id, ctc_lpa: row.ctc_lpa }));
+      input["program_ctc"] as { program_id: string; ctc_annual: string }[]
+    ).map((row) => ({ program_id: row.program_id, ctc_annual: row.ctc_annual }));
   }
   return input;
 }
@@ -422,16 +423,24 @@ function BasicsTab({
               </Select>
             )}
           </Field>
-          <Field label="CTC (LPA)" hint="The headline figure, before any per-program override.">
+          <Field
+            label="CTC (₹ per year)"
+            hint={
+              // Echo the figure back in the unit it will be published in, so
+              // the author sees a missing or extra zero before saving it.
+              lakhs(read("ctc_annual", job.ctc_annual ?? "") as string) ??
+              "The headline figure in rupees, before any per-program override."
+            }
+          >
             {(field) => (
               <Input
                 {...field}
                 type="number"
-                step="0.01"
+                step="1"
                 disabled={disabled}
-                value={String(read("ctc_lpa", job.ctc_lpa ?? "") ?? "")}
+                value={String(read("ctc_annual", job.ctc_annual ?? "") ?? "")}
                 onChange={(event) =>
-                  set("ctc_lpa", event.target.value === "" ? null : event.target.value)
+                  set("ctc_annual", event.target.value === "" ? null : event.target.value)
                 }
               />
             )}
@@ -511,7 +520,7 @@ function BasicsTab({
           rows={
             (read("program_ctc", job.program_ctc) as {
               program_id: string;
-              ctc_lpa: string;
+              ctc_annual: string;
             }[]) ?? []
           }
           disabled={disabled}
@@ -533,9 +542,9 @@ function ProgramCtc({
   onChange,
 }: {
   programs: { id: string; name: string }[];
-  rows: { program_id: string; ctc_lpa: string }[];
+  rows: { program_id: string; ctc_annual: string }[];
   disabled: boolean;
-  onChange: (rows: { program_id: string; ctc_lpa: string }[]) => void;
+  onChange: (rows: { program_id: string; ctc_annual: string }[]) => void;
 }) {
   const unused = programs.filter(
     (program) => !rows.some((row) => row.program_id === program.id),
@@ -544,8 +553,8 @@ function ProgramCtc({
     <div className="flex flex-col gap-gap-md">
       <p className="text-body-sm font-semibold text-foreground">Per-program compensation</p>
       <p className="text-body-sm text-muted-foreground">
-        Overrides the headline CTC for the programs named here. A student on one of them sees
-        this figure instead, never both.
+        Overrides the headline CTC for the programs named here, in rupees. A student on one of
+        them sees this figure instead, never both.
       </p>
       {rows.length === 0 ? (
         <p className="text-body-sm text-muted-foreground">No programme-specific figures.</p>
@@ -560,18 +569,21 @@ function ProgramCtc({
               <Input
                 aria-label="CTC for this program"
                 type="number"
-                step="0.01"
+                step="1"
                 className="w-40"
                 disabled={disabled}
-                value={row.ctc_lpa}
+                value={row.ctc_annual}
                 onChange={(event) =>
                   onChange(
                     rows.map((item, i) =>
-                      i === index ? { ...item, ctc_lpa: event.target.value } : item,
+                      i === index ? { ...item, ctc_annual: event.target.value } : item,
                     ),
                   )
                 }
               />
+              <span className="w-28 text-body-sm text-muted-foreground">
+                {lakhs(row.ctc_annual) ?? ""}
+              </span>
               <Button
                 variant="destructive-ghost"
                 size="icon-sm"
@@ -594,7 +606,7 @@ function ProgramCtc({
             value=""
             onChange={(event) =>
               event.target.value &&
-              onChange([...rows, { program_id: event.target.value, ctc_lpa: "" }])
+              onChange([...rows, { program_id: event.target.value, ctc_annual: "" }])
             }
           >
             <option value="">Add a program…</option>

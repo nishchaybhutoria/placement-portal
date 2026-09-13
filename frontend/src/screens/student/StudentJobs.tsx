@@ -8,6 +8,7 @@ import { Card, CardBody } from "@/components/ui/card";
 import { StatusChip } from "@/components/ui/statusChip";
 import { EmptyState, ErrorState, ScreenSkeleton } from "@/components/ui/states";
 import { formatDate } from "@/lib/date";
+import { lakhs } from "@/lib/text";
 
 type Job = StudentJobsPayload["jobs"][number];
 
@@ -94,9 +95,9 @@ function JobCard({ job }: { job: Job }) {
             </p>
           </div>
           <div className="flex flex-col items-end gap-gap-tight">
-            {job.ctc_lpa ? (
+            {job.ctc_annual ? (
               <span className="tabular text-headline-md text-foreground">
-                ₹{job.ctc_lpa} LPA
+                {lakhs(job.ctc_annual)}
               </span>
             ) : job.stipend_month ? (
               <span className="tabular text-headline-md text-foreground">

@@ -12,7 +12,7 @@ import { Field } from "@/components/ui/field";
 import { Input, Select } from "@/components/ui/input";
 import { StatusChip } from "@/components/ui/statusChip";
 import { EmptyState, ErrorState, ScreenSkeleton } from "@/components/ui/states";
-import { humanise } from "@/lib/text";
+import { humanise, lakhs } from "@/lib/text";
 import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "@/lib/useDebouncedValue";
 
 export function ExternalOffers() {
@@ -151,7 +151,7 @@ export function CreateExternalOffer({
         company_id: preset?.company_id ?? "",
         outcome: "placement",
         source: preset ? "ppo" : "off_campus",
-        ctc_lpa: null,
+        ctc_annual: null,
         stipend_month: null,
         status: "offered",
         offered_on: null,
@@ -163,7 +163,7 @@ export function CreateExternalOffer({
       }}
       transformInput={(input) => ({
         ...input,
-        ctc_lpa: input.outcome === "placement" && input.ctc_lpa !== "" ? input.ctc_lpa : null,
+        ctc_annual: input.outcome === "placement" && input.ctc_annual !== "" ? input.ctc_annual : null,
         stipend_month: input.outcome === "internship" && input.stipend_month !== "" ? input.stipend_month : null,
         notes: input.notes || null,
       })}
@@ -200,10 +200,10 @@ export function CreateExternalOffer({
           options: OUTCOME_CHOICES,
         },
         {
-          name: "ctc_lpa",
-          label: "CTC (LPA)",
+          name: "ctc_annual",
+          label: "CTC (₹ per year)",
           kind: "number",
-          hint: "The external placement's own annual CTC.",
+          hint: "The external placement's own annual CTC, in rupees.",
           visibleWhen: { name: "outcome", value: "placement" },
         },
         {
@@ -282,7 +282,7 @@ function ExternalRow({
             {row.attached_cycle ? ` · ${row.attached_cycle.name}` : " · unattached"}
           </p>
           <p className="text-body-sm text-muted-foreground">
-            {row.ctc_lpa ? `${row.ctc_lpa} LPA` : row.stipend_month ? `${row.stipend_month}/month` : "Compensation not recorded"}
+            {row.ctc_annual ? lakhs(row.ctc_annual) : row.stipend_month ? `${row.stipend_month}/month` : "Compensation not recorded"}
           </p>
         </div>
         <StatusChip domain="external" value={row.status} />
@@ -331,7 +331,7 @@ function ExternalRow({
             company_id: row.company.id,
             outcome: row.outcome as "placement" | "internship",
             source: row.source as "ppo" | "off_campus" | "other",
-            ctc_lpa: row.ctc_lpa,
+            ctc_annual: row.ctc_annual,
             stipend_month: row.stipend_month,
             status: row.status as "offered" | "accepted" | "declined",
             offered_on: row.offered_on,
@@ -340,7 +340,7 @@ function ExternalRow({
             notes: row.notes,
             reason: "",
             restore: selected,
-            clear_ctc_lpa: false,
+            clear_ctc_annual: false,
             clear_stipend_month: false,
             clear_offered_on: false,
             clear_responded_on: false,
@@ -349,19 +349,19 @@ function ExternalRow({
             notify: true,
           }}
           transformInput={(input) => {
-            const ctc = input.outcome === "placement" && input.ctc_lpa !== "" ? input.ctc_lpa : null;
+            const ctc = input.outcome === "placement" && input.ctc_annual !== "" ? input.ctc_annual : null;
             const stipend = input.outcome === "internship" && input.stipend_month !== "" ? input.stipend_month : null;
             const offeredOn = input.offered_on || null;
             const respondedOn = input.responded_on || null;
             const notes = input.notes || null;
             return {
               ...input,
-              ctc_lpa: ctc,
+              ctc_annual: ctc,
               stipend_month: stipend,
               offered_on: offeredOn,
               responded_on: respondedOn,
               notes,
-              clear_ctc_lpa: row.ctc_lpa !== null && ctc === null,
+              clear_ctc_annual: row.ctc_annual !== null && ctc === null,
               clear_stipend_month: row.stipend_month !== null && stipend === null,
               clear_offered_on: row.offered_on !== null && offeredOn === null,
               clear_responded_on: row.responded_on !== null && respondedOn === null,
@@ -392,10 +392,10 @@ function ExternalRow({
               options: OUTCOME_CHOICES,
             },
             {
-              name: "ctc_lpa",
-              label: "CTC (LPA)",
+              name: "ctc_annual",
+              label: "CTC (₹ per year)",
               kind: "number",
-              initialValue: row.ctc_lpa ?? "",
+              initialValue: row.ctc_annual ?? "",
               visibleWhen: { name: "outcome", value: "placement" },
             },
             {

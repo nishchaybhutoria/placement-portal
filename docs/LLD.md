@@ -102,7 +102,7 @@ placement-portal/
     └── src/lib/
 ```
 
-**Conventions (binding):** UUIDv4 PKs (`gen_random_uuid()`); `timestamptz` everywhere, UTC; `citext` for emails and company names; snake_case DB, camelCase only in TS; every table has `created_at` (and `updated_at` where mutable); money as `numeric(10,2)` (CTC in LPA, stipend in ₹/month); enums are PG enums named `<thing>_t`; no soft-delete flags except where specified (`is_active` on taxonomy/companies); FKs `ON DELETE RESTRICT` unless stated; all IDs in APIs are UUID strings; module code never imports another module's `models.py` — cross-module access goes through loaders/queries.
+**Conventions (binding):** UUIDv4 PKs (`gen_random_uuid()`); `timestamptz` everywhere, UTC; `citext` for emails and company names; snake_case DB, camelCase only in TS; every table has `created_at` (and `updated_at` where mutable); money as `numeric` in rupees (CTC per year, stipend per month), displayed in lakhs where the office quotes it that way; enums are PG enums named `<thing>_t`; no soft-delete flags except where specified (`is_active` on taxonomy/companies); FKs `ON DELETE RESTRICT` unless stated; all IDs in APIs are UUID strings; module code never imports another module's `models.py` — cross-module access goes through loaders/queries.
 
 ---
 
@@ -308,7 +308,7 @@ company_contacts(company_id →companies!, name text!, email citext!, phone text
   IDX partial-unique (company_id) WHERE is_primary
 
 jobs(cycle_id →cycles!, company_id →companies!, outcome outcome_t!, title text!,
-      description text!, location text, sector_id →sectors, ctc_lpa numeric(10,2),
+      description text!, location text, sector_id →sectors, ctc_annual numeric(12,2),
       ctc_breakdown text, stipend_month numeric(10,2), application_deadline timestamptz,
       offer_acceptance_deadline timestamptz, is_published bool! default false,
       published_at, cancelled_at, eligibility_rule jsonb,
@@ -316,7 +316,7 @@ jobs(cycle_id →cycles!, company_id →companies!, outcome outcome_t!, title te
   CHECK (offer_acceptance_deadline IS NULL OR application_deadline IS NULL
          OR offer_acceptance_deadline > application_deadline)
   -- application_deadline NULL permitted only when cycle.kind='open' (command-enforced + checker)
-job_program_ctc(job_id →jobs!, program_id →programs!, ctc_lpa numeric(10,2)!, UNIQUE pair)
+job_program_ctc(job_id →jobs!, program_id →programs!, ctc_annual numeric(12,2)!, UNIQUE pair)
 job_rounds(job_id →jobs!, round_type_id →round_types!, name text!, ord int!,
       venue text, scheduled_at timestamptz, duration_min int, instructions text,
       UNIQUE(job_id, ord) DEFERRABLE INITIALLY DEFERRED)
@@ -345,7 +345,7 @@ offers(application_id →applications!, extended_at timestamptz!, deadline_at ti
       termination_kind termination_kind_t, termination_reason text)
   IDX (application_id, extended_at DESC)
 external_offers(enrollment_id →enrollments!, company_id →companies!, outcome outcome_t!,
-      source external_source_t!, ctc_lpa numeric(10,2), stipend_month numeric(10,2),
+      source external_source_t!, ctc_annual numeric(12,2), stipend_month numeric(10,2),
       status external_status_t!, offered_on date, responded_on date,
       source_application_id →applications, attached_cycle_id →cycles, notes text,
       created_by →users!)

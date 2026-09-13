@@ -73,7 +73,7 @@ async def test_EXT2_create_accepted_unattached_offer_audits_and_gates_placement_
                     "company_id": company_id,
                     "outcome": "placement",
                     "source": "ppo",
-                    "ctc_lpa": "24.50",
+                    "ctc_annual": "2450000",
                     "status": "accepted",
                     "offered_on": date.today(),
                     "responded_on": date.today(),

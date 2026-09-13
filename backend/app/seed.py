@@ -563,7 +563,7 @@ async def _contact(
 async def _job(
     executor: Executor, staff: ActorContext, engine: AsyncEngine, *, cycle_id: UUID,
     company_id: UUID, title: str, description: str, outcome: Outcome | None,
-    location: str, sector_id: UUID, ctc_lpa: str | None, stipend_month: str | None,
+    location: str, sector_id: UUID, ctc_annual: str | None, stipend_month: str | None,
     deadline_days: int, program_ctc: list[ProgramCtcRow] | None = None,
 ) -> UUID:
     found = await _scalar(
@@ -584,7 +584,7 @@ async def _job(
             outcome=outcome,
             location=location,
             sector_id=sector_id,
-            ctc_lpa=Decimal(ctc_lpa) if ctc_lpa else None,
+            ctc_annual=Decimal(ctc_annual) if ctc_annual else None,
             stipend_month=Decimal(stipend_month) if stipend_month else None,
             application_deadline=datetime.now(UTC) + timedelta(days=deadline_days),
             program_ctc=program_ctc or [],
@@ -1968,7 +1968,7 @@ async def _seed_e2e_scenarios(
         outcome=Outcome.PLACEMENT,
         location="Bengaluru",
         sector_id=taxonomy[(TaxonomyKind.SECTOR, "Technology")],
-        ctc_lpa="26.00",
+        ctc_annual="2600000",
         stipend_month=None,
         deadline_days=30,
     )
@@ -2176,7 +2176,7 @@ async def _seed_interventions(
         outcome=Outcome.INTERNSHIP,
         location="Gandhinagar",
         sector_id=taxonomy[(TaxonomyKind.SECTOR, "Technology")],
-        ctc_lpa=None,
+        ctc_annual=None,
         stipend_month="45000",
         deadline_days=20,
     )
@@ -2420,12 +2420,12 @@ async def _seed_companies_and_jobs(
         outcome=Outcome.PLACEMENT,
         location="Bengaluru",
         sector_id=technology,
-        ctc_lpa="24.00",
+        ctc_annual="2400000",
         stipend_month=None,
         deadline_days=21,
         program_ctc=[
-            ProgramCtcRow(program_id=btech, ctc_lpa=Decimal("24.00")),
-            ProgramCtcRow(program_id=mtech, ctc_lpa=Decimal("27.50")),
+            ProgramCtcRow(program_id=btech, ctc_annual=Decimal("2400000")),
+            ProgramCtcRow(program_id=mtech, ctc_annual=Decimal("2750000")),
         ],
     )
     backend_rule: dict[str, object] = {
@@ -2517,7 +2517,7 @@ async def _seed_companies_and_jobs(
         outcome=Outcome.PLACEMENT,
         location="Mumbai",
         sector_id=finance,
-        ctc_lpa="32.00",
+        ctc_annual="3200000",
         stipend_month=None,
         deadline_days=14,
     )
@@ -2561,7 +2561,7 @@ async def _seed_companies_and_jobs(
         outcome=Outcome.PLACEMENT,
         location="Gurugram",
         sector_id=consulting,
-        ctc_lpa="19.50",
+        ctc_annual="1950000",
         stipend_month=None,
         deadline_days=30,
     )
@@ -2574,7 +2574,7 @@ async def _seed_companies_and_jobs(
         outcome=Outcome.INTERNSHIP,
         location="Bengaluru",
         sector_id=technology,
-        ctc_lpa=None,
+        ctc_annual=None,
         stipend_month="80000",
         deadline_days=35,
     )
@@ -2593,7 +2593,7 @@ async def _seed_companies_and_jobs(
         outcome=Outcome.INTERNSHIP,
         location="On campus",
         sector_id=consulting,
-        ctc_lpa=None,
+        ctc_annual=None,
         stipend_month="8000",
         deadline_days=90,
     )

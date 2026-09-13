@@ -155,7 +155,7 @@ Global directory: name (unique, case-insensitive), description, website URL, sec
 Every job carries **`outcome ∈ {internship, placement}`, fixed at creation, immutable forever** (changing it mid-flight would corrupt gates and cascades). In placement/internship cycles it is auto-set to the cycle kind and not shown as a choice. In open cycles it is a mandatory creation-time choice; a company offering both through one drive gets two jobs.
 
 ### JOB-2 — Builder (full-pipeline jobs, i.e. in placement/internship cycles)
-1. Basics/compensation: company, title, description, location, sector, CTC (LPA + breakdown text) and/or monthly stipend, per-program CTC rows, application deadline, optional offer-acceptance deadline (> application deadline).
+1. Basics/compensation: company, title, description, location, sector, CTC (annual, in rupees, plus breakdown text) and/or monthly stipend, per-program CTC rows, application deadline, optional offer-acceptance deadline (> application deadline).
 2. Eligibility rule (ELG-2) with live impact preview ("N of M active members currently eligible", listable).
 3. Rounds: ordered, typed from the round-type taxonomy, each with name, description, default venue/schedule/duration, instructions.
 4. Questions: ordered; types = text, long text, single-select(+options), multi-select(+options), boolean, number, date, email, URL. **No file type.** Required flags.

@@ -1091,7 +1091,7 @@
    "outcome": "placement",
    "source": "ppo",
    "status": "declined",
-   "ctc_lpa": null,
+   "ctc_annual": null,
    "stipend_month": null,
    "offered_on": null,
    "responded_on": null,

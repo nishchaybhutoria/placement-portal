@@ -271,7 +271,7 @@ async def test_ANA1_a_placed_student_without_a_recorded_ctc_shows_in_coverage(
                 created_by=world.admin_id,
                 source="off_campus",
                 attached_cycle_id=world.cycle_id,
-                ctc_lpa=None,
+                ctc_annual=None,
             )
     finally:
         await engine.dispose()
@@ -312,7 +312,7 @@ async def test_ANA1_multiple_acceptances_count_once_under_the_most_recent(
                 created_by=world.admin_id,
                 source="off_campus",
                 attached_cycle_id=world.cycle_id,
-                ctc_lpa="9.00",
+                ctc_annual="900000",
                 responded_on=date(2030, 6, 1),
             )
     finally:

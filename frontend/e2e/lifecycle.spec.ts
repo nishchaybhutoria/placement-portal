@@ -2042,7 +2042,7 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
     await expect(dialog.getByRole("combobox", { name: "Outcome *", exact: true })).toHaveValue("placement");
     await expect(dialog.getByRole("combobox", { name: "Source *", exact: true })).toHaveValue("ppo");
     await expect(dialog.getByRole("spinbutton", { name: "Stipend per month (INR)" })).toHaveCount(0);
-    await dialog.getByRole("spinbutton", { name: "CTC (LPA)" }).fill("24.5");
+    await dialog.getByRole("spinbutton", { name: "CTC (₹ per year)" }).fill("2450000");
     await dialog.getByRole("combobox", { name: "Status *", exact: true }).selectOption("accepted");
     await dialog
       .getByRole("textbox", { name: "Reason / evidence *", exact: true })
@@ -2081,7 +2081,7 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
       .getByText("Solstice Robotics", { exact: true })
       .locator("xpath=ancestor::li[1]");
     await expect(p1Dashboard).toContainText("PPO · Placement");
-    await expect(p1Dashboard).toContainText("24.50 LPA");
+    await expect(p1Dashboard).toContainText("₹24.50 LPA");
     await expect(p1Dashboard.getByRole("button")).toHaveCount(0);
     await logout(page);
 
@@ -2376,7 +2376,7 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
     await dialog.getByRole("combobox", { name: "Outcome *", exact: true }).selectOption("placement");
     await dialog.getByRole("combobox", { name: "Source *", exact: true }).selectOption("off_campus");
     await dialog.getByRole("combobox", { name: "Status *", exact: true }).selectOption("accepted");
-    await dialog.getByRole("spinbutton", { name: "CTC (LPA)" }).fill("18.75");
+    await dialog.getByRole("spinbutton", { name: "CTC (₹ per year)" }).fill("1875000");
     await dialog
       .getByRole("textbox", { name: "Reason / evidence *", exact: true })
       .fill("Off-campus placement letter verified with the company");
@@ -2403,7 +2403,7 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
       .getByText("Terra Nova Materials", { exact: true })
       .locator("xpath=ancestor::li[1]");
     await expect(p4External).toContainText("Off campus \u00b7 Placement");
-    await expect(p4External).toContainText("18.75 LPA");
+    await expect(p4External).toContainText("₹18.75 LPA");
     await expect(p4External).not.toContainText(PLACEMENT_CYCLE);
     await expect(p4External.getByRole("button")).toHaveCount(0);
     await logout(page);

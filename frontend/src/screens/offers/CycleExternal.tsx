@@ -13,7 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { StatusChip } from "@/components/ui/statusChip";
 import { EmptyState, ErrorState, ScreenSkeleton } from "@/components/ui/states";
 import { newIdempotencyKey } from "@/lib/idempotency";
-import { humanise } from "@/lib/text";
+import { humanise, lakhs } from "@/lib/text";
 
 export function CycleExternal() {
   const { id = "" } = useParams();
@@ -127,8 +127,8 @@ function OfferSection({
                     {row.company.name} · {humanise(row.outcome)} · {humanise(row.source)}
                   </p>
                   <p className="text-body-sm text-muted-foreground">
-                    {row.ctc_lpa
-                      ? `${row.ctc_lpa} LPA`
+                    {row.ctc_annual
+                      ? lakhs(row.ctc_annual)
                       : row.stipend_month
                         ? `${row.stipend_month} INR/month`
                         : "Compensation not recorded"}

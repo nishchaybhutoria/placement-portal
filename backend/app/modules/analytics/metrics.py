@@ -64,6 +64,11 @@ COMPENSATION_UNITS: Mapping[str, str] = {
     "placement": "lpa",
     "internship": "inr_per_month",
 }
+#: ``jobs.ctc_annual`` holds rupees since revision 0019, but every consumer of
+#: these blocks -- the ANA-1 surfaces, the ANA-3 report, the exports -- speaks
+#: lakhs, and a placement figure has always been published that way. The
+#: conversion lives here, once, rather than in each surface.
+RUPEES_PER_LAKH = Decimal(100000)
 
 
 @dataclass(frozen=True, slots=True)
@@ -237,7 +242,7 @@ def rate(numerator: int, denominator: int) -> Rate:
 
 _ACCEPTED_COLUMNS = (
     "enrollment_id, cycle_id, outcome, source, external_source, offer_id, "
-    "application_id, job_id, company_id, accepted_at, ctc_lpa, stipend_month, "
+    "application_id, job_id, company_id, accepted_at, ctc_annual, stipend_month, "
     "snapshot_program_id"
 )
 
@@ -529,7 +534,7 @@ _COMPENSATION_SQL_TEMPLATE = """
     scoped AS (
         SELECT
             r.enrollment_id, r.offer_id, r.accepted_at, r.job_id,
-            r.snapshot_program_id, r.ctc_lpa, r.stipend_month
+            r.snapshot_program_id, r.ctc_annual, r.stipend_month
         FROM accepted_rows r
         {sector_join}
         LEFT JOIN profiles p ON p.enrollment_id = r.enrollment_id
@@ -551,7 +556,7 @@ _COMPENSATION_SQL_TEMPLATE = """
             -- an external offer -- which has no snapshot -- misses this join
             -- by construction and keeps its own recorded compensation.
             CASE WHEN :comp_outcome = 'placement'
-                 THEN COALESCE(program_ctc.ctc_lpa, attributed.ctc_lpa)
+                 THEN COALESCE(program_ctc.ctc_annual, attributed.ctc_annual)
                  ELSE attributed.stipend_month
             END AS amount
         FROM attributed
@@ -604,15 +609,26 @@ async def compensation(
         profile_clause=profile_clause,
     )
     row = (await executor.execute(sa.text(sql), params)).mappings().one()
+
+    def money(key: str) -> Decimal | None:
+        return _in_block_unit(_decimal(row[key]), outcome)
+
     return CompensationBlock(
         unit=COMPENSATION_UNITS[outcome],
         placed=int(row["placed"]),
         covered=int(row["covered"]),
-        mean=_decimal(row["mean"]),
-        median=_decimal(row["median"]),
-        minimum=_decimal(row["minimum"]),
-        maximum=_decimal(row["maximum"]),
+        mean=money("mean"),
+        median=money("median"),
+        minimum=money("minimum"),
+        maximum=money("maximum"),
     )
+
+
+def _in_block_unit(value: Decimal | None, outcome: str) -> Decimal | None:
+    """Convert a stored amount into the unit this block is labelled with."""
+    if value is None or outcome != "placement":
+        return value
+    return (value / RUPEES_PER_LAKH).quantize(Decimal("0.01"))
 
 
 def _decimal(value: object) -> Decimal | None:

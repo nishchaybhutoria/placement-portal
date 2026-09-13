@@ -213,7 +213,7 @@ export interface JobSummaryRow {
   location: string | null;
   sector: string | null;
   sector_id: string | null;
-  ctc_lpa: string | null;
+  ctc_annual: string | null;
   ctc_breakdown: string | null;
   stipend_month: string | null;
   application_deadline: string | null;
@@ -285,7 +285,7 @@ export interface BuilderPayload {
   job: JobSummaryRow & {
     rounds: JobRound[];
     questions: JobQuestion[];
-    program_ctc: { program_id: string; program: string; ctc_lpa: string }[];
+    program_ctc: { program_id: string; program: string; ctc_annual: string }[];
   };
   override_domains: string[];
   overrides: SubjectOverride[];
@@ -350,7 +350,7 @@ export interface StudentJobPayload {
   cycle: CycleHeader;
   job: JobSummaryRow;
   compensation: {
-    ctc_lpa: string | null;
+    ctc_annual: string | null;
     source: string;
     ctc_breakdown: string | null;
     stipend_month: string | null;
@@ -424,7 +424,7 @@ export interface ExternalOfferScreenRow {
   company: TaxonomyRef;
   outcome: string;
   source: string;
-  ctc_lpa: string | null;
+  ctc_annual: string | null;
   stipend_month: string | null;
   status: string;
   offered_on: string | null;
@@ -1022,7 +1022,7 @@ export interface StudentRecordPayload {
     outcome: string;
     source: string;
     status: string;
-    ctc_lpa: unknown;
+    ctc_annual: unknown;
     stipend_month: unknown;
     offered_on: string | null;
     responded_on: string | null;

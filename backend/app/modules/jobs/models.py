@@ -40,7 +40,7 @@ class Job(UUIDPrimaryKeyMixin, UpdatedAtMixin, Base):
     sector_id: Mapped[UUID | None] = mapped_column(
         sa.ForeignKey("sectors.id", ondelete="RESTRICT")
     )
-    ctc_lpa: Mapped[Decimal | None] = mapped_column(sa.Numeric(10, 2))
+    ctc_annual: Mapped[Decimal | None] = mapped_column(sa.Numeric(12, 2))
     ctc_breakdown: Mapped[str | None] = mapped_column(sa.Text())
     stipend_month: Mapped[Decimal | None] = mapped_column(sa.Numeric(10, 2))
     application_deadline: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
@@ -73,7 +73,7 @@ class JobProgramCtc(UUIDPrimaryKeyMixin, UpdatedAtMixin, Base):
     program_id: Mapped[UUID] = mapped_column(
         sa.ForeignKey("programs.id", ondelete="RESTRICT"), nullable=False
     )
-    ctc_lpa: Mapped[Decimal] = mapped_column(sa.Numeric(10, 2), nullable=False)
+    ctc_annual: Mapped[Decimal] = mapped_column(sa.Numeric(12, 2), nullable=False)
 
 
 class JobRound(UUIDPrimaryKeyMixin, UpdatedAtMixin, Base):

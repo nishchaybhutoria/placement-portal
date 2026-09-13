@@ -38,28 +38,28 @@ async def set_job_compensation(
     connection: AsyncConnection,
     job_id: UUID,
     *,
-    ctc_lpa: str | None = None,
+    ctc_annual: str | None = None,
     stipend_month: str | None = None,
 ) -> None:
     await connection.execute(
         sa.text(
-            "UPDATE jobs SET ctc_lpa = CAST(:ctc AS numeric), "
+            "UPDATE jobs SET ctc_annual = CAST(:ctc AS numeric), "
             "stipend_month = CAST(:stipend AS numeric) WHERE id = :id"
         ),
-        {"id": job_id, "ctc": ctc_lpa, "stipend": stipend_month},
+        {"id": job_id, "ctc": ctc_annual, "stipend": stipend_month},
     )
 
 
 async def set_program_ctc(
-    connection: AsyncConnection, job_id: UUID, program_id: UUID, ctc_lpa: str
+    connection: AsyncConnection, job_id: UUID, program_id: UUID, ctc_annual: str
 ) -> None:
     """The per-program CTC row ANA-1 prefers over the job's own figure."""
     await connection.execute(
         sa.text(
-            "INSERT INTO job_program_ctc (id, job_id, program_id, ctc_lpa) "
+            "INSERT INTO job_program_ctc (id, job_id, program_id, ctc_annual) "
             "VALUES (:id, :job_id, :program_id, CAST(:ctc AS numeric))"
         ),
-        {"id": uuid4(), "job_id": job_id, "program_id": program_id, "ctc": ctc_lpa},
+        {"id": uuid4(), "job_id": job_id, "program_id": program_id, "ctc": ctc_annual},
     )
 
 
@@ -140,7 +140,7 @@ async def record_external_offer(
     status: str = "accepted",
     source: str = "ppo",
     attached_cycle_id: UUID | None = None,
-    ctc_lpa: str | None = None,
+    ctc_annual: str | None = None,
     stipend_month: str | None = None,
     responded_on: date | None = None,
 ) -> UUID:
@@ -154,7 +154,7 @@ async def record_external_offer(
     await connection.execute(
         sa.text(
             "INSERT INTO external_offers (id, enrollment_id, company_id, outcome, "
-            "source, ctc_lpa, stipend_month, status, offered_on, responded_on, "
+            "source, ctc_annual, stipend_month, status, offered_on, responded_on, "
             "attached_cycle_id, created_by) VALUES (:id, :enrollment_id, :company_id, "
             "CAST(:outcome AS outcome_t), CAST(:source AS external_source_t), "
             "CAST(:ctc AS numeric), CAST(:stipend AS numeric), "
@@ -167,7 +167,7 @@ async def record_external_offer(
             "company_id": company_id,
             "outcome": outcome,
             "source": source,
-            "ctc": ctc_lpa,
+            "ctc": ctc_annual,
             "stipend": stipend_month,
             "status": status,
             "offered_on": date(2026, 1, 10),
@@ -303,9 +303,9 @@ async def build_definition_world(connection: AsyncConnection) -> DefinitionWorld
     job_id, application_id = await accept_portal_offer(
         connection, cycle_id=cycle_id, enrollment_id=world.enrollment("accepted_portal")
     )
-    await set_job_compensation(connection, job_id, ctc_lpa="18.00")
+    await set_job_compensation(connection, job_id, ctc_annual="1800000")
     await set_snapshot_program(connection, application_id, program_id)
-    await set_program_ctc(connection, job_id, program_id, "21.50")
+    await set_program_ctc(connection, job_id, program_id, "2150000")
 
     await record_external_offer(
         connection,
@@ -313,7 +313,7 @@ async def build_definition_world(connection: AsyncConnection) -> DefinitionWorld
         created_by=admin.user_id,
         source="ppo",
         attached_cycle_id=cycle_id,
-        ctc_lpa="24.00",
+        ctc_annual="2400000",
     )
     await record_external_offer(
         connection,
@@ -321,7 +321,7 @@ async def build_definition_world(connection: AsyncConnection) -> DefinitionWorld
         created_by=admin.user_id,
         source="off_campus",
         attached_cycle_id=cycle_id,
-        ctc_lpa="30.00",
+        ctc_annual="3000000",
     )
     forced_job, _forced_application = await accept_portal_offer(
         connection,
@@ -331,7 +331,7 @@ async def build_definition_world(connection: AsyncConnection) -> DefinitionWorld
         # application status, so this row is placed despite saying otherwise.
         application_status="rejected",
     )
-    await set_job_compensation(connection, forced_job, ctc_lpa="12.00")
+    await set_job_compensation(connection, forced_job, ctc_annual="1200000")
 
     # --- not placed -------------------------------------------------------
     await accept_portal_offer(
@@ -351,7 +351,7 @@ async def build_definition_world(connection: AsyncConnection) -> DefinitionWorld
         created_by=admin.user_id,
         source="off_campus",
         attached_cycle_id=None,
-        ctc_lpa="26.00",
+        ctc_annual="2600000",
     )
     await record_external_offer(
         connection,
@@ -359,7 +359,7 @@ async def build_definition_world(connection: AsyncConnection) -> DefinitionWorld
         created_by=admin.user_id,
         status="offered",
         attached_cycle_id=cycle_id,
-        ctc_lpa="19.00",
+        ctc_annual="1900000",
     )
     await seed_application(
         connection,

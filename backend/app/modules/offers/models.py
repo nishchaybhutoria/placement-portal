@@ -62,7 +62,7 @@ class ExternalOffer(UUIDPrimaryKeyMixin, UpdatedAtMixin, Base):
         sa.Enum(*(item.value for item in ExternalSource), name="external_source_t"),
         nullable=False,
     )
-    ctc_lpa: Mapped[Decimal | None] = mapped_column(sa.Numeric(10, 2))
+    ctc_annual: Mapped[Decimal | None] = mapped_column(sa.Numeric(12, 2))
     stipend_month: Mapped[Decimal | None] = mapped_column(sa.Numeric(10, 2))
     status: Mapped[str] = mapped_column(
         sa.Enum(*(item.value for item in ExternalStatus), name="external_status_t"),

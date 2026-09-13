@@ -11,7 +11,7 @@ import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusChip } from "@/components/ui/statusChip";
 import { EmptyState, ErrorState, ScreenSkeleton } from "@/components/ui/states";
 import { formatDateTime, formatZonedDateTime } from "@/lib/date";
-import { counted, humanise } from "@/lib/text";
+import { counted, humanise, lakhs } from "@/lib/text";
 
 export function Dashboard() {
   const screen = useScreen("me/dashboard");
@@ -42,8 +42,8 @@ export function Dashboard() {
                       {row.attached_cycle ? ` · ${row.attached_cycle.name}` : ""}
                     </p>
                     <p className="text-body-sm text-muted-foreground">
-                      {row.ctc_lpa
-                        ? `${row.ctc_lpa} LPA`
+                      {row.ctc_annual
+                        ? lakhs(row.ctc_annual)
                         : row.stipend_month
                           ? `${row.stipend_month} INR/month`
                           : "Compensation not recorded"}

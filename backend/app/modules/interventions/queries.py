@@ -152,7 +152,7 @@ _OFFERS = """
 """
 
 _EXTERNAL = """
-    SELECT x.id, x.outcome, x.source, x.status, x.ctc_lpa, x.stipend_month,
+    SELECT x.id, x.outcome, x.source, x.status, x.ctc_annual, x.stipend_month,
            x.offered_on, x.responded_on, x.notes, x.created_at,
            x.source_application_id, x.attached_cycle_id,
            co.name AS company_name, c.name AS cycle_name,
@@ -832,7 +832,7 @@ async def staff_student_record(
                 "outcome": str(row["outcome"]),
                 "source": str(row["source"]),
                 "status": str(row["status"]),
-                "ctc_lpa": jsonable(row["ctc_lpa"]),
+                "ctc_annual": jsonable(row["ctc_annual"]),
                 "stipend_month": jsonable(row["stipend_month"]),
                 "offered_on": _date(row["offered_on"]),
                 "responded_on": _date(row["responded_on"]),

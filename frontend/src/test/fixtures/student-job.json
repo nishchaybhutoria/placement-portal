@@ -16,7 +16,7 @@
         "description": "Build and operate the storage layer: distributed systems work in Go and Rust, with real on-call ownership from month three.",
         "location": "Bengaluru",
         "sector": "Technology",
-        "ctc_lpa": "24.00",
+        "ctc_annual": "2400000",
         "ctc_breakdown": null,
         "stipend_month": null,
         "application_deadline": "2026-09-11T14:35:40.163134+00:00",
@@ -27,7 +27,7 @@
         "eligibility_summary": "Eligible when CPI at least 8.0 and active backlogs at most 0 and primary branch one of Computer Science and Engineering, Electrical Engineering."
     },
     "compensation": {
-        "ctc_lpa": "24.00",
+        "ctc_annual": "2400000",
         "source": "program",
         "ctc_breakdown": null,
         "stipend_month": null

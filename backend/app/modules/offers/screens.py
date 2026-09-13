@@ -410,7 +410,7 @@ def _external_payload(
         "company": {"id": str(row.company_id), "name": row.company_name},
         "outcome": row.outcome.value,
         "source": row.source.value,
-        "ctc_lpa": str(row.ctc_lpa) if row.ctc_lpa is not None else None,
+        "ctc_annual": str(row.ctc_annual) if row.ctc_annual is not None else None,
         "stipend_month": (str(row.stipend_month) if row.stipend_month is not None else None),
         "status": row.status.value,
         "offered_on": row.offered_on.isoformat() if row.offered_on else None,

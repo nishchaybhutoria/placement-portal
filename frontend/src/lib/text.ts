@@ -34,3 +34,20 @@ export function counted(
 ): string {
   return `${count} ${count === 1 ? singular : plural}`;
 }
+
+/**
+ * An annual CTC for reading: stored in rupees, published in lakhs.
+ *
+ * The portal records what the office typed -- ₹18,53,500 stays ₹18,53,500 --
+ * and every surface that shows it says 18.54 LPA, which is how the figure is
+ * quoted. Returns null when there is nothing to show, so a caller can fall
+ * back to its own empty state rather than rendering "null LPA".
+ */
+export function lakhs(rupees: string | number | null | undefined): string | null {
+  if (rupees === null || rupees === undefined || rupees === "") return null;
+  const value = Number(rupees);
+  if (!Number.isFinite(value)) return null;
+  const inLakhs = value / 100000;
+  // A round figure reads better without the decimals: "18 LPA", not "18.00".
+  return `₹${Number.isInteger(inLakhs) ? inLakhs : inLakhs.toFixed(2)} LPA`;
+}
