@@ -51,6 +51,24 @@ session-qualified study-year, and safe-draft changes. `make e2e` then passed
 all suites: 3 critical-flow, 5
 responsive/accessibility, and 25 full-lifecycle tests.
 
+## 2026-09-13 roster coverage certification
+
+The 2025–26 internship roster (78 company rows) was compiled row by row into
+rule trees and checked against both the rule schema and the visual editor's
+round-trip. Every row the roster states is authorable in the editor; no row
+requires raw JSON. Two classes of criteria are **accepted as out of scope**
+for this release by the project owner: facts the profile does not record (9
+rows) and text that is screening rather than eligibility (17 rows). Three rows
+state no eligibility at all in the roster and are an office question.
+
+Method, counts and the accepted gaps: `docs/ELIGIBILITY-COVERAGE.md`. The
+row-by-row matrix stays private, beside the workbook, under
+`/home/nishuz/placement-portal-private/workbook-coverage-2025-2026/`.
+
+Before the cycle opens, the minors taxonomy needs an **Artificial Intelligence**
+entry: 14 roster rows open extra disciplines to students pursuing a Minor in
+CSE/AI, and only Computer Science is seeded today.
+
 ## Outstanding approval gates
 
 1. Rehearse again from a fresh restore using the now-approved BTech primary

@@ -54,6 +54,8 @@ mode rather than being flattened. Predicates may repeat.
 Every predicate in the schema has a control: the academic ones, and gender,
 nationality, 10th/12th percentage and 10th/12th year. JSON remains the door to
 operators the controls do not offer and to a group nested inside a group.
+`docs/ELIGIBILITY-COVERAGE.md` certifies the current eligibility roster against
+this contract row by row.
 
 ## Acceptance matrix
 
@@ -70,5 +72,9 @@ operators the controls do not offer and to a group nested inside a group.
 | Internship year predicate with stale session | unknown final verdict, deny |
 | `not` around any unknown v2 fact | unknown final verdict, deny |
 | Invalid/duplicate raw JSON or unfinished visual clause | no impact request and no save |
+| Roster pathway fan-out, one option per programme | round-trips through the controls |
+| Conditional minor written as its own pathway option | round-trips; no nested group |
+| Gender or 10th/12th percentage clause | authored visually, no JSON |
+| School mark absent from the profile | denied, named as not recorded |
 | Upgrade existing rules | JSON unchanged, version 1 |
 | Newly inserted or confirmed rule | version 2 |
