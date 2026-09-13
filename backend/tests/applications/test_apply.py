@@ -236,7 +236,9 @@ async def test_APP1_the_snapshot_carries_every_registry_field() -> None:
     # Everything the rule was judged on, which is the registry plus the facts
     # derived from the declared programme -- a snapshot that omitted those
     # could not reconstruct the verdict it recorded (ELG-4).
-    expected = {field.key for field in FIELDS} | set(derived_rule_facts({})) | {
+    expected = {field.key for field in FIELDS} | set(
+        derived_rule_facts({}, outcome=None, current_session=None)
+    ) | {
         "program_structure",
         "program_primary_degree_id",
         "program_secondary_degree_id",

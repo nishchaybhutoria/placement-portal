@@ -55,7 +55,9 @@ from app.domain.policy import Policy, resolve_policy
 from app.domain.rules import RuleContext, evaluate, taxonomy_ids
 from app.domain.shared import (
     ApplicationStatus,
+    CycleKind,
     MembershipStatus,
+    Outcome,
     OutcomeTag,
     ProgramStructure,
     RuleDomain,
@@ -66,6 +68,7 @@ from app.modules.cycles.commands import CycleRow, fetch_cycle, fetch_policy
 from app.modules.notifications.wording import withdrawal_trigger
 from app.modules.offers.derivations import placement_placed_global
 from app.modules.overrides.service import ApplicableOverride
+from app.modules.profiles.academics import load_academic_session
 from app.modules.profiles.fields import PROFILE_COLUMNS
 from app.modules.taxonomies.labels import resolve_labels
 
@@ -264,12 +267,21 @@ async def _fetch_membership(
     return _membership_row(row) if row is not None else None
 
 
-def _evaluable_profile(row: object) -> dict[str, object] | None:
-    """The loaded row plus the derived facts a join rule reads (ELG-2)."""
+def _evaluable_profile(
+    row: object,
+    *,
+    outcome: Outcome | None,
+    current_session: int | None,
+) -> dict[str, object] | None:
+    """The loaded row plus context-qualified facts a join rule reads (ELG-2)."""
     if row is None:
         return None
     profile = dict(cast("Mapping[str, object]", row))
-    profile.update(derived_rule_facts(profile))
+    profile.update(
+        derived_rule_facts(
+            profile, outcome=outcome, current_session=current_session
+        )
+    )
     return profile
 
 
@@ -329,7 +341,15 @@ async def _load_join(
             lock=lock,
         ),
         membership_id=uuid4(),
-        profile=_evaluable_profile(profile),
+        profile=_evaluable_profile(
+            profile,
+            outcome=(
+                Outcome(cycle.kind.value)
+                if cycle is not None and cycle.kind is not CycleKind.OPEN
+                else None
+            ),
+            current_session=await load_academic_session(tx, lock=lock),
+        ),
         resume_count=int(resume_count or 0),
         resume_owned=bool(resume_owned),
         email=str(profile["email"]) if profile is not None else None,

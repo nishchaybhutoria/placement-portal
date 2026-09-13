@@ -27,9 +27,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from uuid import UUID
 
-from app.domain.shared import ProgramStructure
+from app.domain.shared import Outcome, ProgramStructure
 
-#: A dual major's second discipline opens at the start of their fourth year.
+#: A dual major's primary internship discipline opens in third year and the
+#: second at the start of fourth year.
+PRIMARY_DISCIPLINE_YEAR = 3
 SECOND_DISCIPLINE_YEAR = 4
 
 #: How a combined programme is named.  One place decides it, so the registrar
@@ -87,7 +89,12 @@ def program_structure(value: object) -> ProgramStructure | None:
         return None
 
 
-def eligible_disciplines(profile: Mapping[str, object]) -> frozenset[UUID] | None:
+def eligible_disciplines(
+    profile: Mapping[str, object],
+    *,
+    outcome: Outcome | None,
+    current_session: int | None,
+) -> frozenset[UUID] | None:
     """The disciplines this student may be matched on, or ``None`` if unknowable.
 
     ``None`` is not "no disciplines".  It means the profile does not yet say
@@ -114,9 +121,24 @@ def eligible_disciplines(profile: Mapping[str, object]) -> frozenset[UUID] | Non
     if structure is ProgramStructure.DUAL_MAJOR:
         if primary is None:
             return None
-        year = _study_year(profile.get("study_year"))
-        if year is None:
+        if outcome is Outcome.PLACEMENT:
+            return frozenset(
+                discipline
+                for discipline in (primary, secondary)
+                if discipline is not None
+            )
+        if outcome is not Outcome.INTERNSHIP:
             return None
+        year = _study_year(profile.get("study_year"))
+        recorded_session = _study_year(profile.get("study_year_session"))
+        if (
+            year is None
+            or current_session is None
+            or recorded_session != current_session
+        ):
+            return None
+        if year < PRIMARY_DISCIPLINE_YEAR:
+            return frozenset()
         if year < SECOND_DISCIPLINE_YEAR or secondary is None:
             return frozenset({primary})
         return frozenset({primary, secondary})
@@ -124,7 +146,12 @@ def eligible_disciplines(profile: Mapping[str, object]) -> frozenset[UUID] | Non
     return frozenset({primary}) if primary is not None else None
 
 
-def derived_rule_facts(profile: Mapping[str, object]) -> dict[str, object]:
+def derived_rule_facts(
+    profile: Mapping[str, object],
+    *,
+    outcome: Outcome | None,
+    current_session: int | None,
+) -> dict[str, object]:
     """The facts a rule reads that no profile column holds any more (ELG-2).
 
     ``is_dual_major``, ``is_dual_degree`` and ``secondary_program_id`` were
@@ -153,7 +180,9 @@ def derived_rule_facts(profile: Mapping[str, object]) -> dict[str, object]:
             )
             if identifier is not None
         ),
-        "discipline_id": eligible_disciplines(profile),
+        "discipline_id": eligible_disciplines(
+            profile, outcome=outcome, current_session=current_session
+        ),
         "is_dual_major": structure is ProgramStructure.DUAL_MAJOR,
         "is_dual_degree": structure is ProgramStructure.DUAL_DEGREE,
         "secondary_program_id": profile.get("program_secondary_degree_id"),

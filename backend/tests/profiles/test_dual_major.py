@@ -23,7 +23,7 @@ import pytest
 from app.domain.memberships import check_profile_completeness, required_join_fields
 from app.domain.pathways import ProgramPathway, derived_rule_facts
 from app.domain.rules import RuleContext, RuleField, evaluate, parse_rule
-from app.domain.shared import ProgramStructure
+from app.domain.shared import Outcome, ProgramStructure
 from app.modules.profiles.commands import program_branch_reasons
 from app.modules.profiles.fields import (
     BULK_FIELDS,
@@ -227,7 +227,11 @@ def test_ELG2_a_rule_written_against_the_old_field_names_still_evaluates(
     structure: ProgramStructure, dual_major: bool, dual_degree: bool,
 ) -> None:
     """A fact that moves house must not start failing the rules that named it."""
-    facts = derived_rule_facts({"program_structure": structure.value})
+    facts = derived_rule_facts(
+        {"program_structure": structure.value},
+        outcome=Outcome.PLACEMENT,
+        current_session=None,
+    )
     assert facts["is_dual_major"] is dual_major
     assert facts["is_dual_degree"] is dual_degree
 

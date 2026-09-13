@@ -11,18 +11,20 @@ from uuid import UUID
 import pytest
 
 from app.domain.pathways import (
+    PRIMARY_DISCIPLINE_YEAR,
     SECOND_DISCIPLINE_YEAR,
     derived_rule_facts,
     eligible_disciplines,
 )
 from app.domain.rules import RuleContext, evaluate, parse_rule
-from app.domain.shared import ProgramStructure
+from app.domain.shared import Outcome, ProgramStructure
 
 CONTEXT = RuleContext(not_placement_placed=True)
 EE = UUID("00000000-0000-0000-0000-0000000000ee")
 ICDT = UUID("00000000-0000-0000-0000-000000001cd7")
 CSE = UUID("00000000-0000-0000-0000-000000000c5e")
 LABELS = {EE: "Electrical Engineering", ICDT: "ICDT", CSE: "Computer Science"}
+CURRENT_SESSION = 2026
 
 
 def _single(branch: UUID | None) -> dict[str, object]:
@@ -40,6 +42,7 @@ def _dual_major(
         "secondary_branch_id": secondary,
         "program_structure": ProgramStructure.DUAL_MAJOR.value,
         "study_year": year,
+        "study_year_session": CURRENT_SESSION,
     }
 
 
@@ -51,22 +54,40 @@ def _dual_degree(primary: UUID, secondary: UUID | None) -> dict[str, object]:
     }
 
 
+def _eligible(
+    profile: dict[str, object],
+    *,
+    outcome: Outcome = Outcome.INTERNSHIP,
+    current_session: int | None = CURRENT_SESSION,
+) -> frozenset[UUID] | None:
+    return eligible_disciplines(
+        profile, outcome=outcome, current_session=current_session
+    )
+
+
 def test_ELG2_single_discipline_student_answers_with_their_own_branch() -> None:
-    assert eligible_disciplines(_single(EE)) == frozenset({EE})
+    assert _eligible(_single(EE)) == frozenset({EE})
 
 
-def test_ELG2_dual_major_second_discipline_opens_in_the_fourth_year() -> None:
+def test_ELG2_dual_major_internship_disciplines_open_in_third_and_fourth_year() -> None:
     """The roster rule verbatim: primary from third year, second from fourth."""
-    for year in (1, 2, 3):
-        assert eligible_disciplines(_dual_major(EE, CSE, year)) == frozenset({EE})
+    for year in (1, 2):
+        assert _eligible(_dual_major(EE, CSE, year)) == frozenset()
+    assert _eligible(_dual_major(EE, CSE, PRIMARY_DISCIPLINE_YEAR)) == frozenset({EE})
     for year in (SECOND_DISCIPLINE_YEAR, 5, 8):
-        assert eligible_disciplines(_dual_major(EE, CSE, year)) == frozenset({EE, CSE})
+        assert _eligible(_dual_major(EE, CSE, year)) == frozenset({EE, CSE})
+
+
+def test_ELG2_placement_ignores_study_year_and_uses_either_dual_major_discipline() -> None:
+    profile = _dual_major(EE, CSE, None)
+    profile["study_year_session"] = None
+    assert _eligible(profile, outcome=Outcome.PLACEMENT) == frozenset({EE, CSE})
 
 
 def test_ELG2_dual_degree_answers_with_its_postgraduate_discipline_alone() -> None:
-    assert eligible_disciplines(_dual_degree(EE, CSE)) == frozenset({CSE})
+    assert _eligible(_dual_degree(EE, CSE)) == frozenset({CSE})
     # The undergraduate half does not qualify it for its own discipline.
-    assert EE not in (eligible_disciplines(_dual_degree(EE, CSE)) or frozenset())
+    assert EE not in (_eligible(_dual_degree(EE, CSE)) or frozenset())
 
 
 @pytest.mark.parametrize("profile", [
@@ -85,12 +106,18 @@ def test_ELG2_unknowable_standing_is_none_rather_than_an_empty_answer(
     profile: dict[str, object],
 ) -> None:
     """None means "not yet knowable", never "this student holds no discipline"."""
-    assert eligible_disciplines(profile) is None
+    assert _eligible(profile) is None
 
 
 def test_ELG2_a_recorded_primary_is_not_withheld_for_a_missing_second() -> None:
     """A fourth-year dual major still answers with the discipline that is known."""
-    assert eligible_disciplines(_dual_major(EE, None, 4)) == frozenset({EE})
+    assert _eligible(_dual_major(EE, None, 4)) == frozenset({EE})
+
+
+def test_ELG2_stale_dual_major_standing_cannot_answer_an_internship_rule() -> None:
+    profile = _dual_major(EE, CSE, 4)
+    profile["study_year_session"] = CURRENT_SESSION - 1
+    assert _eligible(profile) is None
 
 
 @pytest.mark.parametrize("op, expected, disciplines, verdict", [
@@ -154,16 +181,16 @@ def test_ELG2_the_ixana_defect_a_single_discipline_student_is_not_excluded() -> 
         {"field": "discipline_id", "op": "in", "value": [str(EE), str(ICDT)]}
     )
     single = _single(EE)
-    single["discipline_id"] = eligible_disciplines(single)
+    single["discipline_id"] = _eligible(single)
     assert evaluate(paired, single, CONTEXT).verdict is False
     assert evaluate(corrected, single, CONTEXT).verdict is True
 
     fourth_year = _dual_major(CSE, ICDT, 4)
-    fourth_year["discipline_id"] = eligible_disciplines(fourth_year)
+    fourth_year["discipline_id"] = _eligible(fourth_year)
     assert evaluate(corrected, fourth_year, CONTEXT).verdict is True
 
     third_year = _dual_major(CSE, ICDT, 3)
-    third_year["discipline_id"] = eligible_disciplines(third_year)
+    third_year["discipline_id"] = _eligible(third_year)
     assert evaluate(corrected, third_year, CONTEXT).verdict is False
 
 
@@ -178,12 +205,16 @@ def test_ELG2_a_rule_naming_a_degree_still_matches_the_programmes_built_on_it() 
     dual_major = UUID("00000000-0000-0000-0000-00000000d117")
     mtech = UUID("00000000-0000-0000-0000-00000000117e")
 
-    facts = derived_rule_facts({
-        "program_id": dual_major,
-        "program_primary_degree_id": btech,
-        "program_secondary_degree_id": btech,
-        "program_structure": ProgramStructure.DUAL_MAJOR.value,
-    })
+    facts = derived_rule_facts(
+        {
+            "program_id": dual_major,
+            "program_primary_degree_id": btech,
+            "program_secondary_degree_id": btech,
+            "program_structure": ProgramStructure.DUAL_MAJOR.value,
+        },
+        outcome=Outcome.PLACEMENT,
+        current_session=None,
+    )
     assert facts["eligible_program_ids"] == frozenset({dual_major, btech})
 
     rule = parse_rule({"field": "program_id", "op": "in", "value": [str(btech)]})
@@ -205,5 +236,9 @@ def test_ELG2_the_declared_programme_is_kept_beside_the_widened_set() -> None:
         "program_id": dual_major,
         "program_structure": ProgramStructure.DUAL_MAJOR.value,
     }
-    profile.update(derived_rule_facts(profile))
+    profile.update(
+        derived_rule_facts(
+            profile, outcome=Outcome.PLACEMENT, current_session=None
+        )
+    )
     assert profile["program_id"] == dual_major

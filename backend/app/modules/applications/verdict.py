@@ -46,6 +46,7 @@ from app.modules.jobs.commands import JOB_COLUMNS
 from app.modules.jobs.eligibility import MEMBER_PROFILE_SELECT
 from app.modules.offers.derivations import offer_facts
 from app.modules.overrides.service import ApplicableOverride, applicable
+from app.modules.profiles.academics import load_academic_session
 from app.modules.taxonomies.labels import resolve_labels
 
 Executor = AsyncConnection | AsyncSession
@@ -153,12 +154,14 @@ class StudentContext:
     max_accepted_offers: int | None
     cap_used: int
     now: datetime
+    current_academic_session: int | None
 
 
 @dataclass(frozen=True, slots=True)
 class Verdict:
     eligible: bool
     reasons: tuple[Reason, ...]
+    evaluated_profile: dict[str, object]
     applied_override_ids: tuple[UUID, ...] = ()
 
 
@@ -170,9 +173,7 @@ def _evaluable_profile(row: object) -> dict[str, object]:
     """
     if row is None:
         return {}
-    profile = dict(cast("Mapping[str, object]", row))
-    profile.update(derived_rule_facts(profile))
-    return profile
+    return dict(cast("Mapping[str, object]", row))
 
 
 async def load_student_context(
@@ -254,6 +255,7 @@ async def load_student_context(
         max_accepted_offers=policy.max_accepted_offers.value,
         cap_used=facts.cap_used,
         now=now,
+        current_academic_session=await load_academic_session(executor, lock=lock),
     )
 
 
@@ -299,6 +301,21 @@ def gate_overrides(resolved: tuple[ApplicableOverride, ...]) -> tuple[GateOverri
     )
 
 
+def profile_for_rule(
+    context: StudentContext, outcome: Outcome
+) -> dict[str, object]:
+    """The exact live facts a job rule sees, also stored in APP-1's snapshot."""
+    profile = dict(context.profile)
+    profile.update(
+        derived_rule_facts(
+            profile,
+            outcome=outcome,
+            current_session=context.current_academic_session,
+        )
+    )
+    return profile
+
+
 def compute_verdict(
     context: StudentContext,
     job: sa.RowMapping,
@@ -335,12 +352,13 @@ def compute_verdict(
     )
     reasons = list(gates.failures)
     applied = list(gates.applied_override_ids)
+    evaluated_profile = profile_for_rule(context, Outcome(job["outcome"]))
 
     rule = cast("dict[str, object] | None", job["eligibility_rule"])
     if rule is not None:
         outcome = evaluate(
             rule,
-            context.profile,
+            evaluated_profile,
             RuleContext(
                 not_placement_placed=not context.placement_placed_global
             ),
@@ -355,5 +373,6 @@ def compute_verdict(
     return Verdict(
         eligible=not reasons,
         reasons=tuple(reasons),
+        evaluated_profile=evaluated_profile,
         applied_override_ids=tuple(applied),
     )

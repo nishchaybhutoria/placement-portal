@@ -412,7 +412,7 @@ def _decide_apply(
                 # to one holds no round position at all.
                 "current_round_id": state.first_round_id,
                 "resume_url": resume_url,
-                "profile_snapshot": snapshot_profile(state.context.profile),
+                "profile_snapshot": snapshot_profile(verdict.evaluated_profile),
                 "applied_at": state.context.now,
             },
         )

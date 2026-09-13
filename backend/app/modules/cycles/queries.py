@@ -27,6 +27,7 @@ from app.domain.rules import RuleContext, evaluate, taxonomy_ids
 from app.domain.shared import (
     CycleKind,
     MembershipStatus,
+    Outcome,
     ProgramStructure,
     RuleDomain,
 )
@@ -35,6 +36,7 @@ from app.modules.applications.verdict import gate_overrides
 from app.modules.cycles.commands import POLICY_COLUMNS
 from app.modules.offers.derivations import placement_placed_global
 from app.modules.overrides.service import applicable_many
+from app.modules.profiles.academics import load_academic_session
 from app.modules.profiles.fields import PROFILE_COLUMNS
 from app.modules.taxonomies.labels import resolve_labels
 
@@ -507,6 +509,7 @@ async def cycles_joinable(
             connection, enrollment_id
         )
         now = cast(datetime, await connection.scalar(sa.select(sa.func.now())))
+        current_session = await load_academic_session(connection)
         overrides_by_cycle = await applicable_many(
             connection,
             CYCLE_JOIN_DOMAINS,
@@ -520,9 +523,8 @@ async def cycles_joinable(
         )
 
     profile = dict(profile_row) if profile_row is not None else {}
-    # The join rule reads the disciplines the student may be matched on, which
-    # no column holds (ELG-2, app.domain.pathways).
-    profile.update(derived_rule_facts(profile))
+    # Context-qualified rule facts are derived per cycle below: a placement
+    # join must not accidentally apply the internship study-year policy.
     structure = program_structure(profile.get("program_structure"))
     second_discipline = (
         structure is not None and structure is not ProgramStructure.SINGLE
@@ -590,10 +592,23 @@ async def cycles_joinable(
             cycle_policy={column: row[column] for column in POLICY_COLUMNS},
         )
         join_rule = policy.join_rule.value
+        rule_profile = dict(profile)
+        cycle_kind = CycleKind(row["kind"])
+        rule_profile.update(
+            derived_rule_facts(
+                rule_profile,
+                outcome=(
+                    Outcome(cycle_kind.value)
+                    if cycle_kind is not CycleKind.OPEN
+                    else None
+                ),
+                current_session=current_session,
+            )
+        )
         outcome = (
             evaluate(
                 cast(dict[str, object], join_rule),
-                profile,
+                rule_profile,
                 RuleContext(not_placement_placed=not_placement_placed),
                 labels=labels,
             )

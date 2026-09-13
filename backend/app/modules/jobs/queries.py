@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from app.core.plan import ScopeIds
 from app.domain.rules import NO_RULE_SUMMARY, profile_taxonomy_ids, taxonomy_ids
-from app.domain.shared import CycleKind, domains_for_scope
+from app.domain.shared import CycleKind, Outcome, domains_for_scope
 from app.modules.applications.verdict import (
     compute_verdict,
     load_cycle_header,
@@ -40,6 +40,7 @@ from app.modules.jobs.eligibility import (
 )
 from app.modules.offers.derivations import placement_placed_enrollments
 from app.modules.overrides.service import ClassifiedOverride, classified_many
+from app.modules.profiles.academics import load_academic_session
 from app.modules.taxonomies.labels import resolve_labels
 
 _JOB_SELECT = ", ".join(f"j.{column.strip()}" for column in JOB_COLUMNS.split(","))
@@ -274,6 +275,7 @@ async def staff_job_builder(
             tuple(cast(UUID, row["enrollment_id"]) for row in members),
         )
         previewed = member_profiles_with_placement(members, placed)
+        current_session = await load_academic_session(connection)
         # The members' own taxonomy ids join the rule's, because a shortfall
         # names the value the student holds as well as the one the rule wants.
         labels = await resolve_labels(
@@ -282,7 +284,13 @@ async def staff_job_builder(
                 *(profile_taxonomy_ids(profile) for profile in previewed)
             ),
         )
-        verdicts = evaluate_members(rule, previewed, labels)
+        verdicts = evaluate_members(
+            rule,
+            previewed,
+            labels,
+            outcome=Outcome(str(job["outcome"])),
+            current_session=current_session,
+        )
         targets, untouched = await cancellation_targets(connection, job_id)
         payload = _job_payload(job) | {
             "rounds": await _job_rounds(connection, job_id),
@@ -338,11 +346,15 @@ async def staff_job_builder(
 _ACTIVE_MEMBERS_FOR_PREVIEW = f"""
     SELECT
         e.id AS enrollment_id, e.roll_number, u.full_name, u.email,
+        prog.structure AS program_structure,
+        prog.primary_degree_id AS program_primary_degree_id,
+        prog.secondary_degree_id AS program_secondary_degree_id,
         {MEMBER_PROFILE_SELECT}
     FROM cycle_memberships m
     JOIN enrollments e ON e.id = m.enrollment_id
     JOIN users u ON u.id = e.user_id
     LEFT JOIN profiles p ON p.enrollment_id = e.id
+    LEFT JOIN programs prog ON prog.id = p.program_id
     WHERE m.cycle_id = :cycle_id AND m.status = 'active'
     ORDER BY u.full_name, e.id
 """

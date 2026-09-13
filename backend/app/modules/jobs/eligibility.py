@@ -34,6 +34,7 @@ from app.domain.rules import (
     summarize,
     taxonomy_ids,
 )
+from app.domain.shared import Outcome
 from app.modules.jobs.commands import (
     JobRow,
     fetch_job,
@@ -42,6 +43,7 @@ from app.modules.jobs.commands import (
     now,
 )
 from app.modules.offers.derivations import placement_placed_enrollments
+from app.modules.profiles.academics import load_academic_session
 from app.modules.profiles.fields import PROFILE_COLUMNS
 from app.modules.taxonomies.labels import resolve_labels
 
@@ -116,6 +118,7 @@ class JobEligibilityState:
     job: JobRow | None
     members: tuple[dict[str, object], ...]
     labels: dict[UUID, str]
+    current_academic_session: int | None
 
 
 def member_profiles_with_placement(
@@ -133,7 +136,6 @@ def member_profiles_with_placement(
         profile["placement_placed_global"] = (
             cast(UUID, row["enrollment_id"]) in placed
         )
-        profile.update(derived_rule_facts(profile))
         profiles.append(profile)
     return tuple(profiles)
 
@@ -165,6 +167,7 @@ async def _load_eligibility(
         job=job,
         members=member_profiles_with_placement(members, placed),
         labels=await resolve_labels(tx, taxonomy_ids(input_value.eligibility_rule)),
+        current_academic_session=await load_academic_session(tx, lock=lock),
     )
 
 
@@ -172,6 +175,9 @@ def evaluate_members(
     rule: dict[str, object] | None,
     members: tuple[dict[str, object], ...],
     labels: dict[UUID, str],
+    *,
+    outcome: Outcome,
+    current_session: int | None,
 ) -> tuple[MemberVerdict, ...]:
     """The rule alone against every active member's live profile (JOB-2.2).
 
@@ -183,6 +189,12 @@ def evaluate_members(
     verdicts: list[MemberVerdict] = []
     for member in members:
         enrollment_id = cast(UUID, member["enrollment_id"])
+        evaluated = dict(member)
+        evaluated.update(
+            derived_rule_facts(
+                evaluated, outcome=outcome, current_session=current_session
+            )
+        )
         if rule is None:
             verdicts.append(
                 MemberVerdict(
@@ -194,9 +206,9 @@ def evaluate_members(
                 )
             )
             continue
-        outcome = evaluate(
+        evaluation = evaluate(
             rule,
-            member,
+            evaluated,
             RuleContext(
                 not_placement_placed=not bool(member["placement_placed_global"])
             ),
@@ -207,8 +219,8 @@ def evaluate_members(
                 enrollment_id=enrollment_id,
                 full_name=str(member["full_name"]),
                 roll_number=cast("str | None", member["roll_number"]),
-                eligible=outcome.verdict,
-                reasons=outcome.failures,
+                eligible=evaluation.verdict,
+                reasons=evaluation.failures,
             )
         )
     return tuple(verdicts)
@@ -237,7 +249,13 @@ def _decide_update_job_eligibility(
 
     rule = input_value.eligibility_rule
     summary_text = summarize(rule, state.labels)
-    verdicts = evaluate_members(rule, state.members, state.labels)
+    verdicts = evaluate_members(
+        rule,
+        state.members,
+        state.labels,
+        outcome=state.job.outcome,
+        current_session=state.current_academic_session,
+    )
     eligible = [verdict for verdict in verdicts if verdict.eligible]
     changed = (
         rule != state.job.eligibility_rule
