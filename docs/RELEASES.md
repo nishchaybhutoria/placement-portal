@@ -45,8 +45,8 @@ containers. Private evidence is stored outside Git under
 
 `make check` passed with 1,991 backend tests and 184 frontend tests after the
 rule-version, exact-programme, component-degree, session-qualified study-year,
-and safe-draft changes. End-to-end evidence must be refreshed on the final
-reviewed commit.
+and safe-draft changes. `make e2e` then passed all suites: 3 critical-flow, 5
+responsive/accessibility, and 25 full-lifecycle tests.
 
 ## Outstanding approval gates
 

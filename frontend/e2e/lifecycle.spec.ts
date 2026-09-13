@@ -290,13 +290,13 @@ async function buildNestedRule(
 ) {
   await openEligibility(page, cycleId, jobId);
 
-  // Top level: the program clause and the backlog clause, which are ordinary
+  // Top level: the component-degree clause and the backlog clause, which are ordinary
   // flat conditions, with the group between them. Each clause and each group
   // is a region named by its own label, so no locator has to walk the DOM.
   const palette = page.getByRole("group", { name: "Add a condition or a group" });
-  await palette.getByRole("button", { name: "Primary programs" }).click();
+  await palette.getByRole("button", { name: "Component degrees" }).click();
   await page
-    .getByRole("region", { name: "Primary programs" })
+    .getByRole("region", { name: "Component degrees" })
     // Exact: "BTech Dual Major" is a programme of its own now, and a substring
     // match would resolve to both.
     .getByRole("checkbox", { name: program, exact: true })
@@ -1048,9 +1048,9 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
     const summerId = await staffCycleId(page, SUMMER_CYCLE);
     const { programs, branches } = await taxonomyIds(page);
 
-    // D.19: job 1 carries Stage 2's nested rule. "Dual Major" is not a program
-    // in this model — it is a flag on the profile (observation O.1) — so the
-    // program clause is BTech, which is what P4 is enrolled in.
+    // D.19: job 1 carries Stage 2's nested rule. Its component-degree clause
+    // deliberately includes both standalone BTech and combined programmes
+    // built on BTech; an exact declared-programme clause would not.
     const jobOneId = await createJob(page, summerId, {
       title: SUMMER_JOB_ONE,
       company: "Solstice Robotics",
@@ -1087,7 +1087,7 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
     await expect(impact.getByText("5", { exact: true })).toBeVisible();
     await expect(
       impact.getByText(
-        "Eligible when program one of BTech and ((primary branch one of CSE and CPI at least 8) or (primary branch one of EE and CPI at least 7.5)) and active backlogs at most 0.",
+        "Eligible when component degree one of BTech and ((primary branch one of CSE and CPI at least 8) or (primary branch one of EE and CPI at least 7.5)) and active backlogs at most 0.",
       ),
     ).toBeVisible();
     for (const key of ["p1", "p2", "p3", "p6", "p8"] as const) {
@@ -1105,7 +1105,7 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
       page
         .getByText("What students will read")
         .locator("..")
-        .getByText(/^Eligible when program one of BTech and \(\(primary branch one of CSE/),
+        .getByText(/^Eligible when component degree one of BTech and \(\(primary branch one of CSE/),
     ).toBeVisible();
     await addRounds(page, summerId, jobOneId, ROUNDS);
     await publishJob(page, summerId, jobOneId);
@@ -1140,7 +1140,7 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
     });
     await writeRule(page, summerId, jobTwoId, {
       all: [
-        { field: "program_id", op: "in", value: [programs.BTech] },
+        { field: "component_program_id", op: "in", value: [programs.BTech] },
         {
           any: [
             { field: "primary_branch_id", op: "in", value: [branches.EE] },
