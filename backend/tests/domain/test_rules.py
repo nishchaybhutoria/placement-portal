@@ -164,6 +164,62 @@ def test_ELG2_a_satisfied_any_branch_is_never_reported_as_a_failure() -> None:
     assert "primary branch Computer Science" not in result.failures[0].human
 
 
+@pytest.mark.parametrize(
+    "rule,profile",
+    [
+        (
+            {"not": {"field": "active_backlogs", "op": "eq", "value": 0}},
+            {"active_backlogs": None},
+        ),
+        (
+            {
+                "not": {
+                    "field": "program_id",
+                    "op": "in",
+                    "value": [str(PROGRAM)],
+                }
+            },
+            {"eligible_program_ids": None},
+        ),
+        (
+            {
+                "not": {
+                    "not": {"field": "active_backlogs", "op": "eq", "value": 0}
+                }
+            },
+            {"active_backlogs": None},
+        ),
+    ],
+)
+def test_ELG2_negation_cannot_turn_an_unknown_fact_into_eligibility(
+    rule: dict[str, object], profile: dict[str, object]
+) -> None:
+    result = evaluate(parse_rule(rule), profile, CONTEXT)
+    assert result.verdict is False
+    assert len(result.failures) == 1
+    assert "profile" in result.failures[0].human
+    assert result.failures[0].path is not None
+    assert result.failures[0].path.endswith(".not")
+
+
+def test_ELG2_an_any_with_unknown_and_false_is_unknown_and_denied() -> None:
+    result = evaluate(
+        parse_rule(
+            {
+                "any": [
+                    {"field": "active_backlogs", "op": "eq", "value": 0},
+                    {"field": "nationality", "op": "eq", "value": "IN"},
+                ]
+            }
+        ),
+        {"active_backlogs": None, "nationality": "US"},
+        CONTEXT,
+    )
+    assert result.verdict is False
+    assert result.failures[0].path == "$"
+    assert "not recorded" in result.failures[0].human
+
+
 def test_ELG2_failing_not_never_returns_an_empty_failure_list() -> None:
     result = evaluate(
         parse_rule({"not": {"field": "cpi", "op": "gte", "value": 8}}),
