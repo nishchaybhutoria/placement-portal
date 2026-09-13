@@ -17,8 +17,10 @@ containers. Private evidence is stored outside Git under
   profile/staging/audit counts remained 348/623/1849 and no 0016/0017 columns
   remained. This is an unresolved production release blocker.
 - The private reconciliation manifest contains three profiles with no
-  programme: the two blockers above and one profile with no dual flags. No
-  production mapping has been selected.
+  programme: the two blockers above and one profile with no dual flags. The
+  owner subsequently confirmed both blockers are BTech–MTech dual degrees, so
+  their approved legacy primary programme is the existing BTech entry; this
+  mapping has not been applied to production.
 - To test migration mechanics only, the two blockers were assigned BTech in the
   disposable database through preview plus the baseline
   `admin_update_profile` executor command. This was an explicit rehearsal
@@ -51,10 +53,11 @@ responsive/accessibility, and 25 full-lifecycle tests.
 
 ## Outstanding approval gates
 
-1. Programme owners must identify and approve the primary programme for each of
-   the two blocking dual-degree profiles. The third blank profile must be
-   reviewed separately; migration does not require or guess it.
-2. Rehearse again from a fresh restore using only the approved command payloads.
+1. Rehearse again from a fresh restore using the now-approved BTech primary
+   programme for both blocking dual-degree profiles. The third blank profile
+   must be reviewed separately; migration does not require or guess it.
+2. Apply those two corrections only through previewed `admin_update_profile`
+   commands during an approved maintenance window, and verify their audits.
 3. Verify zero legacy verdict differences and all hashes/counts again.
 4. Run `make check` and `make e2e` on the final commit.
 5. Review backup, maintenance, smoke-test, rollback, and communication owners.
