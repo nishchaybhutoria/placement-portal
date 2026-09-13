@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 import { payload, type AdminUsersPayload } from "@/api/payloads";
 import { useScreen } from "@/api/useScreen";
@@ -63,7 +64,22 @@ function UserCard({ user }: { user: AdminUsersPayload["users"][number] }) {
     <Card>
       <CardHeader>
         <div>
-          <CardTitle>{user.full_name}</CardTitle>
+          <CardTitle>
+            {/* The record this row is about is a screen away, and the name is
+                where anyone would click for it. A user with no enrollment --
+                staff, or an account created but never enrolled -- has no
+                record to open, so it stays plain text rather than a dead link. */}
+            {user.current_enrollment ? (
+              <Link
+                className="text-accent hover:underline"
+                to={`/staff/student/${user.current_enrollment.id}`}
+              >
+                {user.full_name}
+              </Link>
+            ) : (
+              user.full_name
+            )}
+          </CardTitle>
           <p className="mt-gap-tight text-body-sm text-muted-foreground">{user.email} · {user.is_active ? "Active" : "Inactive"}</p>
         </div>
         <span className="text-body-sm text-muted-foreground">{humanise(user.role)}</span>

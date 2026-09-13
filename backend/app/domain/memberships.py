@@ -187,8 +187,8 @@ JOIN_FIELD_LABELS: Mapping[str, str] = {
     "nationality": "Nationality",
     "tenth_percent": "10th percentage",
     "tenth_year": "10th year",
-    "twelfth_percent": "12th percentage",
-    "twelfth_year": "12th year",
+    "twelfth_percent": "12th/Diploma percentage",
+    "twelfth_year": "12th/Diploma year",
     "secondary_branch_id": "Secondary branch",
 }
 

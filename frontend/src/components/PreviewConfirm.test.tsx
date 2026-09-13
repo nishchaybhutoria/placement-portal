@@ -76,6 +76,49 @@ describe("PreviewConfirm", () => {
     expect(signals[1]!.aborted).toBe(false);
   });
 
+  it("waits for a select whose seeded value is not one it offers", async () => {
+    // The join dialog's shape: the command carries `consent: false`, and the
+    // consent select offers only "true". "false" is a non-empty string, so the
+    // dialog used to read the question as answered, fire the dry run, and open
+    // onto the server refusing the join for want of the consent nobody had
+    // been given the chance to give.
+    const signals = mockPendingPreviews();
+    renderScreen(
+      <PreviewConfirm
+        command="join_cycle"
+        input={{
+          cycle_id: "2a0d1c9e-8b7f-4a62-9c3d-5e6f70a1b2c3",
+          enrollment_id: "7d5e4c3b-2a19-4f8e-b6d5-4c3b2a190f8e",
+          default_resume_id: "9f8e7d6c-5b4a-4392-8170-6f5e4d3c2b1a",
+          consent: false,
+        }}
+        title="Join this cycle?"
+        confirmLabel="Join"
+        choices={[
+          {
+            name: "consent",
+            label: "Consent",
+            kind: "select",
+            required: true,
+            coerce: "boolean",
+            options: [{ value: "true", label: "I consent to sharing my application data" }],
+          },
+        ]}
+        trigger={<button type="button">Join</button>}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Join" }));
+    const consent = await screen.findByRole("combobox", { name: /^Consent/ });
+
+    // Long enough that the debounce is not what is holding the dry run back.
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(signals).toHaveLength(0);
+    expect(screen.queryByText(/was rejected/i)).toBeNull();
+
+    fireEvent.change(consent, { target: { value: "true" } });
+    await waitFor(() => expect(signals).toHaveLength(1));
+  });
+
   it("carries a signal on every dry run it fires", async () => {
     const signals = open();
 

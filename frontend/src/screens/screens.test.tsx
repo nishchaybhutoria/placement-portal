@@ -974,6 +974,44 @@ describe("job builder", () => {
     expect(await screen.findByText(/Per-program compensation/)).toBeInTheDocument();
   });
 
+  it("offers a placement job a CTC and no stipend", async () => {
+    // A full-time role pays a CTC and an internship pays a stipend. Offering
+    // both asked the coordinator which one this job meant, and the command
+    // refuses a job that answers with the other.
+    mockScreens({
+      "builder": builder,
+      "screens/staff/taxonomies": adminTaxonomies,
+      "screens/staff/companies": staffCompanies,
+    });
+    renderScreen(<JobBuilder />, {
+      path: "/staff/jobs/:id",
+      route: `/staff/jobs/${ids.job_id}?cycle_id=${ids.cycle_id}`,
+    });
+
+    expect(await screen.findByLabelText("CTC (₹ per year)")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Stipend (₹ per month)")).toBeNull();
+  });
+
+  it("offers an internship a stipend, and neither CTC field", async () => {
+    const internship = structuredClone(builder) as typeof builder;
+    internship.cycle.kind = "internship";
+    internship.job.outcome = "internship";
+    mockScreens({
+      "builder": internship,
+      "screens/staff/taxonomies": adminTaxonomies,
+      "screens/staff/companies": staffCompanies,
+    });
+    renderScreen(<JobBuilder />, {
+      path: "/staff/jobs/:id",
+      route: `/staff/jobs/${ids.job_id}?cycle_id=${ids.cycle_id}`,
+    });
+
+    expect(await screen.findByLabelText("Stipend (₹ per month)")).toBeInTheDocument();
+    expect(screen.queryByLabelText("CTC (₹ per year)")).toBeNull();
+    // The breakdown and the per-program rows describe a CTC, so they go too.
+    expect(screen.queryByText(/Per-program compensation/)).toBeNull();
+  });
+
   it("posts only the fields update_job_basics names", async () => {
     // `UpdateJobBasicsInput` is `extra="forbid"`, and the form is an untyped
     // bag a spread hides from TypeScript. Two things used to travel in it that
@@ -1039,6 +1077,39 @@ describe("job builder", () => {
     // repeatable clauses needed by more complex rules.
     expect(screen.getByRole("button", { name: "Minimum CPI" })).toBeInTheDocument();
     expect(container.querySelector("textarea")).toBeNull();
+  });
+
+  it("says which of the rule's matches an accepted offer already excludes", async () => {
+    // ELG-3 closes a placement role to a student who has accepted one, and the
+    // rule knows nothing about it. Subtracting them would hide a wrong rule
+    // behind who happens to be placed, so the panel says both.
+    const placed = structuredClone(builder) as typeof builder;
+    const impact = placed.eligibility.impact;
+    impact.placed_count = 1;
+    impact.members[0]!.placed = true;
+    mockScreens({
+      "builder": placed,
+      "screens/staff/taxonomies": adminTaxonomies,
+      "screens/staff/companies": staffCompanies,
+    });
+    renderScreen(<JobBuilder />, {
+      path: "/staff/jobs/:id",
+      route: `/staff/jobs/${ids.job_id}?cycle_id=${ids.cycle_id}`,
+    });
+
+    fireEvent.click(await screen.findByRole("tab", { name: /Eligibility/ }));
+    await waitFor(() => expect(screen.getByText("Who qualifies")).toBeInTheDocument());
+
+    // The count still answers "who does my rule describe".
+    expect(
+      await screen.findByText(new RegExp(`of ${impact.member_count} active member`)),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText(/1 of them already hold an accepted offer of this kind/),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByText(/Matches the rule; has already accepted an offer/),
+    ).toBeInTheDocument();
   });
 
   it("takes the job override domain list from the server", async () => {

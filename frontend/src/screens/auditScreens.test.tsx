@@ -122,5 +122,11 @@ describe("F2/F4 gap screens", () => {
     expect(await screen.findByRole("button", { name: "Start new enrollment" })).toBeEnabled();
     expect(await screen.findByRole("button", { name: "Deactivate" })).toBeEnabled();
     expect(await screen.findByRole("button", { name: "Change role" })).toBeDisabled();
+    // The row is about a person with a record; reaching it should not mean
+    // copying an id out of the payload.
+    expect(await screen.findByRole("link", { name: "Asha Mehta" })).toHaveAttribute(
+      "href",
+      `/staff/student/${enrollmentId}`,
+    );
   });
 });

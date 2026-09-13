@@ -208,6 +208,101 @@ async def test_JOB2_the_offer_acceptance_deadline_must_follow_the_application_on
 
 
 @pytest.mark.asyncio
+async def test_JOB2_a_role_records_only_the_compensation_its_outcome_has() -> None:
+    """A placement pays a CTC and an internship a stipend, never both."""
+    admin, placement_cycle, company_id = await _fixture("placement")
+    executor, engine = build_test_executor()
+    try:
+        stipend_on_placement = await _reject(
+            executor,
+            "create_job",
+            {
+                "cycle_id": str(placement_cycle),
+                "company_id": str(company_id),
+                "title": "Backend Engineer",
+                "description": "Build things",
+                "application_deadline": DEADLINE.isoformat(),
+                "stipend_month": "50000",
+            },
+            admin,
+        )
+        created = await _run(
+            executor,
+            "create_job",
+            {
+                "cycle_id": str(placement_cycle),
+                "company_id": str(company_id),
+                "title": "Backend Engineer",
+                "description": "Build things",
+                "application_deadline": DEADLINE.isoformat(),
+                "ctc_annual": "2400000",
+            },
+            admin,
+        )
+        job_id = UUID(str(created.summary["job_id"]))
+        # The outcome cannot change after creation, so the edit is judged
+        # against the job's own outcome rather than anything the caller sends.
+        stipend_on_update = await _reject(
+            executor,
+            "update_job_basics",
+            {
+                "cycle_id": str(placement_cycle),
+                "job_id": str(job_id),
+                "stipend_month": "50000",
+            },
+            admin,
+        )
+    finally:
+        await engine.dispose()
+
+    # One world: a second `_fixture` would seed the same administrator twice.
+    engine = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
+    try:
+        async with engine.begin() as connection:
+            internship_cycle = await seed_cycle(
+                connection, kind="internship", name="Cycle internship"
+            )
+    finally:
+        await engine.dispose()
+
+    executor, engine = build_test_executor()
+    try:
+        ctc_on_internship = await _reject(
+            executor,
+            "create_job",
+            {
+                "cycle_id": str(internship_cycle),
+                "company_id": str(company_id),
+                "title": "Summer Intern",
+                "description": "Build things for a summer",
+                "application_deadline": DEADLINE.isoformat(),
+                "ctc_annual": "2400000",
+            },
+            admin,
+        )
+        stipend_on_internship = await _run(
+            executor,
+            "create_job",
+            {
+                "cycle_id": str(internship_cycle),
+                "company_id": str(company_id),
+                "title": "Summer Intern",
+                "description": "Build things for a summer",
+                "application_deadline": DEADLINE.isoformat(),
+                "stipend_month": "50000",
+            },
+            admin,
+        )
+    finally:
+        await engine.dispose()
+
+    assert stipend_on_placement == ["invalid_field_value"]
+    assert stipend_on_update == ["invalid_field_value"]
+    assert ctc_on_internship == ["invalid_field_value"]
+    assert stipend_on_internship.summary["job_id"]
+
+
+@pytest.mark.asyncio
 async def test_JOB2_per_program_ctc_rows_are_replaced_wholesale() -> None:
     admin, cycle_id, company_id = await _fixture("placement")
     engine = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])

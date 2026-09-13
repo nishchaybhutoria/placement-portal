@@ -206,6 +206,21 @@ _PLACEMENT_ENROLLMENTS_SQL = f"""
 """
 
 
+_INTERNSHIP_ENROLLMENTS_SQL = f"""
+    {_ACCEPTED_CTES}
+    SELECT DISTINCT accepted.enrollment_id
+    FROM (
+        SELECT enrollment_id FROM accepted_portal
+        WHERE outcome = 'internship' AND cycle_id = :cycle_id
+        UNION ALL
+        SELECT enrollment_id FROM accepted_external
+        WHERE outcome = 'internship' AND cycle_id = :cycle_id
+    ) accepted
+    WHERE accepted.enrollment_id = ANY(:enrollment_ids)
+    ORDER BY accepted.enrollment_id
+"""
+
+
 @dataclass(frozen=True, slots=True)
 class OfferFacts:
     """The three M12a derivations one student/cycle verdict consumes."""
@@ -263,6 +278,23 @@ async def placement_placed_enrollments(
         await executor.execute(
             sa.text(_PLACEMENT_ENROLLMENTS_SQL),
             {"enrollment_ids": list(enrollment_ids)},
+        )
+    ).scalars().all()
+    return frozenset(cast(UUID, row) for row in rows)
+
+
+async def internship_placed_enrollments(
+    executor: Executor,
+    enrollment_ids: tuple[UUID, ...] | list[UUID],
+    cycle_id: UUID,
+) -> frozenset[UUID]:
+    """Batch ELG-3.6 for a roster preview, within one dedicated cycle."""
+    if not enrollment_ids:
+        return frozenset()
+    rows = (
+        await executor.execute(
+            sa.text(_INTERNSHIP_ENROLLMENTS_SQL),
+            {"enrollment_ids": list(enrollment_ids), "cycle_id": cycle_id},
         )
     ).scalars().all()
     return frozenset(cast(UUID, row) for row in rows)

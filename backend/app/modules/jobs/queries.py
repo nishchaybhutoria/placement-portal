@@ -43,7 +43,10 @@ from app.modules.jobs.eligibility import (
     evaluate_members,
     member_profiles_with_placement,
 )
-from app.modules.offers.derivations import placement_placed_enrollments
+from app.modules.offers.derivations import (
+    internship_placed_enrollments,
+    placement_placed_enrollments,
+)
 from app.modules.overrides.service import ClassifiedOverride, classified_many
 from app.modules.profiles.academics import load_academic_session
 from app.modules.taxonomies.labels import resolve_labels
@@ -275,11 +278,15 @@ async def staff_job_builder(
                 sa.text(_ACTIVE_MEMBERS_FOR_PREVIEW), {"cycle_id": cycle_id}
             )
         ).mappings().all()
-        placed = await placement_placed_enrollments(
-            connection,
-            tuple(cast(UUID, row["enrollment_id"]) for row in members),
+        enrollment_ids = tuple(cast(UUID, row["enrollment_id"]) for row in members)
+        placed = await placement_placed_enrollments(connection, enrollment_ids)
+        cycle_kind = CycleKind(str(cycle["kind"]))
+        internship_placed = (
+            await internship_placed_enrollments(connection, enrollment_ids, cycle_id)
+            if cycle_kind is CycleKind.INTERNSHIP
+            else frozenset()
         )
-        previewed = member_profiles_with_placement(members, placed)
+        previewed = member_profiles_with_placement(members, placed, internship_placed)
         current_session = await load_academic_session(connection)
         # The members' own taxonomy ids join the rule's, because a shortfall
         # names the value the student holds as well as the one the rule wants.
@@ -294,6 +301,7 @@ async def staff_job_builder(
             previewed,
             labels,
             outcome=Outcome(str(job["outcome"])),
+            cycle_kind=cycle_kind,
             current_session=current_session,
             semantics=RuleSemantics(int(job["eligibility_rule_version"])),
         )
@@ -312,6 +320,7 @@ async def staff_job_builder(
         )
 
     eligible = [verdict for verdict in verdicts if verdict.eligible]
+    placed_and_eligible = [verdict for verdict in eligible if verdict.placed]
     return {
         "cycle": {
             "id": str(cast(UUID, cycle["id"])),
@@ -333,6 +342,7 @@ async def staff_job_builder(
             "summary": job["eligibility_summary"] or NO_RULE_SUMMARY,
             "impact": {
                 "eligible_count": len(eligible),
+                "placed_count": len(placed_and_eligible),
                 "member_count": len(verdicts),
                 "members": [
                     {
@@ -340,6 +350,7 @@ async def staff_job_builder(
                         "full_name": verdict.full_name,
                         "roll_number": verdict.roll_number,
                         "eligible": verdict.eligible,
+                        "placed": verdict.placed,
                         "reasons": [asdict(reason) for reason in verdict.reasons],
                     }
                     for verdict in verdicts

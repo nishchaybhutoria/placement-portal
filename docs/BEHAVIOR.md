@@ -156,7 +156,7 @@ Every job carries **`outcome ∈ {internship, placement}`, fixed at creation, im
 
 ### JOB-2 — Builder (full-pipeline jobs, i.e. in placement/internship cycles)
 1. Basics/compensation: company, title, description, location, sector, CTC (annual, in rupees, plus breakdown text) and/or monthly stipend, per-program CTC rows, application deadline, optional offer-acceptance deadline (> application deadline).
-2. Eligibility rule (ELG-2) with live impact preview ("N of M active members currently eligible", listable).
+2. Eligibility rule (ELG-2) with live impact preview ("N of M active members currently eligible", listable). The preview is the rule alone: a member the rule admits who already holds an accepted offer of this outcome stays in the count and is named as such beside it, never subtracted from it. Whether they may apply stays ELG-3's question, answered per student where their overrides are known.
 3. Rounds: ordered, typed from the round-type taxonomy, each with name, description, default venue/schedule/duration, instructions.
 4. Questions: ordered; types = text, long text, single-select(+options), multi-select(+options), boolean, number, date, email, URL. **No file type.** Required flags.
 5. Publish toggle (timestamped). Only published jobs are student-visible.

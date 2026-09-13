@@ -62,6 +62,7 @@ export function ImpactPanel({
   const dry = preview.data?.summary as
     | {
         eligible_count: number;
+        placed_count: number;
         member_count: number;
         members: Impact["members"];
         eligibility_summary: string;
@@ -70,6 +71,7 @@ export function ImpactPanel({
   const live: Impact | undefined = edited
     ? dry && {
         eligible_count: dry.eligible_count,
+        placed_count: dry.placed_count,
         member_count: dry.member_count,
         members: dry.members,
       }
@@ -115,6 +117,19 @@ export function ImpactPanel({
               </span>
             </p>
 
+            {/* The rule describes them; ELG-3 decides separately whether they
+                may apply, and an accepted offer of this kind is what usually
+                closes it. Said beside the count rather than subtracted from
+                it, so the number still answers "who does my rule describe"
+                and the author is not left wondering why a placed student is
+                on the list. */}
+            {live.placed_count > 0 ? (
+              <p className="text-body-sm text-muted-foreground">
+                {live.placed_count} of them already hold an accepted offer of this kind,
+                which normally closes this role to them.
+              </p>
+            ) : null}
+
             {live.member_count === 0 ? (
               <p className="text-body-sm text-muted-foreground">
                 Nobody has joined this cycle yet, so there is nothing to evaluate the rule
@@ -131,7 +146,7 @@ export function ImpactPanel({
                     key={member.enrollment_id}
                     className={cn(
                       "rounded border p-gap-lg",
-                      member.eligible
+                      member.eligible && !member.placed
                         ? "border-success-border bg-success-subtle"
                         : "border-border bg-card",
                     )}
@@ -147,7 +162,11 @@ export function ImpactPanel({
                       ) : null}
                     </div>
                     {member.eligible ? (
-                      <p className="mt-gap-tight text-body-sm text-success">Qualifies</p>
+                      <p className="mt-gap-tight text-body-sm text-success">
+                        {member.placed
+                          ? "Matches the rule; has already accepted an offer"
+                          : "Qualifies"}
+                      </p>
                     ) : member.reasons.length === 0 ? (
                       <p className="mt-gap-tight text-body-sm text-muted-foreground">
                         Does not qualify; no additional reason was supplied.

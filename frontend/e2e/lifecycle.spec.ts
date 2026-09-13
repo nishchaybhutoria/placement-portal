@@ -111,8 +111,8 @@ async function declareProfile(page: Page, profile: Profile) {
   await page.getByRole("textbox", { name: "Nationality" }).fill("IN");
   await page.getByRole("spinbutton", { name: "10th percentage" }).fill("90");
   await page.getByRole("spinbutton", { name: "10th year" }).fill("2019");
-  await page.getByRole("spinbutton", { name: "12th percentage" }).fill("92");
-  await page.getByRole("spinbutton", { name: "12th year" }).fill("2021");
+  await page.getByRole("spinbutton", { name: "12th/Diploma percentage" }).fill("92");
+  await page.getByRole("spinbutton", { name: "12th/Diploma year" }).fill("2021");
   await page.getByRole("button", { name: "Declare profile" }).click();
   await expect(page.getByText(/Declared .* Locked fields now belong to the administration/)).toBeVisible();
 

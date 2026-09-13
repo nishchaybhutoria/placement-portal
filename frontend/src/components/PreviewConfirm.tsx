@@ -67,6 +67,25 @@ function instant(value: string): string | null {
   return value ? new Date(value).toISOString() : null;
 }
 
+/**
+ * Whether a required choice has actually been answered.
+ *
+ * A non-empty value is not the same as an answer. `join_cycle` carries
+ * `consent: false` in its input, which stringifies to "false" -- a value the
+ * consent select does not offer, so the browser renders the placeholder while
+ * the dialog believed the question was answered. It fired the dry run on the
+ * spot, and the student opened the dialog onto the server's refusal to join
+ * them: "You must acknowledge the cycle's participation terms." A select is
+ * answered only with one of the values it actually offers.
+ */
+function answered(choice: Choice, value: string): boolean {
+  if (!value) return false;
+  if (choice.kind === "select" && choice.options) {
+    return choice.options.some((option) => option.value === value);
+  }
+  return true;
+}
+
 export interface PreviewConfirmProps<N extends CommandName> {
   command: N;
   input: CommandInput<N>;
@@ -122,7 +141,9 @@ export function PreviewConfirm<N extends CommandName>({
       : String((input as Record<string, unknown>)[choice.visibleWhen.name] ?? "");
     return value === choice.visibleWhen.value;
   });
-  const missing = visibleChoices.filter((choice) => choice.required && !choiceValue(choice));
+  const missing = visibleChoices.filter(
+    (choice) => choice.required && !answered(choice, choiceValue(choice)),
+  );
   const effectiveValues = Object.fromEntries(
     visibleChoices
       .filter((choice) => values[choice.name] !== undefined || choice.initialValue !== undefined)

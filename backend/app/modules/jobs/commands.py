@@ -9,6 +9,7 @@ applications are never affected, not that the job is frozen.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -80,6 +81,53 @@ def _validated_money(value: Decimal | None) -> Decimal | None:
     if value is not None and value < 0:
         raise ValueError("compensation must not be negative")
     return value
+
+
+def _compensation_reasons(
+    outcome: Outcome,
+    *,
+    ctc_annual: Decimal | None,
+    stipend_month: Decimal | None,
+    program_ctc: Sequence[ProgramCtcRow] | None,
+) -> list[Reason]:
+    """A role records the compensation it pays, and not the other kind.
+
+    A full-time placement has an annual CTC; an internship has a monthly
+    stipend. Offering both on every job asked the coordinator to decide which
+    one the role meant, and a job carrying both says two different things to
+    the student reading it. ``external_offers`` has refused this pairing since
+    EXT-1; jobs now refuse it too.
+
+    Only what this command supplies is judged. A job written before the rule
+    may hold the other figure, and that is not a reason to refuse an edit to
+    its title.
+    """
+    reasons: list[Reason] = []
+    if outcome is Outcome.PLACEMENT and stipend_month is not None:
+        reasons.append(
+            Reason(
+                code=INVALID_FIELD_VALUE,
+                human="A placement role records an annual CTC, not a monthly stipend",
+                path="stipend_month",
+            )
+        )
+    if outcome is Outcome.INTERNSHIP and ctc_annual is not None:
+        reasons.append(
+            Reason(
+                code=INVALID_FIELD_VALUE,
+                human="An internship records a monthly stipend, not an annual CTC",
+                path="ctc_annual",
+            )
+        )
+    if outcome is Outcome.INTERNSHIP and program_ctc:
+        reasons.append(
+            Reason(
+                code=INVALID_FIELD_VALUE,
+                human="Per-program CTC belongs to a placement role, not an internship",
+                path="program_ctc",
+            )
+        )
+    return reasons
 
 
 class ProgramCtcRow(BaseModel):
@@ -727,6 +775,16 @@ def _decide_create_job(
     if reasons:
         return Rejection(reasons=reasons)
     assert isinstance(outcome, Outcome)
+    reasons.extend(
+        _compensation_reasons(
+            outcome,
+            ctc_annual=input_value.ctc_annual,
+            stipend_month=input_value.stipend_month,
+            program_ctc=input_value.program_ctc,
+        )
+    )
+    if reasons:
+        return Rejection(reasons=reasons)
 
     job = JobRow(
         id=state.job_id,
@@ -881,6 +939,16 @@ def _decide_update_job_basics(
             state.cycle,
             application_deadline=after.application_deadline,
             offer_acceptance_deadline=after.offer_acceptance_deadline,
+        )
+    )
+    reasons.extend(
+        _compensation_reasons(
+            before.outcome,
+            ctc_annual=input_value.ctc_annual if "ctc_annual" in provided else None,
+            stipend_month=(
+                input_value.stipend_month if "stipend_month" in provided else None
+            ),
+            program_ctc=input_value.program_ctc,
         )
     )
     if reasons:

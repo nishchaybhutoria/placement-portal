@@ -295,12 +295,15 @@ export interface BuilderPayload {
     summary: string;
     impact: {
       eligible_count: number;
+      /** Of those the rule admits, how many already hold the offer ELG-3 gates on. */
+      placed_count: number;
       member_count: number;
       members: {
         enrollment_id: string;
         full_name: string;
         roll_number: string | null;
         eligible: boolean;
+        placed: boolean;
         reasons: EligibilityReason[];
       }[];
     };

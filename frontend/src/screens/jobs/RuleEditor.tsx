@@ -72,8 +72,8 @@ const CLAUSES: ClauseDefinition[] = [
   },
   {
     kind: "twelfth_percent",
-    label: "Minimum 12th percentage",
-    hint: "Class XII marks out of 100. A school CGPA is not converted for you.",
+    label: "Minimum 12th/Diploma percentage",
+    hint: "Class XII or diploma marks out of 100. A CGPA is not converted for you.",
   },
   {
     kind: "tenth_year",
@@ -82,7 +82,7 @@ const CLAUSES: ClauseDefinition[] = [
   },
   {
     kind: "twelfth_year",
-    label: "12th passing years",
+    label: "12th/Diploma passing years",
     hint: "One or more years, comma separated.",
   },
   {

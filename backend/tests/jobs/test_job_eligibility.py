@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from typing import cast
 from uuid import UUID
 
 import pytest
@@ -17,6 +18,7 @@ from tests.jobs.conftest import (
     build_test_executor,
     seed_admin,
     seed_application,
+    seed_company,
     seed_complete_profile,
     seed_cycle,
     seed_job,
@@ -148,6 +150,64 @@ async def test_JOB2_the_impact_preview_counts_the_members_the_rule_admits() -> N
     # 7.95 passes and 7.94 does not.
     assert result.summary["member_count"] == 4
     assert result.summary["eligible_count"] == 3
+
+
+@pytest.mark.asyncio
+async def test_JOB2_the_preview_says_which_matches_are_already_placed() -> None:
+    """ELG-3 closes a placement role to a placed student; the rule does not.
+
+    The count answers "who does my rule describe", so a placed student stays
+    in it. Saying so beside the count is what stops the author reading their
+    own rule as broken.
+    """
+    admin, cycle_id, job_id, members, _program, _branch = await _cycle_with_members(
+        ("9.10", "8.50")
+    )
+    engine = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
+    try:
+        async with engine.begin() as connection:
+            company_id = await seed_company(connection)
+            await connection.execute(
+                sa.text(
+                    "INSERT INTO external_offers (id, enrollment_id, company_id, "
+                    "outcome, source, status, offered_on, responded_on, created_by) "
+                    "VALUES (gen_random_uuid(), :enrollment, :company, 'placement', "
+                    "'off_campus', 'accepted', CURRENT_DATE, CURRENT_DATE, :admin)"
+                ),
+                {
+                    "enrollment": members[0],
+                    "company": company_id,
+                    "admin": admin.user_id,
+                },
+            )
+    finally:
+        await engine.dispose()
+
+    executor, engine = build_test_executor()
+    try:
+        result = await executor.run(
+            "update_job_eligibility",
+            executor.registry.commands["update_job_eligibility"].input_model.model_validate(
+                {
+                    "cycle_id": str(cycle_id),
+                    "job_id": str(job_id),
+                    "eligibility_rule": {"field": "cpi", "op": "gte", "value": 8.0},
+                }
+            ),
+            admin.actor,
+        )
+    finally:
+        await engine.dispose()
+
+    assert result.summary["eligible_count"] == 2
+    assert result.summary["placed_count"] == 1
+    rows = {
+        str(member["enrollment_id"]): member
+        for member in cast("list[dict[str, object]]", result.summary["members"])
+    }
+    assert rows[str(members[0])]["eligible"] is True
+    assert rows[str(members[0])]["placed"] is True
+    assert rows[str(members[1])]["placed"] is False
 
 
 @pytest.mark.asyncio

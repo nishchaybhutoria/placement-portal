@@ -293,6 +293,10 @@ function BasicsTab({
   const set = (key: string, value: unknown) =>
     setDraft((prev) => ({ ...prev, [key]: value }));
 
+  // The outcome decides which compensation this job has, and an open cycle
+  // lets the draft change it, so the form follows the draft rather than the
+  // saved row.
+  const outcome = String(read("outcome", job.outcome) ?? "");
   const local = (value: string | null) => (value ? value.slice(0, 16) : "");
   const instant = (value: string) => (value ? new Date(value).toISOString() : null);
   const programs = taxonomies.data
@@ -423,6 +427,11 @@ function BasicsTab({
               </Select>
             )}
           </Field>
+          {/* A full-time role pays a CTC and an internship pays a stipend, so
+              the form offers the one this job has. Offering both asked the
+              coordinator to decide which the role meant, and the command
+              refuses a job that answers with the other one. */}
+          {outcome === "placement" ? (
           <Field
             label="CTC (₹ per year)"
             hint={
@@ -445,7 +454,8 @@ function BasicsTab({
               />
             )}
           </Field>
-          <Field label="Stipend (per month)">
+          ) : (
+          <Field label="Stipend (₹ per month)">
             {(field) => (
               <Input
                 {...field}
@@ -458,6 +468,7 @@ function BasicsTab({
               />
             )}
           </Field>
+          )}
           <Field label="Application deadline">
             {(field) => (
               <Input
@@ -504,28 +515,36 @@ function BasicsTab({
           )}
         </Field>
 
-        <Field label="CTC breakdown" hint="Optional fixed, variable, bonus, and benefit details.">
-          {(field) => (
-            <Textarea
-              {...field}
-              disabled={disabled}
-              value={String(read("ctc_breakdown", job.ctc_breakdown ?? "") ?? "")}
-              onChange={(event) => set("ctc_breakdown", event.target.value || null)}
-            />
-          )}
-        </Field>
+        {/* Both describe a CTC, so both belong to the outcome that has one. */}
+        {outcome === "placement" ? (
+          <>
+            <Field
+              label="CTC breakdown"
+              hint="Optional fixed, variable, bonus, and benefit details."
+            >
+              {(field) => (
+                <Textarea
+                  {...field}
+                  disabled={disabled}
+                  value={String(read("ctc_breakdown", job.ctc_breakdown ?? "") ?? "")}
+                  onChange={(event) => set("ctc_breakdown", event.target.value || null)}
+                />
+              )}
+            </Field>
 
-        <ProgramCtc
-          programs={programs}
-          rows={
-            (read("program_ctc", job.program_ctc) as {
-              program_id: string;
-              ctc_annual: string;
-            }[]) ?? []
-          }
-          disabled={disabled}
-          onChange={(rows) => set("program_ctc", rows)}
-        />
+            <ProgramCtc
+              programs={programs}
+              rows={
+                (read("program_ctc", job.program_ctc) as {
+                  program_id: string;
+                  ctc_annual: string;
+                }[]) ?? []
+              }
+              disabled={disabled}
+              onChange={(rows) => set("program_ctc", rows)}
+            />
+          </>
+        ) : null}
       </CardBody>
     </Card>
   );

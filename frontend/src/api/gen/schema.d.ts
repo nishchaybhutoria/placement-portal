@@ -4214,6 +4214,8 @@ export interface components {
             members: {
                 [key: string]: unknown;
             }[];
+            /** Placed Count */
+            placed_count: number;
         };
         /** JobQuestionRow */
         JobQuestionRow: {
