@@ -22,6 +22,7 @@ import { cn } from "@/lib/cn";
 import { formatDateTime } from "@/lib/date";
 import { humanise } from "@/lib/text";
 import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "@/lib/useDebouncedValue";
+import { parseRuleJson } from "@/screens/jobs/RuleEditor";
 
 /** One cycle: its policy, its coordinators, and its membership (LLD §11.3). */
 export function StaffCycle() {
@@ -167,10 +168,8 @@ function PolicyEditor({
   function changeJoinRule(value: string) {
     setJoinRuleText(value);
     try {
-      setDraft((current) => ({
-        ...current,
-        join_rule: value.trim() ? JSON.parse(value) as Record<string, unknown> : null,
-      }));
+      const parsed = value.trim() ? parseRuleJson(value) : null;
+      setDraft((current) => ({ ...current, join_rule: parsed }));
       setJoinRuleError(null);
     } catch {
       setJoinRuleError("The join rule must be valid JSON before it can be saved.");
@@ -195,20 +194,39 @@ function PolicyEditor({
             <Button variant="ghost" size="sm" onClick={discard}>
               Discard
             </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              loading={save.isPending}
-              disabled={joinRuleError !== null}
-              onClick={() =>
-                save.mutate(
-                  { input: { cycle_id: cycleId, ...draft } },
-                  { onSuccess: () => setDraft({}) },
-                )
-              }
-            >
-              Save changes
-            </Button>
+            {"join_rule" in draft ? (
+              <PreviewConfirm
+                command="update_cycle_policy"
+                input={{ cycle_id: cycleId, ...draft }}
+                title="Save this cycle policy and join rule?"
+                description="The server preview is the exact policy that will be stored. Re-saving a legacy join rule records its conversion to current fail-closed semantics."
+                confirmLabel="Save changes"
+                onDone={() => setDraft({})}
+                trigger={
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={joinRuleError !== null}
+                  >
+                    Preview changes
+                  </Button>
+                }
+              />
+            ) : (
+              <Button
+                variant="primary"
+                size="sm"
+                loading={save.isPending}
+                onClick={() =>
+                  save.mutate(
+                    { input: { cycle_id: cycleId, ...draft } },
+                    { onSuccess: () => setDraft({}) },
+                  )
+                }
+              >
+                Save changes
+              </Button>
+            )}
           </div>
         ) : null}
       </CardHeader>

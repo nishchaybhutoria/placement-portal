@@ -667,6 +667,24 @@ describe("cycle screens", () => {
     );
   });
 
+  it("rejects duplicate join-rule keys before offering a save", async () => {
+    mockScreens({ [`screens/staff/cycle/${ids.cycle_id}`]: staffCycle });
+    renderScreen(<StaffCycle />, {
+      path: "/staff/cycles/:id",
+      route: `/staff/cycles/${ids.cycle_id}`,
+    });
+
+    fireEvent.change(await screen.findByLabelText("Join rule (JSON)"), {
+      target: {
+        value: '{"field":"cpi","op":"gte","value":8,"value":9}',
+      },
+    });
+    expect(
+      await screen.findByText(/must be valid JSON before it can be saved/),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Preview changes" })).toBeNull();
+  });
+
   it("names every application affected or bypassed by cycle archival", async () => {
     mockScreens({
       [`screens/staff/cycle/${ids.cycle_id}`]: staffCycle,

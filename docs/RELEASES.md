@@ -43,9 +43,10 @@ containers. Private evidence is stored outside Git under
 
 ### Automated evidence
 
-`make check` passed with 1,991 backend tests and 184 frontend tests after the
-rule-version, exact-programme, component-degree, session-qualified study-year,
-and safe-draft changes. `make e2e` then passed all suites: 3 critical-flow, 5
+The backend suite passed 1,991 tests and the refreshed frontend suite passed
+185 tests after the rule-version, exact-programme, component-degree,
+session-qualified study-year, and safe-draft changes. `make e2e` then passed
+all suites: 3 critical-flow, 5
 responsive/accessibility, and 25 full-lifecycle tests.
 
 ## Outstanding approval gates
