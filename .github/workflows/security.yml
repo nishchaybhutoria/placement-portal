@@ -51,6 +51,9 @@ jobs:
           severity: CRITICAL,HIGH
 
   codeql:
+    # CodeQL is free for the public production repository, but requires GitHub
+    # Advanced Security for private organization-owned repositories.
+    if: github.event.repository.visibility == 'public'
     name: CodeQL (${{ matrix.language }})
     runs-on: ubuntu-latest
     timeout-minutes: 20

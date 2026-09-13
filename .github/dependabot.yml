@@ -56,4 +56,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      # CodeQL requires init and analyze to use exactly the same version.
+      codeql:
+        patterns: ["github/codeql-action/*"]
     open-pull-requests-limit: 5
