@@ -51,6 +51,10 @@ clause/group, invalid JSON, or duplicate JSON key disables save and live impact
 preview. A tree that cannot round-trip through visual controls stays in JSON
 mode rather than being flattened. Predicates may repeat.
 
+Every predicate in the schema has a control: the academic ones, and gender,
+nationality, 10th/12th percentage and 10th/12th year. JSON remains the door to
+operators the controls do not offer and to a group nested inside a group.
+
 ## Acceptance matrix
 
 | Case | Expected |

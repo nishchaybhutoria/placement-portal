@@ -28,6 +28,8 @@ const BTECH = "11111111-1111-4111-8111-111111111111";
 const DUAL = "22222222-2222-4222-8222-222222222222";
 const CSE = "33333333-3333-4333-8333-333333333333";
 const EE = "44444444-4444-4444-8444-444444444444";
+const ME = "55555555-5555-4555-8555-555555555555";
+const MINOR_CSE = "66666666-6666-4666-8666-666666666666";
 
 function roundTrip(rows: Row[]) {
   const compiled = compile(rows);
@@ -305,5 +307,125 @@ describe("rule compilation", () => {
         ],
       },
     ]);
+  });
+
+  it("compiles the identity and school-marks clauses the roster's criteria ask for", () => {
+    // The criteria column asks for these in plain words -- "female students
+    // graduating in 2027", "minimum 60% marks in 10th and 12th" -- and until
+    // they had controls they were reachable only by hand-writing JSON.
+    expect(
+      compile([
+        { id: "1", kind: "gender", choices: ["female"] },
+        { id: "2", kind: "tenth_percent", number: "60" },
+        { id: "3", kind: "twelfth_percent", number: "60" },
+      ]),
+    ).toEqual({
+      all: [
+        { field: "gender", op: "eq", value: "female" },
+        { field: "tenth_percent", op: "gte", value: 60 },
+        { field: "twelfth_percent", op: "gte", value: 60 },
+      ],
+    });
+    // Several genders are a list, exactly as several years are.
+    expect(compile([{ id: "1", kind: "gender", choices: ["female", "other"] }])).toEqual({
+      field: "gender",
+      op: "in",
+      value: ["female", "other"],
+    });
+    expect(compile([{ id: "1", kind: "nationality", text: " IN " }])).toEqual({
+      field: "nationality",
+      op: "eq",
+      value: "IN",
+    });
+    roundTrip([
+      { id: "1", kind: "gender", choices: ["female", "other"] },
+      { id: "2", kind: "nationality", text: "IN" },
+      { id: "3", kind: "tenth_percent", number: "70.5" },
+      { id: "4", kind: "twelfth_year", numbers: ["2021", "2022"] },
+      { id: "5", kind: "tenth_year", numbers: ["2019"] },
+    ]);
+  });
+
+  it("holds school marks and calendar years to the profile column's own range", () => {
+    expect(rowProblems([{ id: "1", kind: "tenth_percent", number: "120" }])).toEqual([
+      "A percentage runs from 0 to 100.",
+    ]);
+    expect(rowProblems([{ id: "1", kind: "twelfth_year", numbers: ["202"] }])).toEqual([
+      "Enter a four-digit year between 1900 and 2100.",
+    ]);
+    expect(rowProblems([{ id: "1", kind: "gender", choices: [] }])).toEqual([
+      "Choose at least one gender.",
+    ]);
+    expect(rowProblems([{ id: "1", kind: "nationality", text: "  " }])).toEqual([
+      "Enter a nationality.",
+    ]);
+    // A percentage is measured, not counted: 70.5 is a legitimate 12th mark.
+    expect(rowProblems([{ id: "1", kind: "twelfth_percent", number: "70.5" }])).toEqual([]);
+  });
+
+  it("expresses the roster's conditional-minor pathway without nesting a group", () => {
+    // The roster opens several pathways to a branch only "if pursuing Minor in
+    // CSE/AI". Written as one discipline list plus a conditional, that is a
+    // group inside a group option -- JSON only. Written as the two pathways it
+    // really is, it is two options of one `any`, which the controls express.
+    const compiled = roundTrip([
+      { id: "cpi", kind: "cpi", number: "7" },
+      { id: "backlogs", kind: "active_backlogs", number: "0" },
+      {
+        id: "pathways",
+        kind: "group",
+        mode: "any",
+        options: [
+          {
+            id: "p0",
+            clauses: [
+              { id: "p0-0", kind: "discipline", ids: [CSE, EE] },
+              { id: "p0-1", kind: "study_year", numbers: ["3", "4"] },
+              { id: "p0-2", kind: "graduating_year", numbers: ["2027"] },
+            ],
+          },
+          {
+            id: "p1",
+            clauses: [
+              { id: "p1-0", kind: "discipline", ids: [ME] },
+              { id: "p1-1", kind: "minor", ids: [MINOR_CSE] },
+              { id: "p1-2", kind: "study_year", numbers: ["3", "4"] },
+              { id: "p1-3", kind: "graduating_year", numbers: ["2027"] },
+            ],
+          },
+        ],
+      },
+    ]);
+    // The minor clause is itself an `any` pair, and it sits inside a group
+    // option here -- the one place a clause could be mistaken for nesting.
+    const years = [
+      { field: "study_year", op: "in", value: [3, 4] },
+      { field: "graduating_year", op: "eq", value: 2027 },
+    ];
+    expect(compiled).toEqual({
+      all: [
+        { field: "cpi", op: "gte", value: 7 },
+        { field: "active_backlogs", op: "lte", value: 0 },
+        {
+          any: [
+            {
+              all: [{ field: "discipline_id", op: "in", value: [CSE, EE] }, ...years],
+            },
+            {
+              all: [
+                { field: "discipline_id", op: "in", value: [ME] },
+                {
+                  any: [
+                    { field: "minor1_id", op: "in", value: [MINOR_CSE] },
+                    { field: "minor2_id", op: "in", value: [MINOR_CSE] },
+                  ],
+                },
+                ...years,
+              ],
+            },
+          ],
+        },
+      ],
+    });
   });
 });

@@ -32,6 +32,10 @@ type ClauseKind =
   | "cpi"
   | "active_backlogs"
   | "total_backlogs"
+  | "tenth_percent"
+  | "twelfth_percent"
+  | "tenth_year"
+  | "twelfth_year"
   | "study_year"
   | "graduating_year"
   | "program"
@@ -43,6 +47,8 @@ type ClauseKind =
   | "minor"
   | "dual_major"
   | "dual_degree"
+  | "gender"
+  | "nationality"
   | "not_placed";
 
 interface ClauseDefinition {
@@ -59,6 +65,26 @@ const CLAUSES: ClauseDefinition[] = [
     hint: "Usually 0 — nobody currently carrying a backlog.",
   },
   { kind: "total_backlogs", label: "Maximum total backlogs", hint: "Counts history, not just current." },
+  {
+    kind: "tenth_percent",
+    label: "Minimum 10th percentage",
+    hint: "Class X marks out of 100. A school CGPA is not converted for you.",
+  },
+  {
+    kind: "twelfth_percent",
+    label: "Minimum 12th percentage",
+    hint: "Class XII marks out of 100. A school CGPA is not converted for you.",
+  },
+  {
+    kind: "tenth_year",
+    label: "10th passing years",
+    hint: "One or more years, comma separated.",
+  },
+  {
+    kind: "twelfth_year",
+    label: "12th passing years",
+    hint: "One or more years, comma separated.",
+  },
   {
     kind: "study_year",
     label: "Current study years",
@@ -118,6 +144,16 @@ const CLAUSES: ClauseDefinition[] = [
     hint: "Students completing a BTech–MTech or BTech–MSc dual degree.",
   },
   {
+    kind: "gender",
+    label: "Gender",
+    hint: "Only for a drive the recruiter has scoped that way, e.g. a women-only role.",
+  },
+  {
+    kind: "nationality",
+    label: "Nationality",
+    hint: "Matches the recorded nationality exactly, e.g. IN.",
+  },
+  {
     kind: "not_placed",
     label: "Has no accepted placement offer",
     hint: "The one context criterion — evaluated at apply time, not stored on the profile.",
@@ -133,7 +169,29 @@ interface Clause {
   ids?: string[];
   /** Multi-valued numeric clauses, e.g. several graduating years. */
   numbers?: string[];
+  /** Fixed-choice clauses, e.g. gender. */
+  choices?: string[];
+  /** Free-text clauses, e.g. nationality. */
+  text?: string;
 }
+
+/** The genders a profile records (`app.domain.shared.Gender`). */
+const GENDERS: { value: string; label: string }[] = [
+  { value: "female", label: "Female" },
+  { value: "male", label: "Male" },
+  { value: "other", label: "Other" },
+];
+
+/** Clause kinds whose value is a list of whole years. */
+const YEAR_KINDS = new Set<ClauseKind>([
+  "study_year",
+  "graduating_year",
+  "tenth_year",
+  "twelfth_year",
+]);
+
+/** Clause kinds measured on a scale rather than counted. */
+const DECIMAL_KINDS = new Set<ClauseKind>(["cpi", "tenth_percent", "twelfth_percent"]);
 
 /**
  * One branch of a group: a set of clauses that must all hold together.
@@ -184,7 +242,13 @@ function clauseProblem(clause: Clause): string | null {
     clause.kind === "dual_degree" ||
     clause.kind === "not_placed"
   ) return null;
-  if (clause.kind === "study_year" || clause.kind === "graduating_year") {
+  if (clause.kind === "gender") {
+    return clause.choices?.length ? null : "Choose at least one gender.";
+  }
+  if (clause.kind === "nationality") {
+    return clause.text?.trim() ? null : "Enter a nationality.";
+  }
+  if (YEAR_KINDS.has(clause.kind)) {
     const values = clause.numbers ?? [];
     const whole = values.length > 0 && values.every(
       (value) => Number.isInteger(Number(value)),
@@ -194,6 +258,12 @@ function clauseProblem(clause: Clause): string | null {
       clause.kind === "study_year" &&
       !values.every((value) => Number(value) >= 1 && Number(value) <= 8)
     ) return "Study years must be between 1 and 8.";
+    // A calendar year, held to the same range the profile column accepts, so
+    // a typo like 202 is refused here rather than saved as a rule nobody meets.
+    if (
+      clause.kind !== "study_year" &&
+      !values.every((value) => Number(value) >= 1900 && Number(value) <= 2100)
+    ) return "Enter a four-digit year between 1900 and 2100.";
     return null;
   }
   if (
@@ -209,8 +279,14 @@ function clauseProblem(clause: Clause): string | null {
   if (value === undefined || value.trim() === "" || !Number.isFinite(Number(value))) {
     return "Enter a number.";
   }
-  if (clause.kind !== "cpi" && !Number.isInteger(Number(value))) {
+  if (!DECIMAL_KINDS.has(clause.kind) && !Number.isInteger(Number(value))) {
     return "Enter a whole number.";
+  }
+  if (
+    (clause.kind === "tenth_percent" || clause.kind === "twelfth_percent") &&
+    (Number(value) < 0 || Number(value) > 100)
+  ) {
+    return "A percentage runs from 0 to 100.";
   }
   return null;
 }
@@ -277,8 +353,17 @@ function toNode(clause: Clause): Rule | null {
       return clause.number !== undefined && clause.number !== ""
         ? { field: "total_backlogs", op: "lte", value: Number(clause.number) }
         : null;
+    case "tenth_percent":
+    case "twelfth_percent":
+      // A floor, like CPI: the roster's school-marks criteria are all
+      // "60% and above", never a band.
+      return clause.number !== undefined && clause.number !== ""
+        ? { field: clause.kind, op: "gte", value: Number(clause.number) }
+        : null;
     case "study_year":
-    case "graduating_year": {
+    case "graduating_year":
+    case "tenth_year":
+    case "twelfth_year": {
       const years = (clause.numbers ?? [])
         .map((entry) => Number(entry))
         .filter((year) => Number.isInteger(year));
@@ -286,11 +371,21 @@ function toNode(clause: Clause): Rule | null {
       // One year stays `eq`: it keeps rules saved before this clause took a
       // list byte-identical, and "graduating year 2027" reads better than
       // "one of 2027" in the summary a student is shown.
-      const field = clause.kind === "study_year" ? "study_year" : "graduating_year";
       return years.length === 1
-        ? { field, op: "eq", value: years[0] as number }
-        : { field, op: "in", value: years };
+        ? { field: clause.kind, op: "eq", value: years[0] as number }
+        : { field: clause.kind, op: "in", value: years };
     }
+    case "gender": {
+      const chosen = clause.choices ?? [];
+      if (chosen.length === 0) return null;
+      return chosen.length === 1
+        ? { field: "gender", op: "eq", value: chosen[0] as string }
+        : { field: "gender", op: "in", value: chosen };
+    }
+    case "nationality":
+      return clause.text?.trim()
+        ? { field: "nationality", op: "eq", value: clause.text.trim() }
+        : null;
     case "program":
       return clause.ids?.length ? { field: "program_id", op: "in", value: clause.ids } : null;
     case "component_program":
@@ -404,10 +499,19 @@ function nodeToClause(node: Rule, id: string): Clause | null {
     return { id, kind: "active_backlogs", number: String(value) };
   if (field === "total_backlogs" && op === "lte")
     return { id, kind: "total_backlogs", number: String(value) };
-  if ((field === "study_year" || field === "graduating_year") && op === "eq")
-    return { id, kind: field, numbers: [String(value)] };
-  if ((field === "study_year" || field === "graduating_year") && op === "in")
-    return { id, kind: field, numbers: (value as number[]).map(String) };
+  if ((field === "tenth_percent" || field === "twelfth_percent") && op === "gte")
+    return { id, kind: field, number: String(value) };
+  if (field && YEAR_KINDS.has(field as ClauseKind)) {
+    if (op === "eq") return { id, kind: field as ClauseKind, numbers: [String(value)] };
+    if (op === "in")
+      return { id, kind: field as ClauseKind, numbers: (value as number[]).map(String) };
+  }
+  if (field === "gender" && op === "eq")
+    return { id, kind: "gender", choices: [String(value)] };
+  if (field === "gender" && op === "in")
+    return { id, kind: "gender", choices: (value as string[]).map(String) };
+  if (field === "nationality" && op === "eq")
+    return { id, kind: "nationality", text: String(value) };
   if (field === "program_id" && op === "in")
     return { id, kind: "program", ids: value as string[] };
   if (field === "component_program_id" && op === "in")
@@ -1003,7 +1107,37 @@ function ClauseRow({
               </label>
             ))}
           </div>
-        ) : clause.kind === "study_year" || clause.kind === "graduating_year" ? (
+        ) : clause.kind === "gender" ? (
+          <div className="flex flex-wrap gap-gap-lg">
+            {GENDERS.map((item) => (
+              <label key={item.value} className="flex items-center gap-gap-md text-body-md">
+                <Checkbox
+                  disabled={disabled}
+                  checked={clause.choices?.includes(item.value) ?? false}
+                  onChange={(event) =>
+                    onChange({
+                      ...clause,
+                      choices: event.target.checked
+                        ? [...(clause.choices ?? []), item.value]
+                        : (clause.choices ?? []).filter((value) => value !== item.value),
+                    })
+                  }
+                />
+                {item.label}
+              </label>
+            ))}
+          </div>
+        ) : clause.kind === "nationality" ? (
+          <Input
+            aria-label={definition?.label}
+            type="text"
+            placeholder="IN"
+            className="w-64"
+            disabled={disabled}
+            value={clause.text ?? ""}
+            onChange={(event) => onChange({ ...clause, text: event.target.value })}
+          />
+        ) : YEAR_KINDS.has(clause.kind) ? (
           <Input
             aria-label={definition?.label}
             type="text"
@@ -1032,7 +1166,7 @@ function ClauseRow({
           <Input
             aria-label={definition?.label ?? "Value"}
             type="number"
-            step={clause.kind === "cpi" ? "0.01" : "1"}
+            step={DECIMAL_KINDS.has(clause.kind) ? "0.01" : "1"}
             className="w-40"
             disabled={disabled}
             value={clause.number ?? ""}
