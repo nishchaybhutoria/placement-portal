@@ -69,15 +69,49 @@ Before the cycle opens, the minors taxonomy needs an **Artificial Intelligence**
 entry: 14 roster rows open extra disciplines to students pursuing a Minor in
 CSE/AI, and only Computer Science is seeded today.
 
+## 2026-09-13 isolated rehearsal, owner-approved mapping
+
+A second rehearsal from a fresh restore, using the approved BTech primary
+programme rather than the earlier placeholder. Source: a logical dump taken
+from production at 13:42:32Z, SHA-256 verified, restored into a disposable
+PostgreSQL 16 container. Private evidence:
+`/home/nishuz/placement-portal-private/rehearsal-20260913-approved/`.
+
+- Blockers at restore were exactly the two known dual-degree profiles; no new
+  one has appeared while the cycle has been running.
+- Both corrections applied through `admin_update_profile` preview and execute,
+  writing only `program_id`: two audit rows, zero profiles left blocking 0017,
+  and **zero of 216 member/job verdicts changed** by the correction itself.
+- Upgrade to `0018_rule_semantics`, downgrade to `0015_override_scope_domains`,
+  and re-upgrade all passed. Counts, job-rule, join-rule and staged-payload
+  hashes unchanged throughout; programmes rose 5 to 7 for the two reviewed
+  combined rows and nothing else; existing rules carry version 1.
+- Legacy verdict comparison: **216 of 216 identical**, deployed code before
+  against release code after, and identical again after downgrade and
+  re-upgrade.
+- All 272 pending staged rows are legacy payloads and passed the read-only
+  adapter with zero mapping errors.
+
+Two findings changed the runbook:
+
+1. **The corrections must be made before the release is deployed**, with the
+   code currently running. The release code reads `study_year`, a column 0016
+   adds, so it cannot edit a profile on the pre-migration schema.
+2. **`academic_session_start_year` is unset in production.** Until it is set,
+   every v2 rule that names a current study year evaluates unknown and denies,
+   and a dual major's internship disciplines cannot be derived. The live cycle
+   is a placement cycle, so nothing is affected today; it must be set before
+   internship jobs are authored.
+
 ## Outstanding approval gates
 
-1. Rehearse again from a fresh restore using the now-approved BTech primary
-   programme for both blocking dual-degree profiles. The third blank profile
-   must be reviewed separately; migration does not require or guess it.
-2. Apply those two corrections only through previewed `admin_update_profile`
-   commands during an approved maintenance window, and verify their audits.
+1. Apply the two corrections in production, on the deployed code, through
+   previewed `admin_update_profile` commands, and verify their audits. The
+   third blank profile must be reviewed separately; migration does not require
+   or guess it.
+2. Take and verify the final backup immediately before the window.
 3. Verify zero legacy verdict differences and all hashes/counts again.
-4. Run `make check` and `make e2e` on the final commit.
+4. Set `academic_session_start_year` before internship jobs are authored.
 5. Review backup, maintenance, smoke-test, rollback, and communication owners.
 6. Obtain explicit production deployment approval. Push, PR, merge, migration,
    and production commands remain out of scope until then.
