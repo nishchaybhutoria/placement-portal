@@ -36,12 +36,14 @@ from app.core.plan import (
 )
 from app.core.registry import Registry
 from app.domain.policy import Policy, resolve_policy
+from app.domain.rule_schema import CURRENT_RULE_SEMANTICS
 from app.domain.rules import parse_rule
 from app.domain.shared import CycleKind, OfferExpiry
 
 POLICY_COLUMNS: tuple[str, ...] = (
     "membership_requires_approval",
     "join_rule",
+    "join_rule_version",
     "max_accepted_offers",
     "penalty_blocks_applications",
     "allow_withdrawal_after_deadline",
@@ -268,6 +270,7 @@ def policy_values(policy: Policy) -> dict[str, object]:
     return {
         "membership_requires_approval": policy.membership_requires_approval.value,
         "join_rule": policy.join_rule.value,
+        "join_rule_version": policy.join_rule_version.value,
         "max_accepted_offers": policy.max_accepted_offers.value,
         "penalty_blocks_applications": policy.penalty_blocks_applications.value,
         "allow_withdrawal_after_deadline": policy.allow_withdrawal_after_deadline.value,
@@ -739,6 +742,8 @@ def _decide_update_cycle_policy(
         if column in provided:
             value = getattr(input_value, column)
             after[column] = value.value if isinstance(value, OfferExpiry) else value
+    if "join_rule" in provided:
+        after["join_rule_version"] = int(CURRENT_RULE_SEMANTICS)
 
     changed = after != before
     return Plan(

@@ -4197,6 +4197,8 @@ export interface components {
              * Format: uuid
              */
             cycle_id: string;
+            /** Eligibility Rule Version */
+            eligibility_rule_version: number;
             /** Eligibility Summary */
             eligibility_summary: string;
             /** Eligible Count */

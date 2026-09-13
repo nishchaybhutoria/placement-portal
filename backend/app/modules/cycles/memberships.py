@@ -52,7 +52,7 @@ from app.domain.memberships import (
 )
 from app.domain.pathways import derived_rule_facts, program_structure
 from app.domain.policy import Policy, resolve_policy
-from app.domain.rules import RuleContext, evaluate, taxonomy_ids
+from app.domain.rules import RuleContext, RuleSemantics, evaluate, taxonomy_ids
 from app.domain.shared import (
     ApplicationStatus,
     CycleKind,
@@ -445,6 +445,7 @@ def _join_gate_reasons(
             profile,
             RuleContext(not_placement_placed=state.not_placement_placed),
             labels=state.rule_labels,
+            semantics=RuleSemantics(policy.join_rule_version.value),
         )
         if join_rule is not None
         else None

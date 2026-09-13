@@ -242,6 +242,7 @@ async def test_APP1_the_snapshot_carries_every_registry_field() -> None:
         "program_structure",
         "program_primary_degree_id",
         "program_secondary_degree_id",
+        "rule_semantics_version",
     }
     assert set(snapshot) == expected
 

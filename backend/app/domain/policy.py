@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Literal, cast
 
+from app.domain.rule_schema import CURRENT_RULE_SEMANTICS
 from app.domain.shared import CycleKind, OfferExpiry
 
 PolicySource = Literal["cycle_policy", "setting", "default"]
@@ -22,6 +23,7 @@ class ResolvedValue[T]:
 class Policy:
     membership_requires_approval: ResolvedValue[bool]
     join_rule: ResolvedValue[object | None]
+    join_rule_version: ResolvedValue[int]
     max_accepted_offers: ResolvedValue[int | None]
     penalty_blocks_applications: ResolvedValue[bool]
     allow_withdrawal_after_deadline: ResolvedValue[bool]
@@ -35,6 +37,7 @@ class Policy:
 
 _CYCLE_DEFAULTS: dict[str, object] = {
     "join_rule": None,
+    "join_rule_version": int(CURRENT_RULE_SEMANTICS),
     "penalty_blocks_applications": True,
     "allow_withdrawal_after_deadline": False,
     "allow_edit_after_deadline": False,
@@ -67,6 +70,12 @@ def resolve_policy(
             bool,
         ),
         join_rule=_cycle_object(cycle_values, "join_rule", _CYCLE_DEFAULTS["join_rule"]),
+        join_rule_version=_cycle_value(
+            cycle_values,
+            "join_rule_version",
+            _CYCLE_DEFAULTS["join_rule_version"],
+            int,
+        ),
         max_accepted_offers=_nullable_positive_int(
             cycle_values,
             "max_accepted_offers",

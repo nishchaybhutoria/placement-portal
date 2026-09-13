@@ -20,6 +20,9 @@ class Job(UUIDPrimaryKeyMixin, UpdatedAtMixin, Base):
             "OR offer_acceptance_deadline > application_deadline",
             name="ck_jobs_offer_deadline_after_application_deadline",
         ),
+        sa.CheckConstraint(
+            "eligibility_rule_version IN (1, 2)", name="ck_jobs_rule_version"
+        ),
     )
 
     cycle_id: Mapped[UUID] = mapped_column(
@@ -50,6 +53,9 @@ class Job(UUIDPrimaryKeyMixin, UpdatedAtMixin, Base):
     published_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
     cancelled_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True))
     eligibility_rule: Mapped[dict[str, object] | None] = mapped_column(JSONB())
+    eligibility_rule_version: Mapped[int] = mapped_column(
+        sa.SmallInteger(), nullable=False, server_default=sa.text("2")
+    )
     eligibility_summary: Mapped[str | None] = mapped_column(sa.Text())
 
 

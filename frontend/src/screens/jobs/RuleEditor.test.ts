@@ -207,6 +207,21 @@ describe("rule compilation", () => {
     expect(decompile(null)).toEqual([]);
   });
 
+  it("keeps declared programmes separate from component degrees", () => {
+    expect(
+      compile([
+        { id: "declared", kind: "program", ids: [BTECH] },
+        { id: "component", kind: "component_program", ids: [DUAL] },
+      ]),
+    ).toEqual({
+      all: [
+        { field: "program_id", op: "in", value: [BTECH] },
+        { field: "component_program_id", op: "in", value: [DUAL] },
+      ],
+    });
+    roundTrip([{ id: "component", kind: "component_program", ids: [BTECH] }]);
+  });
+
   it("states a discipline condition once instead of naming both branch columns", () => {
     // The defect this clause exists for: ANDing the two columns excluded every
     // single-discipline student, whose secondary branch is blank.
@@ -216,6 +231,18 @@ describe("rule compilation", () => {
       value: [CSE, EE],
     });
     roundTrip([{ id: "1", kind: "discipline", ids: [CSE, EE] }]);
+  });
+
+  it("compiles current study years as an explicit session-qualified field", () => {
+    expect(compile([{ id: "1", kind: "study_year", numbers: ["3", "4"] }])).toEqual({
+      field: "study_year",
+      op: "in",
+      value: [3, 4],
+    });
+    expect(rowProblems([{ id: "1", kind: "study_year", numbers: ["9"] }])).toEqual([
+      "Study years must be between 1 and 8.",
+    ]);
+    roundTrip([{ id: "1", kind: "study_year", numbers: ["3", "4"] }]);
   });
 
   it("carries several graduating years, and keeps a single year as `eq`", () => {

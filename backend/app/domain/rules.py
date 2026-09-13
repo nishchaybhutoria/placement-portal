@@ -36,6 +36,7 @@ from app.domain.rule_schema import (
     NotNode,
     RuleField,
     RuleNode,
+    RuleSemantics,
     Scalar,
     actual_key,
     is_rule_node,
@@ -79,6 +80,7 @@ __all__ = [
     "RuleContext",
     "RuleField",
     "RuleNode",
+    "RuleSemantics",
     "Scalar",
     "Shortfall",
     "actual_key",
@@ -131,6 +133,7 @@ def evaluate(
     context: RuleContext,
     *,
     labels: Labels | None = None,
+    semantics: RuleSemantics = RuleSemantics.CURRENT,
 ) -> EvaluationResult:
     """Evaluate ELG-2 against one live profile and return path-addressed failures.
 
@@ -141,7 +144,7 @@ def evaluate(
     """
     node = tree if is_rule_node(tree) else parse_rule(tree)
     truth, failures = _evaluate_node(
-        cast(RuleNode, node), profile, context, "$", labels or {}
+        cast(RuleNode, node), profile, context, "$", labels or {}, semantics
     )
     verdict = truth is _Truth.TRUE
     reasons = tuple(
@@ -169,13 +172,14 @@ def _evaluate_node(
     context: RuleContext,
     path: str,
     labels: Labels,
+    semantics: RuleSemantics,
 ) -> tuple[_Truth, tuple[_Failure, ...]]:
     if isinstance(node, AllNode):
         failures: list[_Failure] = []
         child_truths: list[_Truth] = []
         for index, child in enumerate(node.all):
             child_truth, child_failures = _evaluate_node(
-                child, profile, context, f"{path}.all[{index}]", labels
+                child, profile, context, f"{path}.all[{index}]", labels, semantics
             )
             child_truths.append(child_truth)
             if child_truth is not _Truth.TRUE:
@@ -194,7 +198,7 @@ def _evaluate_node(
         saw_unknown = False
         for index, child in enumerate(node.any):
             child_truth, child_failures = _evaluate_node(
-                child, profile, context, f"{path}.any[{index}]", labels
+                child, profile, context, f"{path}.any[{index}]", labels, semantics
             )
             if child_truth is _Truth.TRUE:
                 return _Truth.TRUE, ()
@@ -207,7 +211,7 @@ def _evaluate_node(
         return truth, (_Failure(path, alternatives_shortfall(alternatives)),)
     if isinstance(node, NotNode):
         child_truth, child_failures = _evaluate_node(
-            node.not_, profile, context, f"{path}.not", labels
+            node.not_, profile, context, f"{path}.not", labels, semantics
         )
         if child_truth is _Truth.FALSE:
             return _Truth.TRUE, ()
@@ -218,7 +222,7 @@ def _evaluate_node(
         if node.criterion is Criterion.NOT_PLACEMENT_PLACED and context.not_placement_placed:
             return _Truth.TRUE, ()
         return _Truth.FALSE, (_Failure(path, criterion_shortfall(node)),)
-    return _evaluate_field(node, profile, path, labels)
+    return _evaluate_field(node, profile, path, labels, semantics)
 
 
 def requirement_of(node: RuleNode, labels: Labels) -> str:
@@ -231,24 +235,37 @@ def requirement_of(node: RuleNode, labels: Labels) -> str:
 
 
 def _evaluate_field(
-    node: FieldNode, profile: Mapping[str, object], path: str, labels: Labels
+    node: FieldNode,
+    profile: Mapping[str, object],
+    path: str,
+    labels: Labels,
+    semantics: RuleSemantics,
 ) -> tuple[_Truth, tuple[_Failure, ...]]:
-    raw_actual = profile.get(actual_key(node.field))
+    raw_actual = profile.get(actual_key(node.field, semantics))
     if node.field in SET_FIELDS:
         if not isinstance(raw_actual, AbstractSet) or not raw_actual:
-            return _Truth.UNKNOWN, (
-                _Failure(path, field_shortfall(node, profile, labels)),
+            truth = (
+                _Truth.FALSE
+                if semantics is RuleSemantics.LEGACY
+                else _Truth.UNKNOWN
             )
+            return truth, (_Failure(path, field_shortfall(node, profile, labels)),)
         if _compare_set(cast(AbstractSet[object], raw_actual), node.value, node.op):
             return _Truth.TRUE, ()
         return _Truth.FALSE, (_Failure(path, field_shortfall(node, profile, labels)),)
     if raw_actual is None:
-        return _Truth.UNKNOWN, (_Failure(path, field_shortfall(node, profile, labels)),)
+        truth = (
+            _Truth.FALSE if semantics is RuleSemantics.LEGACY else _Truth.UNKNOWN
+        )
+        return truth, (_Failure(path, field_shortfall(node, profile, labels)),)
     try:
         actual = normalize_actual(node.field, raw_actual)
         passed = _compare(actual, node.value, node.op)
     except (InvalidOperation, TypeError, ValueError):
-        return _Truth.UNKNOWN, (_Failure(path, field_shortfall(node, profile, labels)),)
+        truth = (
+            _Truth.FALSE if semantics is RuleSemantics.LEGACY else _Truth.UNKNOWN
+        )
+        return truth, (_Failure(path, field_shortfall(node, profile, labels)),)
     if passed:
         return _Truth.TRUE, ()
     return _Truth.FALSE, (_Failure(path, field_shortfall(node, profile, labels)),)

@@ -29,6 +29,7 @@ from app.core.registry import Registry
 from app.domain.pathways import derived_rule_facts
 from app.domain.rules import (
     RuleContext,
+    RuleSemantics,
     evaluate,
     parse_rule,
     summarize,
@@ -91,6 +92,7 @@ class JobEligibilitySummary(BaseModel):
     cycle_id: UUID
     job_id: UUID
     eligibility_summary: str
+    eligibility_rule_version: int
     eligible_count: int
     member_count: int
     # Who, not just how many. The builder's impact preview is a dry run of this
@@ -178,6 +180,7 @@ def evaluate_members(
     *,
     outcome: Outcome,
     current_session: int | None,
+    semantics: RuleSemantics = RuleSemantics.CURRENT,
 ) -> tuple[MemberVerdict, ...]:
     """The rule alone against every active member's live profile (JOB-2.2).
 
@@ -213,6 +216,7 @@ def evaluate_members(
                 not_placement_placed=not bool(member["placement_placed_global"])
             ),
             labels=labels,
+            semantics=semantics,
         )
         verdicts.append(
             MemberVerdict(
@@ -255,10 +259,12 @@ def _decide_update_job_eligibility(
         state.labels,
         outcome=state.job.outcome,
         current_session=state.current_academic_session,
+        semantics=RuleSemantics.CURRENT,
     )
     eligible = [verdict for verdict in verdicts if verdict.eligible]
     changed = (
         rule != state.job.eligibility_rule
+        or state.job.eligibility_rule_version != int(RuleSemantics.CURRENT)
         or summary_text != state.job.eligibility_summary
     )
 
@@ -270,6 +276,7 @@ def _decide_update_job_eligibility(
                     model="jobs",
                     values={
                         "eligibility_rule": rule,
+                        "eligibility_rule_version": int(RuleSemantics.CURRENT),
                         "eligibility_summary": summary_text,
                     },
                     where={"id": state.job.id},
@@ -286,10 +293,12 @@ def _decide_update_job_eligibility(
             "details": {
                 "before": {
                     "eligibility_rule": state.job.eligibility_rule,
+                    "eligibility_rule_version": state.job.eligibility_rule_version,
                     "eligibility_summary": state.job.eligibility_summary,
                 },
                 "after": {
                     "eligibility_rule": rule,
+                    "eligibility_rule_version": int(RuleSemantics.CURRENT),
                     "eligibility_summary": summary_text,
                 },
                 # Recorded because a rule edit is invisible in its effects: it
@@ -303,6 +312,7 @@ def _decide_update_job_eligibility(
             "cycle_id": str(state.job.cycle_id),
             "job_id": str(state.job.id),
             "eligibility_summary": summary_text,
+            "eligibility_rule_version": int(RuleSemantics.CURRENT),
             "eligible_count": len(eligible),
             "member_count": len(verdicts),
             "members": [

@@ -39,6 +39,7 @@ from app.core.plan import (
     StateOp,
 )
 from app.core.registry import Registry
+from app.domain.rule_schema import CURRENT_RULE_SEMANTICS
 from app.domain.shared import CycleKind, Outcome
 from app.modules.cycles.commands import CycleRow, fetch_cycle
 from app.modules.notifications.wording import format_deadline
@@ -62,7 +63,7 @@ JOB_COLUMNS = (
     "id, cycle_id, company_id, outcome, title, description, location, sector_id, "
     "ctc_lpa, ctc_breakdown, stipend_month, application_deadline, "
     "offer_acceptance_deadline, is_published, published_at, cancelled_at, "
-    "eligibility_rule, eligibility_summary"
+    "eligibility_rule, eligibility_rule_version, eligibility_summary"
 )
 
 
@@ -210,6 +211,7 @@ class JobRow:
     published_at: datetime | None
     cancelled_at: datetime | None
     eligibility_rule: dict[str, object] | None
+    eligibility_rule_version: int
     eligibility_summary: str | None
 
     def snapshot(self) -> dict[str, object]:
@@ -232,6 +234,7 @@ class JobRow:
             "is_published": self.is_published,
             "published_at": _iso(self.published_at),
             "cancelled_at": _iso(self.cancelled_at),
+            "eligibility_rule_version": self.eligibility_rule_version,
             "eligibility_summary": self.eligibility_summary,
         }
 
@@ -259,6 +262,7 @@ def job_row(row: sa.RowMapping) -> JobRow:
         published_at=row["published_at"],
         cancelled_at=row["cancelled_at"],
         eligibility_rule=row["eligibility_rule"],
+        eligibility_rule_version=int(row["eligibility_rule_version"]),
         eligibility_summary=row["eligibility_summary"],
     )
 
@@ -742,6 +746,7 @@ def _decide_create_job(
         published_at=None,
         cancelled_at=None,
         eligibility_rule=None,
+        eligibility_rule_version=int(CURRENT_RULE_SEMANTICS),
         eligibility_summary=None,
     )
     return Plan(
@@ -764,6 +769,7 @@ def _decide_create_job(
                     "application_deadline": job.application_deadline,
                     "offer_acceptance_deadline": job.offer_acceptance_deadline,
                     "is_published": False,
+                    "eligibility_rule_version": int(CURRENT_RULE_SEMANTICS),
                 },
             ),
             *_program_ctc_ops(job.id, input_value.program_ctc, {}),
@@ -867,6 +873,7 @@ def _decide_update_job_basics(
         published_at=before.published_at,
         cancelled_at=before.cancelled_at,
         eligibility_rule=before.eligibility_rule,
+        eligibility_rule_version=before.eligibility_rule_version,
         eligibility_summary=before.eligibility_summary,
     )
     reasons.extend(

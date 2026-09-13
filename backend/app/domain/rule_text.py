@@ -56,10 +56,12 @@ type Labels = Mapping[UUID, str]
 # clause fragments, not form labels, and ``domain`` may not import a module.
 _FIELD_NOUNS: dict[RuleField, str] = {
     RuleField.PROGRAM_ID: "program",
+    RuleField.COMPONENT_PROGRAM_ID: "component degree",
     RuleField.SECONDARY_PROGRAM_ID: "secondary program",
     RuleField.PRIMARY_BRANCH_ID: "primary branch",
     RuleField.SECONDARY_BRANCH_ID: "secondary branch",
     RuleField.DISCIPLINE_ID: "discipline",
+    RuleField.STUDY_YEAR: "current study year",
     RuleField.GRADUATING_YEAR: "graduating year",
     RuleField.CPI: "CPI",
     RuleField.ACTIVE_BACKLOGS: "active backlogs",

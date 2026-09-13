@@ -261,7 +261,8 @@ enrollments(user_id →users!, is_current bool!, roll_number citext)
   IDX partial-unique (roll_number) WHERE is_current AND roll_number IS NOT NULL
   IDX partial-unique (user_id) WHERE is_current
 profiles(enrollment_id →enrollments !U, program_id →programs, primary_branch_id →branches,
-      secondary_branch_id →branches, graduating_year int, cpi numeric(4,2),
+      secondary_branch_id →branches, study_year int, study_year_session int,
+      graduating_year int, cpi numeric(4,2),
       active_backlogs int, total_backlogs int, gender gender_t, personal_email citext,
       contact_number text, nationality text default 'IN', tenth_percent numeric(5,2),
       tenth_year int, twelfth_percent numeric(5,2), twelfth_year int,
@@ -272,7 +273,11 @@ resumes(enrollment_id →enrollments!, label text!, drive_url text!, is_default 
 staged_profile_rows(institute_email citext!, payload jsonb!, uploaded_by →users!,
       applied_at, error text)
 
-programs(name text !U, is_active bool!)      branches(name text !U, is_active bool!)
+programs(name text !U, is_active bool!, structure text!,
+      primary_degree_id →programs, secondary_degree_id →programs)
+  CHECK structure ∈ single|dual_major|dual_degree; single has no components;
+        combined programmes name two single-degree components
+branches(name text !U, is_active bool!)
 program_branches(program_id →programs!, branch_id →branches!, UNIQUE pair)
 minors(name text !U, is_active bool!)        sectors(name text !U, is_active bool!)
 round_types(name text !U, is_active bool!)
@@ -284,7 +289,8 @@ cycles(name citext !U, kind cycle_kind_t!, description text, starts_on date, end
       is_active bool! default false, archived_at timestamptz)
   CHECK (starts_on IS NULL OR ends_on IS NULL OR starts_on <= ends_on)
 cycle_policies(cycle_id →cycles !U, membership_requires_approval bool!,
-      join_rule jsonb, max_accepted_offers int,            -- NULL = uncapped
+      join_rule jsonb, join_rule_version smallint! default 2,
+      max_accepted_offers int,            -- NULL = uncapped
       penalty_blocks_applications bool!, allow_withdrawal_after_deadline bool!,
       allow_edit_after_deadline bool!, strike_on_absence bool!,
       offer_expiry_behavior offer_expiry_t! default 'auto_decline',
@@ -305,7 +311,8 @@ jobs(cycle_id →cycles!, company_id →companies!, outcome outcome_t!, title te
       description text!, location text, sector_id →sectors, ctc_lpa numeric(10,2),
       ctc_breakdown text, stipend_month numeric(10,2), application_deadline timestamptz,
       offer_acceptance_deadline timestamptz, is_published bool! default false,
-      published_at, cancelled_at, eligibility_rule jsonb, eligibility_summary text)
+      published_at, cancelled_at, eligibility_rule jsonb,
+      eligibility_rule_version smallint! default 2, eligibility_summary text)
   CHECK (offer_acceptance_deadline IS NULL OR application_deadline IS NULL
          OR offer_acceptance_deadline > application_deadline)
   -- application_deadline NULL permitted only when cycle.kind='open' (command-enforced + checker)
@@ -384,9 +391,9 @@ export_jobs(kind text!, params jsonb!, status text!, requested_by →users!,
          {"criterion":"not_placement_placed"},
          {"field":"active_backlogs","op":"lte","value":0} ]}
 ```
-Nodes: `all|any|not` (nested arbitrarily), leaf `{"field",op,value}` or `{"criterion":name}`. Ops: `eq ne in not_in gte lte between`. Fields = the profile registry (exact `profiles` columns + `graduating_year` etc.); the builder UI compiles presets to this. Validation: Pydantic discriminated union; unknown field/op ⇒ 422 at save.
+Nodes: `all|any|not` (nested arbitrarily), leaf `{"field",op,value}` or `{"criterion":name}`. Ops: `eq ne in not_in gte lte between`. Fields are an explicit allow-list. `program_id` reads the exact declared programme; `component_program_id` reads the derived set of component degrees; `discipline_id` reads the context-derived eligible disciplines; `study_year` reads `current_study_year`, which is null unless `study_year_session` equals the configured session. The builder UI compiles presets to this. Validation: Pydantic discriminated union; unknown field/op ⇒ 422 at save.
 
-**9.2 Evaluator** (`domain/rules.py`, pure): `evaluate(tree, profile_row, ctx) -> (bool, failed: [{path, code, human}])`. **CPI contract:** `Decimal(cpi).quantize(0.1, ROUND_HALF_UP)` before any cpi comparison — the ONLY rounding, used identically in previews/reasons. `ctx` supplies criterion results (`not_placement_placed` precomputed by loader). Table-driven tests are mandatory (each op × edge; 7.95→pass ≥8.0; 7.94→fail).
+**9.2 Evaluator** (`domain/rules.py`, pure): `evaluate(tree, profile_row, ctx, semantics) -> (bool, failed: [{path, code, human}])`. v2 uses three-valued internal truth: missing/invalid facts are unknown, `not unknown` is unknown, and only true grants eligibility. v1 preserves pre-migration verdicts, including reconstructing its former primary `program_id` after combined-programme repointing. Jobs persist `eligibility_rule_version`; cycle policies persist `join_rule_version`. Migration backfills existing rows to 1; defaults and every explicit rule write use 2. No tree is rewritten. **CPI contract:** `Decimal(cpi).quantize(0.1, ROUND_HALF_UP)` before any cpi comparison — the ONLY rounding, used identically in previews/reasons. `ctx` supplies criterion results (`not_placement_placed` precomputed by loader). Table-driven tests are mandatory (each op × edge; 7.95→pass ≥8.0; 7.94→fail).
 
 **9.3 Standing gates** (`domain/gates.py`, run in order, with only the domains declared by the command available to override-aware gates; ordering per Behavior ELG-3): membership_active → job_open (published, not cancelled, **cycle not archived** — the same archived check guards every cycle-scoped staff command in `check_scope`) → deadline (skip if NULL) → duplicate_active → penalty (if cycle policy) → outcome_gate (placement: global derivation; internship: dedicated-cycle-scoped derivation; open-cycle internship jobs: skip) → offer_cap (skip if NULL cap). Each returns `Reason` on failure; the whole list returns for display (job cards show all failing reasons, not just first). Membership state, job-open state, duplicate applications, penalties, and `cycles.is_active` are non-overridable. Cycle joining separately applies `cycle_registration_window` to the registration dates and `cycle_join_rule` to the profile rule; both `join_cycle` and re-request use those same pure gates.
 

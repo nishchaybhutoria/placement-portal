@@ -38,13 +38,22 @@ class Cycle(UUIDPrimaryKeyMixin, UpdatedAtMixin, Base):
 
 class CyclePolicy(UUIDPrimaryKeyMixin, UpdatedAtMixin, Base):
     __tablename__ = "cycle_policies"
-    __table_args__ = (sa.UniqueConstraint("cycle_id", name="uq_cycle_policies_cycle_id"),)
+    __table_args__ = (
+        sa.UniqueConstraint("cycle_id", name="uq_cycle_policies_cycle_id"),
+        sa.CheckConstraint(
+            "join_rule_version IN (1, 2)",
+            name="ck_cycle_policies_join_rule_version",
+        ),
+    )
 
     cycle_id: Mapped[UUID] = mapped_column(
         sa.ForeignKey("cycles.id", ondelete="RESTRICT"), nullable=False
     )
     membership_requires_approval: Mapped[bool] = mapped_column(sa.Boolean(), nullable=False)
     join_rule: Mapped[dict[str, object] | None] = mapped_column(JSONB())
+    join_rule_version: Mapped[int] = mapped_column(
+        sa.SmallInteger(), nullable=False, server_default=sa.text("2")
+    )
     max_accepted_offers: Mapped[int | None] = mapped_column(sa.Integer())
     penalty_blocks_applications: Mapped[bool] = mapped_column(sa.Boolean(), nullable=False)
     allow_withdrawal_after_deadline: Mapped[bool] = mapped_column(

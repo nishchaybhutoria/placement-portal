@@ -39,7 +39,14 @@ from app.domain.gates import (
 )
 from app.domain.pathways import derived_rule_facts
 from app.domain.policy import resolve_policy
-from app.domain.rules import Labels, RuleContext, evaluate, profile_taxonomy_ids, taxonomy_ids
+from app.domain.rules import (
+    Labels,
+    RuleContext,
+    RuleSemantics,
+    evaluate,
+    profile_taxonomy_ids,
+    taxonomy_ids,
+)
 from app.domain.shared import CycleKind, MembershipStatus, Outcome, RuleDomain
 from app.modules.cycles.commands import POLICY_COLUMNS
 from app.modules.jobs.commands import JOB_COLUMNS
@@ -353,6 +360,10 @@ def compute_verdict(
     reasons = list(gates.failures)
     applied = list(gates.applied_override_ids)
     evaluated_profile = profile_for_rule(context, Outcome(job["outcome"]))
+    semantics = RuleSemantics(int(job["eligibility_rule_version"]))
+    # APP-1 snapshots the evaluator contract as well as the facts. Without it,
+    # an unchanged tree could not reconstruct its historical verdict.
+    evaluated_profile["rule_semantics_version"] = int(semantics)
 
     rule = cast("dict[str, object] | None", job["eligibility_rule"])
     if rule is not None:
@@ -363,6 +374,7 @@ def compute_verdict(
                 not_placement_placed=not context.placement_placed_global
             ),
             labels=labels,
+            semantics=semantics,
         )
         # ELG-2's rule is the one domain an eligibility override bypasses; the
         # standing gates above have their own domains and are untouched by it.

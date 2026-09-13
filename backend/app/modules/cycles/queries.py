@@ -23,7 +23,7 @@ from app.domain.memberships import (
 )
 from app.domain.pathways import derived_rule_facts, program_structure
 from app.domain.policy import resolve_policy
-from app.domain.rules import RuleContext, evaluate, taxonomy_ids
+from app.domain.rules import RuleContext, RuleSemantics, evaluate, taxonomy_ids
 from app.domain.shared import (
     CycleKind,
     MembershipStatus,
@@ -434,7 +434,8 @@ _JOINABLE = """
     SELECT
         c.id, c.name, c.kind, c.description, c.starts_on, c.ends_on,
         c.registration_opens_at, c.registration_closes_at, c.is_active, c.archived_at,
-        cp.membership_requires_approval, cp.join_rule, cp.max_accepted_offers,
+        cp.membership_requires_approval, cp.join_rule, cp.join_rule_version,
+        cp.max_accepted_offers,
         cp.penalty_blocks_applications, cp.allow_withdrawal_after_deadline,
         cp.allow_edit_after_deadline, cp.strike_on_absence, cp.offer_expiry_behavior,
         cp.deadline_reminder_hours, cp.round_reminder_hours,
@@ -611,6 +612,7 @@ async def cycles_joinable(
                 rule_profile,
                 RuleContext(not_placement_placed=not_placement_placed),
                 labels=labels,
+                semantics=RuleSemantics(policy.join_rule_version.value),
             )
             if join_rule is not None
             else None

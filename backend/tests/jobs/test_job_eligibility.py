@@ -253,6 +253,72 @@ async def test_JOB2_the_eligibility_preview_matches_what_it_executes() -> None:
 
 
 @pytest.mark.asyncio
+async def test_ELG2_resaving_a_legacy_rule_previews_and_audits_v2_conversion() -> None:
+    admin, cycle_id, job_id, _members, _program, _branch = await _cycle_with_members(())
+    rule = {"not": {"field": "cpi", "op": "gte", "value": 8}}
+    database = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
+    try:
+        async with database.begin() as connection:
+            await connection.execute(
+                sa.text(
+                    "UPDATE jobs SET eligibility_rule = CAST(:rule AS jsonb), "
+                    "eligibility_rule_version = 1 WHERE id = :id"
+                ),
+                {"id": job_id, "rule": '{"not":{"field":"cpi","op":"gte","value":8}}'},
+            )
+    finally:
+        await database.dispose()
+
+    executor, engine = build_test_executor()
+    payload = executor.registry.commands[
+        "update_job_eligibility"
+    ].input_model.model_validate(
+        {"cycle_id": str(cycle_id), "job_id": str(job_id), "eligibility_rule": rule}
+    )
+    try:
+        preview = await executor.run(
+            "update_job_eligibility", payload, admin.actor, dry_run=True
+        )
+        assert preview.summary["eligibility_rule_version"] == 2
+        check = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
+        try:
+            async with check.begin() as connection:
+                assert await connection.scalar(
+                    sa.text(
+                        "SELECT eligibility_rule_version FROM jobs WHERE id = :id"
+                    ),
+                    {"id": job_id},
+                ) == 1
+        finally:
+            await check.dispose()
+        result = await executor.run("update_job_eligibility", payload, admin.actor)
+    finally:
+        await engine.dispose()
+
+    assert result.summary["changed"] is True
+    verify = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
+    try:
+        async with verify.begin() as connection:
+            assert await connection.scalar(
+                sa.text("SELECT eligibility_rule_version FROM jobs WHERE id = :id"),
+                {"id": job_id},
+            ) == 2
+            audit = (
+                await connection.execute(
+                    sa.text(
+                        "SELECT details FROM audit_log WHERE subject_id = :id "
+                        "ORDER BY created_at DESC, id DESC LIMIT 1"
+                    ),
+                    {"id": job_id},
+                )
+            ).scalar_one()
+    finally:
+        await verify.dispose()
+    assert audit["before"]["eligibility_rule_version"] == 1
+    assert audit["after"]["eligibility_rule_version"] == 2
+
+
+@pytest.mark.asyncio
 async def test_JOB2_a_cancelled_job_no_longer_accepts_a_rule_edit() -> None:
     admin, cycle_id, job_id, _members, _program, _branch = await _cycle_with_members(())
     engine = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])

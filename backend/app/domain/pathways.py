@@ -165,21 +165,44 @@ def derived_rule_facts(
     """
     structure = program_structure(profile.get("program_structure"))
     program = _identifier(profile.get("program_id"))
+    component_ids: frozenset[UUID] | None
+    if structure is ProgramStructure.SINGLE:
+        component_ids = frozenset({program}) if program is not None else None
+    elif structure in {ProgramStructure.DUAL_MAJOR, ProgramStructure.DUAL_DEGREE}:
+        components = (
+            _identifier(profile.get("program_primary_degree_id")),
+            _identifier(profile.get("program_secondary_degree_id")),
+        )
+        component_ids = (
+            frozenset(identifier for identifier in components if identifier is not None)
+            if all(identifier is not None for identifier in components)
+            else None
+        )
+    else:
+        component_ids = None
+    legacy_program = (
+        program
+        if structure is ProgramStructure.SINGLE
+        else _identifier(profile.get("program_primary_degree_id"))
+    )
+    study_year = _study_year(profile.get("study_year"))
+    study_year_session = _study_year(profile.get("study_year_session"))
+    current_study_year = (
+        study_year
+        if current_session is not None and study_year_session == current_session
+        else None
+    )
     return {
-        # Every programme the student counts as being in: the one they declared
-        # and the degrees it is built from.  A rule naming BTech keeps matching
-        # a BTech dual major, which is what its author meant.  Kept beside the
-        # declared programme rather than over it, because the per-programme CTC
-        # and the record screens still want the one they are actually in.
-        "eligible_program_ids": frozenset(
-            identifier
-            for identifier in (
-                program,
-                _identifier(profile.get("program_primary_degree_id")),
-                _identifier(profile.get("program_secondary_degree_id")),
-            )
-            if identifier is not None
-        ),
+        # V1 rules were authored before combined programme rows existed. Their
+        # program_id fact was the undergraduate/base degree now held here.
+        "legacy_program_id": legacy_program,
+        # Component membership is an explicit predicate.  ``program_id`` stays
+        # the exact programme the student declared, preserving legacy rules and
+        # preventing a combined programme from passing an MTech-only rule.
+        "component_program_ids": component_ids,
+        # Rules may use year only when explicitly declared for the configured
+        # session. A stale year is unknown, never an inferred progression.
+        "current_study_year": current_study_year,
         "discipline_id": eligible_disciplines(
             profile, outcome=outcome, current_session=current_session
         ),

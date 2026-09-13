@@ -16,7 +16,7 @@ from app.domain.pathways import (
     derived_rule_facts,
     eligible_disciplines,
 )
-from app.domain.rules import RuleContext, evaluate, parse_rule
+from app.domain.rules import RuleContext, RuleSemantics, evaluate, parse_rule
 from app.domain.shared import Outcome, ProgramStructure
 
 CONTEXT = RuleContext(not_placement_placed=True)
@@ -120,6 +120,29 @@ def test_ELG2_stale_dual_major_standing_cannot_answer_an_internship_rule() -> No
     assert _eligible(profile) is None
 
 
+def test_ELG2_a_study_year_rule_reads_only_the_configured_session() -> None:
+    profile = _single(EE) | {
+        "study_year": 4,
+        "study_year_session": CURRENT_SESSION - 1,
+    }
+    profile.update(
+        derived_rule_facts(
+            profile, outcome=Outcome.INTERNSHIP, current_session=CURRENT_SESSION
+        )
+    )
+    rule = parse_rule({"field": "study_year", "op": "eq", "value": 4})
+    assert profile["current_study_year"] is None
+    assert evaluate(rule, profile, CONTEXT).verdict is False
+
+    profile["study_year_session"] = CURRENT_SESSION
+    profile.update(
+        derived_rule_facts(
+            profile, outcome=Outcome.INTERNSHIP, current_session=CURRENT_SESSION
+        )
+    )
+    assert evaluate(rule, profile, CONTEXT).verdict is True
+
+
 @pytest.mark.parametrize("op, expected, disciplines, verdict", [
     ("in", [str(EE), str(ICDT)], frozenset({EE}), True),
     ("in", [str(EE), str(ICDT)], frozenset({CSE}), False),
@@ -194,51 +217,41 @@ def test_ELG2_the_ixana_defect_a_single_discipline_student_is_not_excluded() -> 
     assert evaluate(corrected, third_year, CONTEXT).verdict is False
 
 
-def test_ELG2_a_rule_naming_a_degree_still_matches_the_programmes_built_on_it() -> None:
-    """The migration must not quietly narrow the rules it carries across.
-
-    "BTech Dual Major" is a new programme, and a saved rule naming BTech was
-    written when its dual majors were BTech with a flag. The rule keeps meaning
-    what its author meant: enrolled in a programme built on BTech.
-    """
+def test_ELG2_declared_programme_and_component_degree_are_separate_predicates() -> None:
+    """A BTech–MTech profile is not enrolled in the standalone MTech programme."""
     btech = UUID("00000000-0000-0000-0000-0000000b7ec8")
-    dual_major = UUID("00000000-0000-0000-0000-00000000d117")
+    combined = UUID("00000000-0000-0000-0000-00000000d117")
     mtech = UUID("00000000-0000-0000-0000-00000000117e")
-
-    facts = derived_rule_facts(
-        {
-            "program_id": dual_major,
-            "program_primary_degree_id": btech,
-            "program_secondary_degree_id": btech,
-            "program_structure": ProgramStructure.DUAL_MAJOR.value,
-        },
-        outcome=Outcome.PLACEMENT,
-        current_session=None,
-    )
-    assert facts["eligible_program_ids"] == frozenset({dual_major, btech})
-
-    rule = parse_rule({"field": "program_id", "op": "in", "value": [str(btech)]})
-    assert evaluate(rule, facts, CONTEXT).verdict is True
-    # And naming the combined programme alone still selects only it.
-    exact = parse_rule({"field": "program_id", "op": "in", "value": [str(dual_major)]})
-    assert evaluate(exact, facts, CONTEXT).verdict is True
-    assert evaluate(
-        parse_rule({"field": "program_id", "op": "in", "value": [str(mtech)]}),
-        facts,
-        CONTEXT,
-    ).verdict is False
-
-
-def test_ELG2_the_declared_programme_is_kept_beside_the_widened_set() -> None:
-    """Per-programme CTC and the record screens read the one they are in."""
-    dual_major = UUID("00000000-0000-0000-0000-00000000d117")
     profile: dict[str, object] = {
-        "program_id": dual_major,
-        "program_structure": ProgramStructure.DUAL_MAJOR.value,
+        "program_id": combined,
+        "program_primary_degree_id": btech,
+        "program_secondary_degree_id": mtech,
+        "program_structure": ProgramStructure.DUAL_DEGREE.value,
     }
     profile.update(
         derived_rule_facts(
             profile, outcome=Outcome.PLACEMENT, current_session=None
         )
     )
-    assert profile["program_id"] == dual_major
+
+    declared = parse_rule(
+        {"field": "program_id", "op": "in", "value": [str(mtech)]}
+    )
+    component = parse_rule(
+        {"field": "component_program_id", "op": "in", "value": [str(mtech)]}
+    )
+    assert evaluate(declared, profile, CONTEXT).verdict is False
+    assert evaluate(component, profile, CONTEXT).verdict is True
+    # Before combined rows existed, program_id held the undergraduate degree;
+    # v1 reconstructs exactly that fact, not the union of both components.
+    legacy_btech = parse_rule(
+        {"field": "program_id", "op": "in", "value": [str(btech)]}
+    )
+    assert evaluate(
+        legacy_btech, profile, CONTEXT, semantics=RuleSemantics.LEGACY
+    ).verdict is True
+    assert evaluate(
+        declared, profile, CONTEXT, semantics=RuleSemantics.LEGACY
+    ).verdict is False
+    assert profile["program_id"] == combined
+    assert profile["component_program_ids"] == frozenset({btech, mtech})

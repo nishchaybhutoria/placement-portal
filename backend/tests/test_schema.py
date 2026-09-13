@@ -145,6 +145,7 @@ DOMAIN_COLUMNS: dict[str, set[str]] = {
         "cycle_id",
         "membership_requires_approval",
         "join_rule",
+        "join_rule_version",
         "max_accepted_offers",
         "penalty_blocks_applications",
         "allow_withdrawal_after_deadline",
@@ -193,6 +194,7 @@ DOMAIN_COLUMNS: dict[str, set[str]] = {
         "published_at",
         "cancelled_at",
         "eligibility_rule",
+        "eligibility_rule_version",
         "eligibility_summary",
     },
     "job_program_ctc": {"job_id", "program_id", "ctc_lpa"},
@@ -577,18 +579,22 @@ async def test_schema_conformance() -> None:
         "FROM pg_constraint AS con "
         "JOIN pg_class AS table_class ON table_class.oid = con.conrelid "
         "WHERE con.contype = 'c' AND table_class.relname = ANY "
-        "(ARRAY['cycles', 'jobs', 'overrides'])"
+        "(ARRAY['cycles', 'cycle_policies', 'jobs', 'overrides'])"
     )
     checks = {str(row["constraint_name"]): str(row["definition"]) for row in check_rows}
     assert set(checks) == {
         "ck_cycles_start_before_end",
+        "ck_cycle_policies_join_rule_version",
         "ck_jobs_offer_deadline_after_application_deadline",
+        "ck_jobs_rule_version",
         "ck_overrides_scope_combination",
     }
     assert "starts_on <= ends_on" in checks["ck_cycles_start_before_end"]
     assert "offer_acceptance_deadline > application_deadline" in checks[
         "ck_jobs_offer_deadline_after_application_deadline"
     ]
+    assert "join_rule_version = ANY" in checks["ck_cycle_policies_join_rule_version"]
+    assert "eligibility_rule_version = ANY" in checks["ck_jobs_rule_version"]
     scope_check = checks["ck_overrides_scope_combination"]
     assert "cycle_id IS NOT NULL" in scope_check
     assert "job_id IS NOT NULL" in scope_check

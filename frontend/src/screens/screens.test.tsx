@@ -1075,6 +1075,24 @@ describe("job builder", () => {
     });
   });
 
+  it("warns before a legacy rule is explicitly converted", async () => {
+    const legacy = structuredClone(builder) as unknown as BuilderPayload;
+    legacy.eligibility.rule_version = 1;
+    mockScreens({
+      builder: legacy,
+      "screens/staff/taxonomies": adminTaxonomies,
+      "screens/staff/companies": staffCompanies,
+    });
+    renderScreen(<JobBuilder />, {
+      path: "/staff/jobs/:id",
+      route: `/staff/jobs/${ids.job_id}?cycle_id=${ids.cycle_id}`,
+    });
+
+    fireEvent.click(await screen.findByRole("tab", { name: /Eligibility/ }));
+    expect(await screen.findByText(/legacy evaluation semantics/)).toBeInTheDocument();
+    expect(screen.getByText(/preview and record conversion/)).toBeInTheDocument();
+  });
+
   it("blocks save and impact preview while a visual clause is unfinished", async () => {
     mockScreens({
       builder,

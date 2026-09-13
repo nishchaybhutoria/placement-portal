@@ -10,6 +10,7 @@ from app.domain.rules import (
     SET_FIELDS,
     RuleContext,
     RuleField,
+    RuleSemantics,
     actual_key,
     evaluate,
     parse_rule,
@@ -220,6 +221,14 @@ def test_ELG2_an_any_with_unknown_and_false_is_unknown_and_denied() -> None:
     assert "not recorded" in result.failures[0].human
 
 
+def test_ELG2_legacy_negation_is_versioned_while_new_rules_fail_closed() -> None:
+    rule = parse_rule({"not": {"field": "cpi", "op": "gte", "value": 8}})
+    assert evaluate(rule, {}, CONTEXT).verdict is False
+    assert evaluate(
+        rule, {}, CONTEXT, semantics=RuleSemantics.LEGACY
+    ).verdict is True
+
+
 def test_ELG2_failing_not_never_returns_an_empty_failure_list() -> None:
     result = evaluate(
         parse_rule({"not": {"field": "cpi", "op": "gte", "value": 8}}),
@@ -262,6 +271,7 @@ def test_DER1_context_criterion_is_precomputed_and_pure() -> None:
 def test_ELG2_field_registry_is_exactly_the_approved_academic_set() -> None:
     assert {field.value for field in RuleField} == {
         "program_id",
+        "component_program_id",
         "secondary_program_id",
         "primary_branch_id",
         "secondary_branch_id",
@@ -269,6 +279,7 @@ def test_ELG2_field_registry_is_exactly_the_approved_academic_set() -> None:
         # stored, so one condition covers single, dual-major and dual-degree
         # enrollments instead of a rule naming both branch columns at once.
         "discipline_id",
+        "study_year",
         "graduating_year",
         "cpi",
         "active_backlogs",

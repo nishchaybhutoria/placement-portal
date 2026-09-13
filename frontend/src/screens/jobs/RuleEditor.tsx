@@ -32,8 +32,10 @@ type ClauseKind =
   | "cpi"
   | "active_backlogs"
   | "total_backlogs"
+  | "study_year"
   | "graduating_year"
   | "program"
+  | "component_program"
   | "secondary_program"
   | "discipline"
   | "branch"
@@ -58,11 +60,25 @@ const CLAUSES: ClauseDefinition[] = [
   },
   { kind: "total_backlogs", label: "Maximum total backlogs", hint: "Counts history, not just current." },
   {
+    kind: "study_year",
+    label: "Current study years",
+    hint: "Years 1–8, accepted only from the configured current academic session.",
+  },
+  {
     kind: "graduating_year",
     label: "Graduating years",
     hint: "One or more batches, comma separated — pathways often differ, e.g. 2026, 2027.",
   },
-  { kind: "program", label: "Primary programs", hint: "Any primary degree you pick." },
+  {
+    kind: "program",
+    label: "Declared programmes",
+    hint: "Matches the exact programme on the student record.",
+  },
+  {
+    kind: "component_program",
+    label: "Component degrees",
+    hint: "Matches a degree included in the declared programme, including combined programmes.",
+  },
   {
     kind: "secondary_program",
     label: "Secondary programs",
@@ -168,14 +184,21 @@ function clauseProblem(clause: Clause): string | null {
     clause.kind === "dual_degree" ||
     clause.kind === "not_placed"
   ) return null;
-  if (clause.kind === "graduating_year") {
+  if (clause.kind === "study_year" || clause.kind === "graduating_year") {
     const values = clause.numbers ?? [];
-    return values.length > 0 && values.every((value) => Number.isInteger(Number(value)))
-      ? null
-      : "Choose at least one whole graduating year.";
+    const whole = values.length > 0 && values.every(
+      (value) => Number.isInteger(Number(value)),
+    );
+    if (!whole) return "Choose at least one whole year.";
+    if (
+      clause.kind === "study_year" &&
+      !values.every((value) => Number(value) >= 1 && Number(value) <= 8)
+    ) return "Study years must be between 1 and 8.";
+    return null;
   }
   if (
     clause.kind === "program" ||
+    clause.kind === "component_program" ||
     clause.kind === "secondary_program" ||
     clause.kind === "discipline" ||
     clause.kind === "branch" ||
@@ -254,6 +277,7 @@ function toNode(clause: Clause): Rule | null {
       return clause.number !== undefined && clause.number !== ""
         ? { field: "total_backlogs", op: "lte", value: Number(clause.number) }
         : null;
+    case "study_year":
     case "graduating_year": {
       const years = (clause.numbers ?? [])
         .map((entry) => Number(entry))
@@ -262,12 +286,17 @@ function toNode(clause: Clause): Rule | null {
       // One year stays `eq`: it keeps rules saved before this clause took a
       // list byte-identical, and "graduating year 2027" reads better than
       // "one of 2027" in the summary a student is shown.
+      const field = clause.kind === "study_year" ? "study_year" : "graduating_year";
       return years.length === 1
-        ? { field: "graduating_year", op: "eq", value: years[0] as number }
-        : { field: "graduating_year", op: "in", value: years };
+        ? { field, op: "eq", value: years[0] as number }
+        : { field, op: "in", value: years };
     }
     case "program":
       return clause.ids?.length ? { field: "program_id", op: "in", value: clause.ids } : null;
+    case "component_program":
+      return clause.ids?.length
+        ? { field: "component_program_id", op: "in", value: clause.ids }
+        : null;
     case "secondary_program":
       return clause.ids?.length
         ? { field: "secondary_program_id", op: "in", value: clause.ids }
@@ -375,12 +404,14 @@ function nodeToClause(node: Rule, id: string): Clause | null {
     return { id, kind: "active_backlogs", number: String(value) };
   if (field === "total_backlogs" && op === "lte")
     return { id, kind: "total_backlogs", number: String(value) };
-  if (field === "graduating_year" && op === "eq")
-    return { id, kind: "graduating_year", numbers: [String(value)] };
-  if (field === "graduating_year" && op === "in")
-    return { id, kind: "graduating_year", numbers: (value as number[]).map(String) };
+  if ((field === "study_year" || field === "graduating_year") && op === "eq")
+    return { id, kind: field, numbers: [String(value)] };
+  if ((field === "study_year" || field === "graduating_year") && op === "in")
+    return { id, kind: field, numbers: (value as number[]).map(String) };
   if (field === "program_id" && op === "in")
     return { id, kind: "program", ids: value as string[] };
+  if (field === "component_program_id" && op === "in")
+    return { id, kind: "component_program", ids: value as string[] };
   if (field === "secondary_program_id" && op === "in")
     return { id, kind: "secondary_program", ids: value as string[] };
   if (field === "discipline_id" && op === "in")
@@ -904,7 +935,9 @@ function ClauseRow({
 }) {
   const definition = CLAUSES.find((entry) => entry.kind === clause.kind);
   const options =
-    clause.kind === "program" || clause.kind === "secondary_program"
+    clause.kind === "program" ||
+    clause.kind === "component_program" ||
+    clause.kind === "secondary_program"
       ? taxonomy.programs
       : clause.kind === "discipline" ||
           clause.kind === "branch" ||
@@ -970,12 +1003,12 @@ function ClauseRow({
               </label>
             ))}
           </div>
-        ) : clause.kind === "graduating_year" ? (
+        ) : clause.kind === "study_year" || clause.kind === "graduating_year" ? (
           <Input
-            aria-label="Graduating years"
+            aria-label={definition?.label}
             type="text"
             inputMode="numeric"
-            placeholder="2026, 2027"
+            placeholder={clause.kind === "study_year" ? "3, 4" : "2026, 2027"}
             className="w-64"
             disabled={disabled}
             value={(clause.numbers ?? []).join(", ")}

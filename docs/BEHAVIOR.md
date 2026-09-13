@@ -60,7 +60,7 @@ Stored roles are `Student` and `Admin`; coordinator capability is a per-cycle as
 ### PRO-1 — Self-declaration, admin ownership, locking
 One profile per enrollment, completed once by the student. **Admin-managed fields** accept the student's initial value, then lock — thereafter editable only by admins (single edit or bulk upsert). **Student-managed fields** stay editable any time. Every change is audited (who, field, old→new).
 
-The four semesterly academic facts — graduating year, CPI, and the two backlog counts — are the exception to the lock: they stay **student-maintained**, editable by the student whenever they change, because the student learns each one months before the office does. They remain admin-*owned* everywhere else — PRO-2 bulk upsert carries them and the semesterly roster overwrites whatever the student last entered, which is what keeps the official numbers authoritative.
+The semesterly academic facts — current study year, graduating year, CPI, and the two backlog counts — are the exception to the lock: they stay **student-maintained**, editable by the student whenever they change, because the student learns each one months before the office does. Current study year is an explicit declaration from **1–8**, stored with the configured academic session; it is never inferred from programme duration or automatically incremented. A declaration from an older session is stale. These facts remain admin-*owned* everywhere else — PRO-2 bulk upsert carries them and the semesterly roster overwrites whatever the student last entered, which is what keeps the official numbers authoritative.
 
 Field inventory (confirmed):
 
@@ -69,9 +69,10 @@ Field inventory (confirmed):
 | Full name | Admin (seeded from Google) | yes |
 | Institute email | System (immutable; identity migration is not implemented) | yes |
 | Roll number | **Admin** | yes |
-| Program | **Admin** | yes |
+| Programme | **Admin** | yes |
 | Primary branch | **Admin** | yes |
-| Secondary branch (dual majors) | **Admin** | if dual major |
+| Secondary branch | **Admin** | if the programme has two disciplines |
+| Current study year + declared session | **Admin** (student-maintained; see above) | collected, but not yet a join gate |
 | Graduating year | **Admin** (student-maintained; see above) | yes |
 | CPI (0–10, 2 dp) | **Admin** (student-maintained; see above) | yes |
 | Active backlog count | **Admin** (student-maintained; see above) | yes |
@@ -85,7 +86,7 @@ Field inventory (confirmed):
 | GitHub / LinkedIn / portfolio URLs | Student | no |
 | Resume library (PRO-3) | Student | ≥1 entry |
 
-A dual major or dual degree may name the **same** branch twice — a BTech and an MTech in one discipline is the ordinary dual degree — so only the program/branch map constrains the pair.
+The declared programme owns its structure: `single`, `dual_major`, or `dual_degree`. Combined programmes name two single-degree components; a dual major may name the same component twice, while a dual degree names its undergraduate and postgraduate components. Each branch slot is validated against its corresponding component degree. A dual major or dual degree may name the **same** branch twice — a BTech and an MTech in one discipline is the ordinary dual degree — so equality of branches is not itself an error.
 
 Backlogs are two **counts** so `active_backlogs = 0`, `total_backlogs = 0`, and `active_backlogs ≤ 1` are all expressible. Profile changes **never** touch existing applications (ELG-4).
 
@@ -181,10 +182,12 @@ Only ever against the **live profile at that instant**, never retroactively: (1)
 
 ### ELG-2 — Rule grammar
 Boolean tree — `all[…]` / `any[…]` / `not{…}` — over leaves:
-- **Profile leaves** `{field, op, value}`: field ∈ registry (program, primary_branch, secondary_branch, graduating_year, cpi, active_backlogs, total_backlogs, tenth_percent, twelfth_percent, gender, minors, nationality, …); op ∈ `eq, ne, in, not_in, gte, lte, between`. Per-branch CPI floors = `any[ all[branch=X, cpi≥a], all[branch=Y, cpi≥b] ]`.
+- **Profile leaves** `{field, op, value}`: field ∈ the approved rule registry; op ∈ `eq, ne, in, not_in, gte, lte, between`. `program_id` means the **exact declared programme**. `component_program_id` separately asks whether a declared programme contains a degree. `discipline_id` asks which discipline may answer in this job context. `study_year` reads only a declaration for the configured current session; missing or stale standing is unknown. Per-branch CPI floors = `any[ all[branch=X, cpi≥a], all[branch=Y, cpi≥b] ]`.
 - **Context leaves**: `not_placement_placed` (global, DER-1) — rarely needed in rules since ELG-3 already gates placement universally, but available for special cases.
 - **CPI contract:** student CPI rounds **half-up to one decimal** before any comparison (7.95 passes ≥8.0; 7.94 fails) — identically in evaluation, previews, and displayed reasons.
-- Builder offers the common patterns compiling into the tree; the tree is canonical and directly editable; every rule stores an auto-generated plain-language summary. Evaluation returns `(verdict, failed leaves with human reasons)`.
+- Builder offers the common patterns compiling into the tree; the tree is canonical and directly editable; every rule stores an auto-generated plain-language summary. Invalid JSON, duplicate keys, and unfinished visual clauses cannot be previewed or saved; switching modes may not flatten a tree. Evaluation returns `(verdict, failed leaves with human reasons)`.
+- **Contextual disciplines:** placement dual majors may answer with either discipline regardless of study year; internship dual majors may answer with the primary discipline from current year 3 and the secondary from current year 4. Dual degrees answer with the postgraduate/secondary discipline. Unknown outcome, programme shape, discipline, configured session, or required current standing is unknown rather than false.
+- **Fail closed and versioned:** current rules use three-valued evaluation (`true`, `false`, `unknown`); `not unknown` remains unknown and an unknown final verdict denies eligibility. Stored jobs and cycle join rules retain their persisted semantics version. Migration assigns existing rules v1 and new or explicitly re-saved rules v2. Re-saving a v1 rule requires the normal impact preview and audited confirmation; there is no bulk or silent conversion.
 
 ### ELG-3 — Standing gates (before any job rule, in order; each consults overrides first — INT-2)
 1. Membership `active` in the job's cycle;

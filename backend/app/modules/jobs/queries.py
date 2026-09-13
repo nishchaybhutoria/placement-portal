@@ -21,7 +21,12 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine
 
 from app.core.plan import ScopeIds
-from app.domain.rules import NO_RULE_SUMMARY, profile_taxonomy_ids, taxonomy_ids
+from app.domain.rules import (
+    NO_RULE_SUMMARY,
+    RuleSemantics,
+    profile_taxonomy_ids,
+    taxonomy_ids,
+)
 from app.domain.shared import CycleKind, Outcome, domains_for_scope
 from app.modules.applications.verdict import (
     compute_verdict,
@@ -290,6 +295,7 @@ async def staff_job_builder(
             labels,
             outcome=Outcome(str(job["outcome"])),
             current_session=current_session,
+            semantics=RuleSemantics(int(job["eligibility_rule_version"])),
         )
         targets, untouched = await cancellation_targets(connection, job_id)
         payload = _job_payload(job) | {
@@ -323,6 +329,7 @@ async def staff_job_builder(
         "overrides": [_override_payload(row) for row in subject_overrides],
         "eligibility": {
             "rule": rule,
+            "rule_version": int(job["eligibility_rule_version"]),
             "summary": job["eligibility_summary"] or NO_RULE_SUMMARY,
             "impact": {
                 "eligible_count": len(eligible),

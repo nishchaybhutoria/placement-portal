@@ -291,6 +291,7 @@ export interface BuilderPayload {
   overrides: SubjectOverride[];
   eligibility: {
     rule: Record<string, unknown> | null;
+    rule_version: number;
     summary: string;
     impact: {
       eligible_count: number;
