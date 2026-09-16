@@ -60,18 +60,17 @@
 		import api_proxy
 	}
 
-	# The portal and mock sites are SPAs, so unknown client-side routes fall back
-	# to their own index rather than the common landing page.
+	# The portal SPA falls back to its own index rather than the common landing page.
 	handle_path /portal/* {
 		root * /srv/portal
 		try_files {path} /index.html
 		file_server
 	}
 
+	# The separately managed mock Node application runs under PM2 on the host.
+	# handle_path removes /mock before forwarding to its root-relative routes.
 	handle_path /mock/* {
-		root * /srv/mock
-		try_files {path} /index.html
-		file_server
+		reverse_proxy host.docker.internal:5000
 	}
 
 	handle {

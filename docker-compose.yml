@@ -240,6 +240,8 @@ services:
         VITE_BASE_PATH: /portal/
     environment:
       DOMAIN: ${DOMAIN:-cdsportal.example.edu}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "80:80"
       - "443:443"
@@ -248,7 +250,6 @@ services:
       - caddy_data:/data
       - caddy_config:/config
       - ${TLS_DIR:-/home/cdsuser/cds-secrets/tls}:/etc/caddy/tls:ro,Z
-      - ${MOCK_DIR:-/opt/mock}:/srv/mock:ro,Z
     depends_on:
       api:
         condition: service_healthy
