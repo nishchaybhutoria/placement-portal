@@ -37,7 +37,7 @@ grep -q 'uri strip_prefix /portal' Caddyfile
 grep -q 'root \* /srv/portal' Caddyfile
 grep -q 'root \* /srv/common' Caddyfile
 grep -q 'reverse_proxy host.docker.internal:5000' Caddyfile
-grep -q 'host.docker.internal:host-gateway' "$rendered"
+grep -q 'host.docker.internal=host-gateway' "$rendered"
 docker run --rm \
     -v "$repo_root/Caddyfile:/etc/caddy/Caddyfile:ro,Z" \
     caddy:2.11.4-alpine \
