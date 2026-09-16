@@ -37,7 +37,12 @@ grep -q 'uri strip_prefix /portal' Caddyfile
 grep -q 'root \* /srv/portal' Caddyfile
 grep -q 'root \* /srv/common' Caddyfile
 grep -q 'reverse_proxy host.docker.internal:5000' Caddyfile
-grep -q 'host.docker.internal=host-gateway' "$rendered"
+# Compose has rendered extra_hosts three ways across versions: a "host=ip"
+# list item today, a "host:ip" list item before that, and a "host: ip" mapping
+# earlier still. Accept all three -- the assertion is about the host gateway
+# mapping reaching the rendered config, not about which Compose the operator
+# running this check happens to have.
+grep -qE 'host\.docker\.internal[:=][[:space:]]*host-gateway' "$rendered"
 docker run --rm \
     -v "$repo_root/Caddyfile:/etc/caddy/Caddyfile:ro,Z" \
     caddy:2.11.4-alpine \
