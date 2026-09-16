@@ -22,7 +22,7 @@
 	}
 
 	handle {
-		root * /srv
+		root * /srv/portal
 		try_files {path} /index.html
 		file_server
 	}
