@@ -104,6 +104,19 @@ describe("EventPayload", () => {
     expect(screen.queryByText(/Previously/)).not.toBeInTheDocument();
   });
 
+  it("resolves machine references and never falls back to a raw UUID", () => {
+    const jobId = "0f3f1a55-0000-4000-8000-00000000000a";
+    render(
+      <EventPayload
+        payload={{ job_id: jobId, offer_id: "0f3f1a55-0000-4000-8000-00000000000b" }}
+        referenceLabels={new Map([[jobId, "Backend Engineer"]])}
+      />,
+    );
+    expect(screen.getByText("Backend Engineer")).toBeInTheDocument();
+    expect(screen.getByText("Unavailable reference")).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain(jobId);
+  });
+
   it("keeps a key it has never heard of, in the disclosure", () => {
     render(<EventPayload payload={{ termination_kind: "cascade", some_future_key: 41 }} />);
     expect(screen.getByText("Termination: cascade")).toBeInTheDocument();

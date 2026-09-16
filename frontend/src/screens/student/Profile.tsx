@@ -12,6 +12,7 @@ import { Field } from "@/components/ui/field";
 import { Input, Select } from "@/components/ui/input";
 import { EmptyState, ErrorState, ScreenSkeleton } from "@/components/ui/states";
 import { formatDate } from "@/lib/date";
+import { isUuid } from "@/lib/text";
 
 const NUMBER_FIELDS = new Set([
   "graduating_year",
@@ -269,7 +270,10 @@ function displayValue(key: string, value: unknown, data: MeProfilePayload): stri
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (value === null || value === undefined || value === "") return "—";
   const taxonomy = taxonomyFor(key);
-  if (taxonomy) return data.taxonomies[taxonomy].find((item) => item.id === value)?.name ?? String(value);
+  if (taxonomy) {
+    return data.taxonomies[taxonomy].find((item) => item.id === value)?.name ??
+      (isUuid(value) ? "Unavailable selection" : String(value));
+  }
   return String(value);
 }
 

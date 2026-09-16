@@ -83,7 +83,7 @@ export function Dashboard() {
             <p>{counted(data.applications.length, "application")}</p>
             <p>
               {counted(data.discipline.active_strikes, "active strike")} ·{" "}
-              {counted(data.discipline.active_penalties, "active penalty")}
+              {counted(data.discipline.active_penalties, "active penalty", "active penalties")}
             </p>
             <Button variant="link" asChild><Link to="/applications">View application history</Link></Button>
           </CardBody>

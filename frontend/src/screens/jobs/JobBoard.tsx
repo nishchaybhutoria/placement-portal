@@ -21,7 +21,7 @@ import { formatZonedDateTime } from "@/lib/date";
 import { newIdempotencyKey } from "@/lib/idempotency";
 import { CreateExternalOffer } from "@/screens/offers/ExternalOffers";
 import { reasonText } from "@/lib/reasons";
-import { counted, humanise } from "@/lib/text";
+import { counted, humanise, isUuid } from "@/lib/text";
 
 type Board = StaffJobBoardPayload;
 type Row = Board["columns"][number]["rows"][number];
@@ -1081,7 +1081,7 @@ function PublishedSlots({ summary }: { summary: { rows: PublishedSlot[] } }) {
           <ul className="mt-gap-tight flex flex-col gap-gap-tight">
             {publishing.map((row) => (
               <li key={row.identifier} className="text-body-md text-foreground">
-                {row.full_name ?? row.identifier}
+                {publishedSlotName(row)}
                 {" → "}
                 <span className="text-muted-foreground">
                   {[row.venue, row.scheduled_at ? formatSlot(row.scheduled_at) : null]
@@ -1104,7 +1104,7 @@ function PublishedSlots({ summary }: { summary: { rows: PublishedSlot[] } }) {
           <ul className="mt-gap-tight flex flex-col gap-gap-tight">
             {unchanged.map((row) => (
               <li key={row.identifier} className="text-body-sm text-muted-foreground">
-                {row.full_name ?? row.identifier}
+                {publishedSlotName(row)}
                 {" → "}
                 {[row.venue, row.scheduled_at ? formatSlot(row.scheduled_at) : null]
                   .filter(Boolean)
@@ -1123,7 +1123,7 @@ function PublishedSlots({ summary }: { summary: { rows: PublishedSlot[] } }) {
           <ul className="mt-gap-tight flex flex-col gap-gap-tight">
             {problems.map((row) => (
               <li key={row.identifier} className="text-body-sm text-foreground">
-                {row.full_name ?? row.identifier} —{" "}
+                {publishedSlotName(row)} —{" "}
                 {reasonText(row.reason ?? "", row.human ?? undefined)}
               </li>
             ))}
@@ -1132,6 +1132,11 @@ function PublishedSlots({ summary }: { summary: { rows: PublishedSlot[] } }) {
       ) : null}
     </div>
   );
+}
+
+function publishedSlotName(row: PublishedSlot): string {
+  if (row.full_name) return row.full_name;
+  return isUuid(row.identifier) ? "Unavailable applicant" : row.identifier;
 }
 
 /** A ticked row is an application id; a pasted one is whatever was typed. */

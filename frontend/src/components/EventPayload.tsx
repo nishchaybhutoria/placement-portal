@@ -1,6 +1,6 @@
 import type { AppliedOverride, TimelineEvent } from "@/api/payloads";
 import { formatDateTime } from "@/lib/date";
-import { humanise } from "@/lib/text";
+import { humanise, isUuid } from "@/lib/text";
 
 /**
  * What an application event's payload says, in words.
@@ -28,9 +28,12 @@ import { humanise } from "@/lib/text";
 export function EventPayload({
   payload,
   labels,
+  referenceLabels,
 }: {
   payload: Record<string, unknown> | null | undefined;
   labels?: TimelineEvent["payload_labels"];
+  /** Human names for application, job, cycle, offer, taxonomy, and actor ids. */
+  referenceLabels?: ReadonlyMap<string, string>;
 }) {
   const entries = Object.entries(payload ?? {}).filter(
     ([key, value]) => !isEmpty(value) && key !== "applied_override_ids",
@@ -70,7 +73,7 @@ export function EventPayload({
             {remaining.map(([key, value]) => (
               <div key={key} className="contents">
                 <dt className="font-medium text-foreground">{humanise(key)}</dt>
-                <dd className="break-all">{formatValue(value)}</dd>
+                <dd className="break-all">{formatValue(value, referenceLabels)}</dd>
               </div>
             ))}
           </dl>
@@ -169,16 +172,22 @@ function isEmpty(value: unknown): boolean {
   return Array.isArray(value) && value.length === 0;
 }
 
-function formatValue(value: unknown): string {
+function formatValue(
+  value: unknown,
+  referenceLabels?: ReadonlyMap<string, string>,
+): string {
   if (value === null || value === undefined || value === "") return "—";
   if (Array.isArray(value)) {
-    return value.length === 0 ? "None" : value.map(formatValue).join(", ");
+    return value.length === 0
+      ? "None"
+      : value.map((nested) => formatValue(nested, referenceLabels)).join(", ");
   }
   if (typeof value === "object") {
     return Object.entries(value as Record<string, unknown>)
-      .map(([key, nested]) => `${humanise(key)}: ${formatValue(nested)}`)
+      .map(([key, nested]) => `${humanise(key)}: ${formatValue(nested, referenceLabels)}`)
       .join("; ");
   }
   if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (isUuid(value)) return referenceLabels?.get(value) ?? "Unavailable reference";
   return String(value);
 }

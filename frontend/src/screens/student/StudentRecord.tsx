@@ -27,7 +27,7 @@ import { StatusChip } from "@/components/ui/statusChip";
 import { DataTable, type Column } from "@/components/ui/table";
 import { formatDateTime, formatZonedDateTime } from "@/lib/date";
 import type { ApplicationStatus } from "@/lib/status";
-import { counted, humanise } from "@/lib/text";
+import { counted, humanise, isUuid } from "@/lib/text";
 
 const APPLICATION_STATUSES = [
   "in_progress",
@@ -414,6 +414,7 @@ function Memberships({ data }: { data: StudentRecordPayload }) {
 }
 
 function Applications({ data }: { data: StudentRecordPayload }) {
+  const references = buildReferenceLabels(data);
   return (
     <section className="flex flex-col gap-gap-lg" aria-labelledby="applications-heading">
       <div>
@@ -428,7 +429,11 @@ function Applications({ data }: { data: StudentRecordPayload }) {
         <EmptyState message="No applications belong to this enrollment." />
       ) : (
         data.applications.map((application) => (
-          <ApplicationCard key={application.id} application={application} />
+          <ApplicationCard
+            key={application.id}
+            application={application}
+            referenceLabels={references}
+          />
         ))
       )}
     </section>
@@ -437,7 +442,13 @@ function Applications({ data }: { data: StudentRecordPayload }) {
 
 type Application = StudentRecordPayload["applications"][number];
 
-function ApplicationCard({ application }: { application: Application }) {
+function ApplicationCard({
+  application,
+  referenceLabels,
+}: {
+  application: Application;
+  referenceLabels: ReadonlyMap<string, string>;
+}) {
   const changed = application.snapshot_diff.filter((row) => row.state !== "unchanged");
   // A card with a heading is a region, and naming it by that heading is what
   // lets a screen reader — and a test — address one application out of eight
@@ -508,7 +519,7 @@ function ApplicationCard({ application }: { application: Application }) {
           </p>
           <DataTable
             className="mt-gap-md"
-            columns={snapshotColumns}
+            columns={snapshotColumns(referenceLabels)}
             rows={application.snapshot_diff}
             rowKey={(row) => row.key}
           />
@@ -516,36 +527,48 @@ function ApplicationCard({ application }: { application: Application }) {
 
         <div>
           <h3 className="text-label-caps uppercase text-muted-foreground">Application timeline</h3>
-          <Timeline events={application.events} />
+          <Timeline events={application.events} referenceLabels={referenceLabels} />
         </div>
       </CardBody>
     </Card>
   );
 }
 
-const snapshotColumns: Column<Application["snapshot_diff"][number]>[] = [
-  {
-    key: "field",
-    header: "Field",
-    cell: (row) => (
-      <span>
-        <span className="block font-medium">{row.label}</span>
-        <span className="block text-body-sm text-muted-foreground">Owned by {humanise(row.owner)}</span>
-      </span>
-    ),
-  },
-  { key: "snapshot", header: "At submission", cell: (row) => renderValue(row.snapshot) },
-  { key: "live", header: "Live now", cell: (row) => renderValue(row.live) },
-  {
-    key: "state",
-    header: "Comparison",
-    cell: (row) => (
-      <span className={row.state === "changed" ? "font-semibold text-warning" : "text-muted-foreground"}>
-        {humanise(row.state)}
-      </span>
-    ),
-  },
-];
+function snapshotColumns(
+  referenceLabels: ReadonlyMap<string, string>,
+): Column<Application["snapshot_diff"][number]>[] {
+  return [
+    {
+      key: "field",
+      header: "Field",
+      cell: (row) => (
+        <span>
+          <span className="block font-medium">{row.label}</span>
+          <span className="block text-body-sm text-muted-foreground">Owned by {humanise(row.owner)}</span>
+        </span>
+      ),
+    },
+    {
+      key: "snapshot",
+      header: "At submission",
+      cell: (row) => renderValue(row.snapshot, referenceLabels),
+    },
+    {
+      key: "live",
+      header: "Live now",
+      cell: (row) => renderValue(row.live, referenceLabels),
+    },
+    {
+      key: "state",
+      header: "Comparison",
+      cell: (row) => (
+        <span className={row.state === "changed" ? "font-semibold text-warning" : "text-muted-foreground"}>
+          {humanise(row.state)}
+        </span>
+      ),
+    },
+  ];
+}
 
 function Reinstate({ application }: { application: Application }) {
   const permission = application.actions.reinstate;
@@ -640,7 +663,13 @@ function ForceTransition({ application }: { application: Application }) {
   );
 }
 
-function Timeline({ events }: { events: TimelineEvent[] }) {
+function Timeline({
+  events,
+  referenceLabels,
+}: {
+  events: TimelineEvent[];
+  referenceLabels: ReadonlyMap<string, string>;
+}) {
   if (events.length === 0) {
     return <EmptyState message="No events were recorded." />;
   }
@@ -658,7 +687,11 @@ function Timeline({ events }: { events: TimelineEvent[] }) {
             {event.from_round || event.to_round ? ` · ${event.from_round ?? "—"} → ${event.to_round ?? "—"}` : ""}
           </p>
           {event.reason ? <p className="mt-gap-tight text-body-sm text-foreground">{event.reason}</p> : null}
-          <EventPayload payload={event.payload} labels={event.payload_labels} />
+          <EventPayload
+            payload={event.payload}
+            labels={event.payload_labels}
+            referenceLabels={referenceLabels}
+          />
         </li>
       ))}
     </ol>
@@ -991,6 +1024,7 @@ function HistoryList({ title, empty, rows }: { title: string; empty: string; row
 }
 
 function AuditTrail({ data }: { data: StudentRecordPayload }) {
+  const references = buildReferenceLabels(data);
   return (
     <Card>
       <CardHeader>
@@ -1014,6 +1048,7 @@ function AuditTrail({ data }: { data: StudentRecordPayload }) {
                   action={row.action}
                   details={row.details}
                   fields={data.profile.fields}
+                  referenceLabels={references}
                 />
               </li>
             ))}
@@ -1028,10 +1063,12 @@ function AuditDetails({
   action,
   details,
   fields,
+  referenceLabels,
 }: {
   action: string;
   details: Record<string, unknown>;
   fields: StudentRecordPayload["profile"]["fields"];
+  referenceLabels: ReadonlyMap<string, string>;
 }) {
   const labels = new Map(fields.map((field) => [field.key, field.label]));
   const before = record(details.before);
@@ -1055,8 +1092,8 @@ function AuditDetails({
           {changedKeys.map((key) => (
             <li key={key}>
               <span className="font-medium">{labels.get(key) ?? humanise(key)}:</span>{" "}
-              {formatAuditValue(before ? before[key] : details.before)} →{" "}
-              {formatAuditValue(after ? after[key] : details.after)}
+              {formatAuditValue(before ? before[key] : details.before, key, referenceLabels)} →{" "}
+              {formatAuditValue(after ? after[key] : details.after, key, referenceLabels)}
             </li>
           ))}
         </ul>
@@ -1068,7 +1105,7 @@ function AuditDetails({
             {remaining.map(([key, value]) => (
               <div key={key} className="contents">
                 <dt className="font-medium text-foreground">{humanise(key)}</dt>
-                <dd className="break-all">{formatAuditValue(value, key)}</dd>
+                <dd className="break-all">{formatAuditValue(value, key, referenceLabels)}</dd>
               </div>
             ))}
           </dl>
@@ -1097,28 +1134,112 @@ const ENUM_DETAIL_KEYS = new Set([
   "to_status",
 ]);
 
-function formatAuditValue(value: unknown, key?: string): string {
+function formatAuditValue(
+  value: unknown,
+  key: string | undefined,
+  referenceLabels: ReadonlyMap<string, string>,
+): string {
   if (value === null || value === undefined || value === "") return "—";
   if (Array.isArray(value)) {
     return value.length === 0
       ? "None"
-      : value.map((nested) => formatAuditValue(nested, key)).join(", ");
+      : value.map((nested) => formatAuditValue(nested, key, referenceLabels)).join(", ");
   }
   if (typeof value === "object") {
     return Object.entries(value as Record<string, unknown>)
-      .map(([nestedKey, nested]) => `${humanise(nestedKey)}: ${formatAuditValue(nested, nestedKey)}`)
+      .map(([nestedKey, nested]) =>
+        `${humanise(nestedKey)}: ${formatAuditValue(nested, nestedKey, referenceLabels)}`,
+      )
       .join("; ");
   }
   if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (isUuid(value)) return referenceLabels.get(value) ?? "Unavailable reference";
   return typeof value === "string" && key && ENUM_DETAIL_KEYS.has(key)
     ? humanise(value)
     : String(value);
 }
 
-function renderValue(value: unknown): string {
+function renderValue(
+  value: unknown,
+  referenceLabels: ReadonlyMap<string, string>,
+): string {
   if (value === null || value === undefined || value === "") return "—";
-  if (Array.isArray(value)) return value.length === 0 ? "—" : value.map(renderValue).join(", ");
-  if (typeof value === "object") return JSON.stringify(value);
+  if (Array.isArray(value)) {
+    return value.length === 0
+      ? "—"
+      : value.map((nested) => renderValue(nested, referenceLabels)).join(", ");
+  }
+  if (typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>)
+      .map(([key, nested]) => `${humanise(key)}: ${renderValue(nested, referenceLabels)}`)
+      .join("; ");
+  }
   if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (isUuid(value)) return referenceLabels.get(value) ?? "Unavailable selection";
   return String(value);
+}
+
+/** Resolve every machine reference carried by the staff record to reader-facing copy. */
+function buildReferenceLabels(data: StudentRecordPayload): ReadonlyMap<string, string> {
+  const labels = new Map<string, string>();
+  const add = (id: string | null | undefined, label: string | null | undefined) => {
+    if (id && label) labels.set(id, label);
+  };
+
+  if (data.enrollment) {
+    add(data.enrollment.id, data.enrollment.full_name);
+    add(data.enrollment.user_id, data.enrollment.full_name);
+  }
+  for (const enrollment of data.enrollments) {
+    add(enrollment.id, enrollment.roll_number ? `Enrollment ${enrollment.roll_number}` : "Enrollment");
+  }
+  for (const taxonomy of Object.values(data.profile.taxonomies ?? {})) {
+    for (const item of taxonomy) add(item.id, item.name);
+  }
+  for (const membership of data.memberships ?? []) {
+    add(membership.id, `${membership.cycle.name} membership`);
+    add(membership.cycle.id, membership.cycle.name);
+  }
+  for (const cycle of data.override_targets?.cycles ?? []) add(cycle.id, cycle.name);
+  for (const job of data.override_targets?.jobs ?? []) {
+    add(job.id, job.title);
+    add(job.cycle.id, job.cycle.name);
+  }
+
+  for (const application of data.applications ?? []) {
+    add(application.id, `${application.job_title} application`);
+    add(application.job_id, application.job_title);
+    add(application.cycle.id, application.cycle.name);
+    for (const round of application.rounds ?? []) add(round.id, round.name);
+    for (const round of application.round_states ?? []) add(round.round_id, round.round_name);
+    for (const offer of application.offers ?? []) {
+      add(offer.id, `${offer.company_name} — ${offer.job_title} offer`);
+    }
+    for (const override of application.overrides ?? []) {
+      add(override.id, `${humanise(override.rule_domain)} override`);
+    }
+  }
+  for (const offer of data.offers ?? []) {
+    add(offer.id, `${offer.company_name} — ${offer.job_title} offer`);
+    add(offer.application_id, `${offer.job_title} application`);
+    add(offer.cycle_id, offer.cycle_name);
+  }
+  for (const offer of data.external_offers ?? []) {
+    add(offer.id, `${offer.company_name} external offer`);
+    add(offer.attached_cycle_id, offer.attached_cycle_name);
+  }
+  for (const strike of data.discipline?.strikes ?? []) add(strike.id, `Strike: ${strike.reason}`);
+  for (const penalty of data.discipline?.penalties ?? []) add(penalty.id, `Penalty: ${penalty.reasons}`);
+  for (const override of data.overrides ?? []) {
+    add(override.id, `${humanise(override.rule_domain)} override`);
+  }
+
+  // Audit details sometimes carry the actor id even though the row already
+  // carries the actor's name. Join the two here rather than printing the id.
+  for (const row of data.audit ?? []) {
+    const actorId = row.details.actor_user_id;
+    if (typeof actorId === "string") add(actorId, row.actor ?? "System");
+  }
+
+  return labels;
 }

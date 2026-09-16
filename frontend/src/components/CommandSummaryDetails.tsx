@@ -186,7 +186,7 @@ function RestoredApplications({
       render={(row) => (
         <>
           <span className="font-medium">
-            {words(names.get(String(row.application_id)) ?? row.application_id)}
+            {words(names.get(String(row.application_id)) ?? "Unavailable application")}
           </span>
           {" · "}<StatusChip domain="application" value={words(row.status)} />
           {row.target_round_id ? " · prior round restored" : " · no round"}

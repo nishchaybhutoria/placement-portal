@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { reasonText } from "@/lib/reasons";
+import { isUuid } from "@/lib/text";
 
 /**
  * The per-row plan of any bulk command, before anything is committed.
@@ -120,7 +121,7 @@ export function BulkRows<Row extends BulkRow>({
           <ul className="mt-gap-tight flex flex-col gap-gap-tight">
             {unmatched.map((row, index) => (
               <li key={rowKey(row, index)} className="text-body-md text-foreground">
-                {row.identifier ?? name(row, resolveName)}
+                {displayIdentifier(row.identifier) ?? name(row, resolveName)}
               </li>
             ))}
           </ul>
@@ -188,13 +189,14 @@ function name<Row extends BulkRow>(
     return row.roll_number ? `${row.full_name} (${row.roll_number})` : row.full_name;
   }
   if (resolved) return resolved;
-  return (
-    row.identifier ||
-    row.application_id ||
-    row.membership_id ||
-    row.external_offer_id ||
-    "Unnamed row"
-  );
+  const fallback =
+    row.identifier || row.application_id || row.membership_id || row.external_offer_id;
+  return displayIdentifier(fallback) ?? "Unnamed row";
+}
+
+function displayIdentifier(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return isUuid(value) ? "Unavailable record" : value;
 }
 
 function rowKey(row: BulkRow, index: number): string {

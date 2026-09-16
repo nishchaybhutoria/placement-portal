@@ -23,7 +23,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet } from "react-router-dom";
 
 import type { Me } from "@/api/client";
 import { command } from "@/api/client";
@@ -110,7 +110,12 @@ export function AppLayout({ me }: { me: Me }) {
       */}
       <aside className="sticky top-0 hidden h-screen w-sidebar shrink-0 flex-col border-r border-border bg-card lg:flex">
         <div className="flex h-14 items-center border-b border-border px-gap-lg">
-          <span className="text-headline-md text-foreground">CDS Portal</span>
+          <Link
+            to="/"
+            className="rounded text-headline-md text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            CDS Portal
+          </Link>
         </div>
         <Navigation me={me} />
         <Account me={me} />
@@ -118,7 +123,12 @@ export function AppLayout({ me }: { me: Me }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-card px-gap-lg lg:hidden">
-          <span className="text-headline-md text-foreground">CDS Portal</span>
+          <Link
+            to="/"
+            className="rounded text-headline-md text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            CDS Portal
+          </Link>
           <Dialog open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="icon" aria-label="Open navigation">

@@ -65,7 +65,7 @@ export function Overrides() {
         <span>
           <span className="block font-medium">{humanise(row.scope)}</span>
           <span className="block text-body-sm text-muted-foreground">
-            {row.subject_label || row.subject_id}
+            {row.subject_label || "Unavailable subject"}
           </span>
         </span>
       ),
@@ -210,7 +210,7 @@ function Deactivate({ row }: { row: OverrideRow }) {
       command="deactivate_override"
       input={{ override_id: row.id }}
       title="Deactivate this override?"
-      description={`${humanise(row.rule_domain)} · ${row.subject_label || row.subject_id}`}
+      description={`${humanise(row.rule_domain)} · ${row.subject_label || "Unavailable subject"}`}
       confirmLabel="Deactivate"
       destructive
       choices={[

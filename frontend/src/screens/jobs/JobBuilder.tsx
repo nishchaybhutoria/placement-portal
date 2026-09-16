@@ -583,7 +583,7 @@ function ProgramCtc({
             <li key={row.program_id} className="flex items-center gap-gap-md">
               <span className="min-w-40 text-body-md text-foreground">
                 {programs.find((program) => program.id === row.program_id)?.name ??
-                  row.program_id}
+                  "Unavailable program"}
               </span>
               <Input
                 aria-label="CTC for this program"

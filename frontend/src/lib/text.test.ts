@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { counted, humanise, lakhs } from "./text";
+import { counted, humanise, isUuid, lakhs } from "./text";
 
 describe("operator-facing text", () => {
   it("humanises wire values without mangling acronyms", () => {
@@ -27,5 +27,10 @@ describe("operator-facing text", () => {
     expect(counted(1, "student")).toBe("1 student");
     expect(counted(2, "student")).toBe("2 students");
     expect(counted(2, "person", "people")).toBe("2 people");
+  });
+
+  it("recognises UUIDs that should be replaced with human names", () => {
+    expect(isUuid("bda9429f-030c-5243-b888-2cad56c0b463")).toBe(true);
+    expect(isUuid("21110001")).toBe(false);
   });
 });

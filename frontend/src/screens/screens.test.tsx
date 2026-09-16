@@ -281,6 +281,7 @@ describe("student drill-down", () => {
     fireEvent.click(within(auditRow).getByText(/^Details/));
     expect(within(auditRow).getByText(/Development seed: seed: accepted PPO/)).toBeVisible();
     expect(within(auditRow).getByText("External offer ID")).toBeVisible();
+    expect(within(auditRow).getByText("Northwind Systems external offer")).toBeVisible();
     expect(within(auditRow).getAllByText("Create external offer", { exact: true })).toHaveLength(2);
   });
 
@@ -304,6 +305,11 @@ describe("student drill-down", () => {
     );
     expect((await screen.findAllByRole("button", { name: "Force transition" })).length).toBe(
       staffStudent.applications.length,
+    );
+    // Snapshot values, event payloads, and audit details carry ids on the wire,
+    // but the page resolves them to the names already shipped in this record.
+    expect(document.body.textContent).not.toMatch(
+      /[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}/i,
     );
     // These actions have no application event when no source application exists;
     // the enrollment audit trail is the only complete account.
@@ -1859,10 +1865,14 @@ describe("M12 offer screens", () => {
   });
 
   it("gives students portal actions and read-only external offers", async () => {
-    mockScreens({ "screens/me/dashboard": meDashboard });
+    const dashboard = structuredClone(meDashboard);
+    dashboard.discipline.active_penalties = 0;
+    mockScreens({ "screens/me/dashboard": dashboard });
     renderScreen(<Dashboard />, { path: "/dashboard", route: "/dashboard" });
 
     expect(await screen.findByRole("heading", { name: "Dashboard" })).toBeInTheDocument();
+    expect(await screen.findByText(/0 active penalties/)).toBeInTheDocument();
+    expect(screen.queryByText(/penaltys/)).not.toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Accept" })).toBeEnabled();
     expect(await screen.findByRole("button", { name: "Decline" })).toBeEnabled();
     expect(await screen.findByText("External offers (read only)")).toBeInTheDocument();

@@ -19,6 +19,14 @@ describe("AppLayout", () => {
    * can actually take focus — an anchor to a missing id looks right and does
    * nothing.
    */
+  it("links the desktop and mobile brands home", () => {
+    renderScreen(<AppLayout me={ADMIN} />);
+
+    const brands = screen.getAllByRole("link", { name: "CDS Portal" });
+    expect(brands).toHaveLength(2);
+    for (const brand of brands) expect(brand).toHaveAttribute("href", "/");
+  });
+
   it("offers a skip link before the nav, targeting a focusable main", () => {
     const { container } = renderScreen(<AppLayout me={ADMIN} />);
 

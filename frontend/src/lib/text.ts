@@ -26,6 +26,13 @@ export function humanise(value: string): string {
     .join(" ");
 }
 
+const UUID = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+
+/** Machine identifiers belong in links and command inputs, not visible copy. */
+export function isUuid(value: unknown): value is string {
+  return typeof value === "string" && UUID.test(value);
+}
+
 /** A count and noun with the grammar kept beside the number. */
 export function counted(
   count: number,

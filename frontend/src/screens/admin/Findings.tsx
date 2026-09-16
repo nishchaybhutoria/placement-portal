@@ -18,7 +18,7 @@ import { Select } from "@/components/ui/input";
 import { EmptyState, ErrorState, ScreenSkeleton } from "@/components/ui/states";
 import { StatusChip } from "@/components/ui/statusChip";
 import { formatDate } from "@/lib/date";
-import { humanise } from "@/lib/text";
+import { humanise, isUuid } from "@/lib/text";
 
 type ConsistencyRunSummary = CommandSummary<"run_consistency_checker">;
 
@@ -199,9 +199,9 @@ function FindingCard({ finding }: { finding: FindingRow }) {
                 <div key={key}>
                   <dt className="text-body-sm text-muted-foreground">{humanise(key)}</dt>
                   <dd className="text-body-sm text-foreground">
-                    {label ? (
+                    {label || isUuid(value) ? (
                       <span className="flex flex-wrap items-center gap-gap-tight">
-                        {label}
+                        {label ?? "Unavailable reference"}
                         <CopyId value={String(value)} />
                       </span>
                     ) : (

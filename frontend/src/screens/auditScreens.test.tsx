@@ -60,6 +60,9 @@ describe("F2/F4 gap screens", () => {
     // permanently unjoinable profile (the design review §4.33).
     expect(await screen.findByLabelText("CPI")).toHaveValue(null);
     expect(await screen.findByRole("button", { name: "Add resume" })).toBeInTheDocument();
+    expect(
+      await screen.findByText("Set the resume file sharing permission to “Anyone with the link – Viewer.”"),
+    ).toBeInTheDocument();
     expect(await screen.findByTitle("Preview of Placements")).toHaveAttribute("src", expect.stringContaining("/preview"));
   });
 
