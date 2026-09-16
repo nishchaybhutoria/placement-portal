@@ -29,20 +29,29 @@
 	# OAuth callbacks contain one-time codes and state in the query string, while
 	# login responses contain state in Location. FastAPI still emits a safe,
 	# route-templated completion log for these requests.
-	log_skip /auth/*
+	log_skip /portal/auth/*
 
-	handle /api/* {
+	redir /portal /portal/ 308
+	redir /mock /mock/ 308
+
+	# FastAPI keeps its internal root-relative routes. Strip only the external
+	# portal mount before proxying so its OpenAPI and route contracts stay stable.
+	handle /portal/api/* {
+		uri strip_prefix /portal
 		import api_proxy
 	}
 
-	handle /auth/* {
+	handle /portal/auth/* {
+		uri strip_prefix /portal
 		import api_proxy
 	}
 
-	handle /me {
+	handle /portal/me {
+		uri strip_prefix /portal
 		import api_proxy
 	}
 
+	# Keep health endpoints at their established paths for external monitoring.
 	handle /healthz {
 		import api_proxy
 	}
@@ -51,8 +60,22 @@
 		import api_proxy
 	}
 
+	# The portal and mock sites are SPAs, so unknown client-side routes fall back
+	# to their own index rather than the common landing page.
+	handle_path /portal/* {
+		root * /srv/portal
+		try_files {path} /index.html
+		file_server
+	}
+
+	handle_path /mock/* {
+		root * /srv/mock
+		try_files {path} /index.html
+		file_server
+	}
+
 	handle {
-		root * /srv
+		root * /srv/common
 		try_files {path} /index.html
 		file_server
 	}

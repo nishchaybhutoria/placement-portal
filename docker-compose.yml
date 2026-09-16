@@ -9,7 +9,8 @@ x-app-environment: &app-environment
   GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
   ALLOWED_DOMAIN: ${ALLOWED_DOMAIN:-example.edu}
   DEV_LOGIN: ${DEV_LOGIN:-0}
-  BASE_URL: ${BASE_URL:-https://localhost}
+  BASE_URL: ${BASE_URL:-https://localhost/portal}
+  COOKIE_PATH: ${COOKIE_PATH:-/portal}
   SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@example.edu}
   NOTIFICATION_BACKEND: ${NOTIFICATION_BACKEND:-console}
   DEV_EMAIL_OUTPUT: ${DEV_EMAIL_OUTPUT:-0}
@@ -235,6 +236,8 @@ services:
     build:
       context: .
       dockerfile: ops/caddy/Dockerfile
+      args:
+        VITE_BASE_PATH: /portal/
     environment:
       DOMAIN: ${DOMAIN:-cdsportal.example.edu}
     ports:
@@ -245,6 +248,7 @@ services:
       - caddy_data:/data
       - caddy_config:/config
       - ${TLS_DIR:-/home/cdsuser/cds-secrets/tls}:/etc/caddy/tls:ro,Z
+      - ${MOCK_DIR:-/opt/mock}:/srv/mock:ro,Z
     depends_on:
       api:
         condition: service_healthy
@@ -402,6 +406,8 @@ services:
     build:
       context: .
       dockerfile: ops/caddy/Dockerfile
+      args:
+        VITE_BASE_PATH: /
     profiles: ["e2e"]
     command: ["caddy", "run", "--config", "/etc/caddy/e2e-Caddyfile", "--adapter", "caddyfile"]
     ports:

@@ -17,6 +17,7 @@ class Settings(BaseModel):
     dev_login: bool = False
     base_url: str = Field(default="http://localhost:8000", min_length=1)
     session_cookie_secure: bool = True
+    cookie_path: str = Field(default="/", pattern=r"^/[^?#]*$")
 
     @model_validator(mode="after")
     def validate_cookie_security(self) -> Settings:
@@ -34,6 +35,7 @@ class Settings(BaseModel):
             "DEV_LOGIN": "dev_login",
             "BASE_URL": "base_url",
             "SESSION_COOKIE_SECURE": "session_cookie_secure",
+            "COOKIE_PATH": "cookie_path",
         }
         values = {
             field_name: os.environ[environment_name]

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { ApiError } from "@/api/problem";
+import { appUrl } from "@/basePath";
 import { cn } from "@/lib/cn";
 import { reasonText } from "@/lib/reasons";
 import { Button } from "./button";
@@ -139,7 +140,7 @@ export function ErrorState({
           ) : null}
           {offersWayBack ? (
             <Button variant="secondary" size="sm" asChild>
-              <a href={backHref ?? "/"}>{backHref ? "Go back" : "Back to home"}</a>
+              <a href={backHref ?? appUrl("/")}>{backHref ? "Go back" : "Back to home"}</a>
             </Button>
           ) : null}
         </div>

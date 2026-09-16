@@ -27,6 +27,7 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 
 import type { Me } from "@/api/client";
 import { command } from "@/api/client";
+import { appUrl } from "@/basePath";
 import { cn } from "@/lib/cn";
 import { getTheme, setTheme, watchSystem, THEMES, type Theme } from "@/lib/theme";
 import { Button } from "./ui/button";
@@ -255,7 +256,7 @@ function Account({ me }: { me: Me }) {
         size="sm"
         className="justify-start"
         onClick={() => {
-          void command("logout", {} as never).finally(() => window.location.assign("/"));
+          void command("logout", {} as never).finally(() => window.location.assign(appUrl("/")));
         }}
       >
         Sign out

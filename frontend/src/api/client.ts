@@ -1,3 +1,5 @@
+import { appUrl } from "@/basePath";
+
 import type { paths } from "./gen/schema";
 import { toApiError } from "./problem";
 
@@ -106,7 +108,7 @@ export function resolveScreenPath(id: ScreenId, params?: Record<string, string>)
     }
     return encodeURIComponent(value);
   });
-  return SCREEN_PREFIX + filled;
+  return appUrl(SCREEN_PREFIX + filled);
 }
 
 async function request<T>(url: string, init: RequestInit): Promise<T> {
@@ -151,7 +153,7 @@ export function command<N extends CommandName>(
   if (options.idempotencyKey !== undefined) {
     body["idempotency_key"] = options.idempotencyKey;
   }
-  return request(COMMAND_PREFIX + name, {
+  return request(appUrl(COMMAND_PREFIX + name), {
     method: "POST",
     headers: { "Content-Type": "application/json", [CSRF_HEADER]: csrfToken() },
     body: JSON.stringify(body),
@@ -191,7 +193,7 @@ export interface Me {
 }
 
 export function me(): Promise<Me> {
-  return request<Me>("/me", { method: "GET" });
+  return request<Me>(appUrl("/me"), { method: "GET" });
 }
 
 /**
@@ -203,7 +205,7 @@ export function me(): Promise<Me> {
  * app; it is reachable only when `/me` reports `dev_login_enabled`.
  */
 export async function devLogin(email: string): Promise<void> {
-  await request<unknown>(COMMAND_PREFIX + "dev_login", {
+  await request<unknown>(appUrl(COMMAND_PREFIX + "dev_login"), {
     method: "POST",
     headers: { "Content-Type": "application/json", [CSRF_HEADER]: csrfToken() },
     body: JSON.stringify({ input: { email }, dry_run: false }),
@@ -246,7 +248,7 @@ export interface VenueUpload {
 export function uploadVenueRows(file: File, signal?: AbortSignal): Promise<VenueUpload> {
   const form = new FormData();
   form.append("file", file);
-  return request<VenueUpload>("/api/v1/uploads/venue-rows", {
+  return request<VenueUpload>(appUrl("/api/v1/uploads/venue-rows"), {
     method: "POST",
     headers: { [CSRF_HEADER]: csrfToken() },
     body: form,
@@ -270,7 +272,7 @@ export interface ProfileUpload {
 export function uploadProfileRows(file: File, signal?: AbortSignal): Promise<ProfileUpload> {
   const form = new FormData();
   form.append("file", file);
-  return request<ProfileUpload>("/api/v1/uploads/profile-rows", {
+  return request<ProfileUpload>(appUrl("/api/v1/uploads/profile-rows"), {
     method: "POST",
     headers: { [CSRF_HEADER]: csrfToken() },
     body: form,

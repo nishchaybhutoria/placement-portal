@@ -43,10 +43,12 @@ class OAuthSessionMiddleware(BaseHTTPMiddleware):
         *,
         secret: str,
         secure: bool,
+        cookie_path: str,
     ) -> None:
         super().__init__(app)
         self._secret = secret.encode()
         self._secure = secure
+        self._cookie_path = cookie_path
 
     def _decode(self, value: str | None) -> dict[str, object]:
         if not value:
@@ -80,17 +82,35 @@ class OAuthSessionMiddleware(BaseHTTPMiddleware):
             response.set_cookie(
                 OAUTH_COOKIE,
                 self._encode(oauth_session),
+                path=self._cookie_path,
                 httponly=True,
                 secure=self._secure,
                 samesite="lax",
             )
+            if self._cookie_path != "/":
+                response.delete_cookie(
+                    OAUTH_COOKIE,
+                    path="/",
+                    httponly=True,
+                    secure=self._secure,
+                    samesite="lax",
+                )
         elif original_cookie is not None:
             response.delete_cookie(
                 OAUTH_COOKIE,
+                path=self._cookie_path,
                 httponly=True,
                 secure=self._secure,
                 samesite="lax",
             )
+            if self._cookie_path != "/":
+                response.delete_cookie(
+                    OAUTH_COOKIE,
+                    path="/",
+                    httponly=True,
+                    secure=self._secure,
+                    samesite="lax",
+                )
         return response
 
 
@@ -196,31 +216,58 @@ class SessionManager:
         response.set_cookie(
             SESSION_COOKIE,
             session_token,
+            path=self.settings.cookie_path,
             httponly=True,
             secure=self.settings.session_cookie_secure,
             samesite="lax",
         )
         self.refresh_csrf(response)
+        if self.settings.cookie_path != "/":
+            response.delete_cookie(
+                SESSION_COOKIE,
+                path="/",
+                httponly=True,
+                secure=self.settings.session_cookie_secure,
+                samesite="lax",
+            )
 
     def refresh_csrf(self, response: Response) -> str:
         token = secrets.token_urlsafe(32)
         response.set_cookie(
             CSRF_COOKIE,
             token,
+            path=self.settings.cookie_path,
             httponly=False,
             secure=self.settings.session_cookie_secure,
             samesite="lax",
         )
+        if self.settings.cookie_path != "/":
+            response.delete_cookie(
+                CSRF_COOKIE,
+                path="/",
+                httponly=False,
+                secure=self.settings.session_cookie_secure,
+                samesite="lax",
+            )
         return token
 
     def clear_login_cookies(self, response: Response) -> None:
         for cookie in (SESSION_COOKIE, CSRF_COOKIE):
             response.delete_cookie(
                 cookie,
+                path=self.settings.cookie_path,
                 secure=self.settings.session_cookie_secure,
                 httponly=cookie == SESSION_COOKIE,
                 samesite="lax",
             )
+            if self.settings.cookie_path != "/":
+                response.delete_cookie(
+                    cookie,
+                    path="/",
+                    secure=self.settings.session_cookie_secure,
+                    httponly=cookie == SESSION_COOKIE,
+                    samesite="lax",
+                )
 
 
 def csrf_matches(request: Request) -> bool:

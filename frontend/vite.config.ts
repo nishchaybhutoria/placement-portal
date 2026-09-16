@@ -5,7 +5,10 @@ import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
 
+const base = process.env.VITE_BASE_PATH ?? "/";
+
 export default defineConfig({
+  base,
   plugins: [react()],
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
@@ -23,6 +26,21 @@ export default defineConfig({
       "/auth": { target: "http://127.0.0.1:8000", changeOrigin: true },
       "/me": { target: "http://127.0.0.1:8000", changeOrigin: true },
       "/openapi.json": { target: "http://127.0.0.1:8000", changeOrigin: true },
+      "/portal/api": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/portal/, ""),
+      },
+      "/portal/auth": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/portal/, ""),
+      },
+      "/portal/me": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/portal/, ""),
+      },
     },
   },
   test: {

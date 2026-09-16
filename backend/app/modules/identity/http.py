@@ -31,7 +31,7 @@ from app.modules.identity.commands import (
     new_oauth_state_input,
     oauth_state_key,
 )
-from app.modules.identity.session import SessionManager
+from app.modules.identity.session import SESSION_COOKIE, SessionManager
 from app.settings import Settings
 
 # Google's token and JWKS endpoints are a hard dependency of the login flow, so
@@ -243,7 +243,9 @@ def mount_identity_routes(
             request.session.clear()
 
     @app.get("/me")
-    async def me(actor: ActorContext = actor_dependency) -> JSONResponse:
+    async def me(
+        request: Request, actor: ActorContext = actor_dependency
+    ) -> JSONResponse:
         if actor.user_id is None:
             content: dict[str, object] = {
                 "authenticated": False,
@@ -268,5 +270,13 @@ def mount_identity_routes(
                 ],
             }
         response = JSONResponse(content=content)
-        sessions.refresh_csrf(response)
+        # During the /portal cutover, transparently move a valid legacy Path=/
+        # session to the scoped cookie before expiring the old copy. Calling
+        # this for an already-scoped cookie is harmless and keeps /me as the
+        # single bootstrap point for both session and CSRF cookies.
+        raw_session = request.cookies.get(SESSION_COOKIE)
+        if raw_session and settings.cookie_path != "/":
+            sessions.set_login_cookies(response, raw_session)
+        else:
+            sessions.refresh_csrf(response)
         return response

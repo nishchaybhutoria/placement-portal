@@ -32,7 +32,11 @@ grep -q '/etc/caddy/tls/fullchain.pem' Caddyfile
 grep -q 'header_up X-Request-ID' Caddyfile
 grep -q 'request>headers>X-Csrf delete' Caddyfile
 grep -Fq 'request>uri regexp "^([^?]*).*$" "${1}"' Caddyfile
-grep -q 'log_skip /auth/\*' Caddyfile
+grep -q 'log_skip /portal/auth/\*' Caddyfile
+grep -q 'uri strip_prefix /portal' Caddyfile
+grep -q 'root \* /srv/portal' Caddyfile
+grep -q 'root \* /srv/common' Caddyfile
+grep -q 'root \* /srv/mock' Caddyfile
 docker run --rm \
     -v "$repo_root/Caddyfile:/etc/caddy/Caddyfile:ro,Z" \
     caddy:2.11.4-alpine \

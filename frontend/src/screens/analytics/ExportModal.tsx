@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import type { ExportColumnOption } from "@/api/payloads";
 import { ApiError, toApiError } from "@/api/problem";
 import { useCommand } from "@/api/useScreen";
+import { appUrl } from "@/basePath";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -115,7 +116,7 @@ function ExportDialog({
     let cancelled = false;
     const timer = window.setInterval(async () => {
       try {
-        const response = await fetch(`/api/v1/exports/${result.export_id}`, {
+        const response = await fetch(appUrl(`/api/v1/exports/${result.export_id}`), {
           credentials: "same-origin",
         });
         if (!response.ok) {
@@ -127,7 +128,7 @@ function ExportDialog({
           await response.json();
         if (cancelled) return;
         if (body.status === "ready" && body.download_url) {
-          setReady(body.download_url);
+          setReady(appUrl(body.download_url));
           setResult({ ...result, status: "ready" });
         } else if (body.status === "failed") {
           setPollError(new ApiError({
@@ -167,7 +168,7 @@ function ExportDialog({
     const built = response.summary as unknown as ExportResult;
     setResult(built);
     if (built.status === "ready") {
-      setReady(`/api/v1/exports/${built.export_id}/download`);
+      setReady(appUrl(`/api/v1/exports/${built.export_id}/download`));
     }
   };
 

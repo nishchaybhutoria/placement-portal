@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 
 import { devLogin, type Me } from "@/api/client";
+import { appUrl } from "@/basePath";
 import { useMe } from "@/api/useScreen";
 import { Button } from "./ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "./ui/card";
@@ -66,7 +67,7 @@ function SignIn({ devLoginEnabled }: { devLoginEnabled: boolean }) {
         </CardHeader>
         <CardBody className="flex flex-col gap-gap-lg">
           <Button variant="primary" className="w-full" asChild>
-            <a href="/auth/google/login">Continue with Google</a>
+            <a href={appUrl("/auth/google/login")}>Continue with Google</a>
           </Button>
 
           {devLoginEnabled ? (

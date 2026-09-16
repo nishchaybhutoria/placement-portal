@@ -88,6 +88,7 @@ def create_app(
         OAuthSessionMiddleware,
         secret=resolved_settings.session_secret,
         secure=resolved_settings.session_cookie_secure,
+        cookie_path=resolved_settings.cookie_path,
     )
 
     @application.middleware("http")
