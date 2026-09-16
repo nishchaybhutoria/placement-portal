@@ -13,6 +13,7 @@ from app.domain.shared import (
     EventType,
     OfferResponse,
     Outcome,
+    TerminationKind,
 )
 from app.domain.transitions import ApplicationOfferState, compute_acceptance_cascade
 from app.modules.notifications.wording import format_deadline, withdrawal_trigger
@@ -146,6 +147,76 @@ def plan_extension(
             ),
             deferred=tuple(deferred),
         ),
+    )
+
+
+def plan_termination(
+    target: OfferApplication,
+    *,
+    offer_id: UUID,
+    now: datetime,
+    actor_user_id: UUID | None,
+    termination_kind: TerminationKind,
+    reason: str,
+    restored_application_ids: tuple[UUID, ...] = (),
+    extra_payload: dict[str, object] | None = None,
+) -> PlannedMutation:
+    """OFR-5's terminated offer row and its causal event.
+
+    Termination is the mechanism behind two commands that otherwise look
+    nothing alike: ``terminate_offer``, where ending the offer *is* the
+    request, and ``replace_placement``, where it is the first half of moving a
+    student from one accepted offer to another.  Both have to write the same
+    four columns and the same event, because ``placement_placed`` is derived
+    from ``terminated_at IS NULL`` (DER-1) -- a path that set three of the four
+    would leave a student placed in a job they no longer hold.  Sharing the
+    fragment is what stops that from being possible.
+
+    ``extra_payload`` is how the caller says *why*: ``replace_placement`` adds
+    the offer that supersedes this one, so the audit trail reads as one
+    decision rather than two unrelated ones months apart.
+    """
+    return PlannedMutation(
+        state_ops=(
+            StateOp(
+                op="update",
+                model="offers",
+                values={
+                    "terminated_at": now,
+                    "terminated_by": actor_user_id,
+                    "termination_kind": termination_kind.value,
+                    "termination_reason": reason,
+                },
+                where={"id": offer_id},
+            ),
+            StateOp(
+                op="update",
+                model="applications",
+                values={"status": ApplicationStatus.OFFER_TERMINATED.value},
+                where={"id": target.application_id},
+            ),
+        ),
+        events=(
+            Event(
+                application_id=target.application_id,
+                event_type=EventType.OFFER_TERMINATED,
+                from_status=target.status.value,
+                to_status=ApplicationStatus.OFFER_TERMINATED.value,
+                from_round=target.current_round_id,
+                to_round=target.current_round_id,
+                reason=reason,
+                payload={
+                    "offer_id": str(offer_id),
+                    "termination_kind": termination_kind.value,
+                    "restored_application_ids": [
+                        str(item)
+                        for item in sorted(restored_application_ids, key=lambda value: value.int)
+                    ],
+                    **(extra_payload or {}),
+                },
+            ),
+        ),
+        deferred=(),
     )
 
 

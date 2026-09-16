@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from hashlib import sha256
 from typing import cast
 from uuid import UUID, uuid4
 
@@ -138,6 +139,38 @@ async def test_CYC3_bulk_approval_by_selection_activates_every_row() -> None:
     reported = cast(list[dict[str, object]], result.summary["rows"])
     assert [row["status"] for row in reported] == ["applied", "applied"]
     assert set((await _statuses(cycle_id)).values()) == {"active"}
+
+
+@pytest.mark.asyncio
+async def test_CYC3_approving_a_whole_queue_at_once_applies_every_row() -> None:
+    """Select-all is the ordinary way an approvals queue is cleared.
+
+    The screen used to build its batch key by concatenating every ticked
+    membership id, so a queue of any real size produced a key larger than the
+    unique btree on ``idempotency_keys.key`` could hold.  The batch previewed
+    correctly -- a dry run reserves no key -- and then failed on confirm with a
+    500 whose only advice was to replay a key that could never be stored.
+    Every earlier test here ticks two rows, which is why nobody noticed.
+    """
+    _admin, coordinator, cycle_id, queue = await _queue(count=100)
+    rows = [{"membership_id": str(membership_id)} for _, membership_id in queue]
+
+    result = await _approve(
+        coordinator, cycle_id, rows, batch_key=batch_key_for(f"approvals-{cycle_id}", rows)
+    )
+
+    assert isinstance(result, Result)
+    reported = cast(list[dict[str, object]], result.summary["rows"])
+    assert [row["status"] for row in reported] == ["applied"] * 100
+    assert set((await _statuses(cycle_id)).values()) == {"active"}
+
+
+def batch_key_for(prefix: str, rows: list[dict[str, str]]) -> str:
+    """The shape `frontend/src/lib/idempotency.ts` sends: bounded, not concatenated."""
+    digest = sha256(
+        ",".join(sorted(row["membership_id"] for row in rows)).encode()
+    ).hexdigest()[:16]
+    return f"{prefix}-{digest}"
 
 
 @pytest.mark.asyncio

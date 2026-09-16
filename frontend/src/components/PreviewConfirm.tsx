@@ -254,7 +254,14 @@ export function PreviewConfirm<N extends CommandName>({
             />
           ) : null}
 
-          {execute.isError ? <ErrorState error={execute.error} title="Could not complete" /> : null}
+          {/* A bulk command that fails part-way answers with resume coordinates
+              ("replay with the same batch key"), and the batch key is stable
+              for this selection -- so Retry resumes the chunks that never
+              committed instead of re-applying the ones that did. Without a
+              button the operator has no way to act on that at all. */}
+          {execute.isError ? (
+            <ErrorState error={execute.error} title="Could not complete" onRetry={confirm} />
+          ) : null}
         </div>
 
         <DialogFooter>

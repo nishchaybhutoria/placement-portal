@@ -85,6 +85,15 @@ OFFER_TERMINATE_APPLICATION = UUID("00000000-0000-0000-0000-000000000463")
 OFFER_REEXTEND_APPLICATION = UUID("00000000-0000-0000-0000-000000000464")
 OFFER_TERMINATE = UUID("00000000-0000-0000-0000-000000000473")
 OFFER_REEXTEND = UUID("00000000-0000-0000-0000-000000000474")
+# `replace_placement` needs a subject nothing else touches: it ends one
+# accepted placement and begins another, so any fixture sharing its
+# enrollment would find its own meaning changed by whichever ran first.
+REPLACED_MEMBER = UUID("00000000-0000-0000-0000-000000000311")
+REPLACED_ENROLLMENT = UUID("00000000-0000-0000-0000-000000000331")
+OFFER_REPLACE_JOB = UUID("00000000-0000-0000-0000-000000000456")
+OFFER_REPLACE_APPLICATION = UUID("00000000-0000-0000-0000-000000000465")
+OFFER_REPLACE = UUID("00000000-0000-0000-0000-000000000475")
+EXTERNAL_REPLACE = UUID("00000000-0000-0000-0000-000000000485")
 EXTERNAL_UPDATE = UUID("00000000-0000-0000-0000-000000000481")
 EXTERNAL_DELETE = UUID("00000000-0000-0000-0000-000000000482")
 EXTERNAL_ATTACH = UUID("00000000-0000-0000-0000-000000000483")
@@ -971,6 +980,20 @@ PREVIEW_FIXTURES = {
             session_id=ADMIN_SESSION,
         ),
     ),
+    "replace_placement": PreviewFixture(
+        input={
+            "enrollment_id": str(REPLACED_ENROLLMENT),
+            "current_offer_id": str(OFFER_REPLACE),
+            "new_external_offer_id": str(EXTERNAL_REPLACE),
+            "reason": "Harness replacement",
+        },
+        actor=ActorContext(
+            principal_id=str(ADMIN),
+            user_id=ADMIN,
+            role="admin",
+            session_id=ADMIN_SESSION,
+        ),
+    ),
     "re_extend_offer": PreviewFixture(
         input={
             "cycle_id": str(CYCLE_A),
@@ -1495,21 +1518,29 @@ async def seed_fixture_world(connection: AsyncConnection) -> None:
         sa.text(
             "INSERT INTO users (id, email, full_name, role) VALUES "
             "(:removable, 'removable@example.edu', 'Removable Member', 'student'), "
-            "(:restorable, 'restorable@example.edu', 'Restorable Member', 'student')"
+            "(:restorable, 'restorable@example.edu', 'Restorable Member', 'student'), "
+            "(:replaced, 'replaced@example.edu', 'Replaced Member', 'student')"
         ),
-        {"removable": REMOVABLE_MEMBER, "restorable": RESTORABLE_MEMBER},
+        {
+            "removable": REMOVABLE_MEMBER,
+            "restorable": RESTORABLE_MEMBER,
+            "replaced": REPLACED_MEMBER,
+        },
     )
     await connection.execute(
         sa.text(
             "INSERT INTO enrollments (id, user_id, is_current) VALUES "
             "(:removable_enrollment, :removable, true), "
-            "(:restorable_enrollment, :restorable, true)"
+            "(:restorable_enrollment, :restorable, true), "
+            "(:replaced_enrollment, :replaced, true)"
         ),
         {
             "removable_enrollment": REMOVABLE_ENROLLMENT,
             "removable": REMOVABLE_MEMBER,
             "restorable_enrollment": RESTORABLE_ENROLLMENT,
             "restorable": RESTORABLE_MEMBER,
+            "replaced_enrollment": REPLACED_ENROLLMENT,
+            "replaced": REPLACED_MEMBER,
         },
     )
     await connection.execute(
@@ -1753,6 +1784,8 @@ async def seed_fixture_world(connection: AsyncConnection) -> None:
             "(:terminate_job, :cycle, :company, 'placement', 'Terminate Offer Job', "
             "'Parity fixture', now() + interval '30 days', now() + interval '60 days'), "
             "(:reextend_job, :cycle, :company, 'placement', 'Re-extend Offer Job', "
+            "'Parity fixture', now() + interval '30 days', now() + interval '60 days'), "
+            "(:replace_job, :cycle, :company, 'placement', 'Replace Placement Job', "
             "'Parity fixture', now() + interval '30 days', now() + interval '60 days')"
         ),
         {
@@ -1760,6 +1793,7 @@ async def seed_fixture_world(connection: AsyncConnection) -> None:
             "decline_job": OFFER_DECLINE_JOB,
             "terminate_job": OFFER_TERMINATE_JOB,
             "reextend_job": OFFER_REEXTEND_JOB,
+            "replace_job": OFFER_REPLACE_JOB,
             "cycle": CYCLE_A,
             "company": COMPANY_A,
         },
@@ -1783,6 +1817,8 @@ async def seed_fixture_world(connection: AsyncConnection) -> None:
             "(:terminate_application, :terminate_job, :terminate_enrollment, 'offered', "
             ":url, CAST('{}' AS jsonb), now()), "
             "(:reextend_application, :reextend_job, :reextend_enrollment, 'declined', "
+            ":url, CAST('{}' AS jsonb), now()), "
+            "(:replace_application, :replace_job, :replace_enrollment, 'accepted', "
             ":url, CAST('{}' AS jsonb), now())"
         ),
         {
@@ -1798,6 +1834,9 @@ async def seed_fixture_world(connection: AsyncConnection) -> None:
             "reextend_application": OFFER_REEXTEND_APPLICATION,
             "reextend_job": OFFER_REEXTEND_JOB,
             "reextend_enrollment": RESTORABLE_ENROLLMENT,
+            "replace_application": OFFER_REPLACE_APPLICATION,
+            "replace_job": OFFER_REPLACE_JOB,
+            "replace_enrollment": REPLACED_ENROLLMENT,
             "url": DRIVE_URL,
         },
     )
@@ -1807,9 +1846,12 @@ async def seed_fixture_world(connection: AsyncConnection) -> None:
             "(:accept_offer, :accept_application, now(), now() + interval '60 days'), "
             "(:decline_offer, :decline_application, now(), now() + interval '60 days'), "
             "(:terminate_offer, :terminate_application, now(), now() + interval '60 days'), "
-            "(:reextend_offer, :reextend_application, now(), now() + interval '60 days')"
+            "(:reextend_offer, :reextend_application, now(), now() + interval '60 days'), "
+            "(:replace_offer, :replace_application, now(), now() + interval '60 days')"
         ),
         {
+            "replace_offer": OFFER_REPLACE,
+            "replace_application": OFFER_REPLACE_APPLICATION,
             "accept_offer": OFFER_ACCEPT,
             "accept_application": OFFER_ACCEPT_APPLICATION,
             "decline_offer": OFFER_DECLINE,
@@ -1826,6 +1868,14 @@ async def seed_fixture_world(connection: AsyncConnection) -> None:
         ),
         {"offer_id": OFFER_REEXTEND},
     )
+    # The placement `replace_placement` moves: accepted, unterminated, and the
+    # only thing making this student placed.
+    await connection.execute(
+        sa.text(
+            "UPDATE offers SET response = 'accepted', responded_at = now() WHERE id = :offer_id"
+        ),
+        {"offer_id": OFFER_REPLACE},
+    )
     await connection.execute(
         sa.text(
             "INSERT INTO external_offers (id, enrollment_id, company_id, outcome, "
@@ -1837,9 +1887,15 @@ async def seed_fixture_world(connection: AsyncConnection) -> None:
             "(:attach, :attach_enrollment, :company, 'placement', 'off_campus', "
             "'offered', NULL, :admin), "
             "(:detach, :detach_enrollment, :company, 'placement', 'off_campus', "
-            "'offered', :cycle, :admin)"
+            "'offered', :cycle, :admin), "
+            # Unattached on purpose: the incoming side of a replacement must
+            # work without a cycle, which is the PPO case the office meets.
+            "(:replace, :replace_enrollment, :company, 'placement', 'ppo', "
+            "'offered', NULL, :admin)"
         ),
         {
+            "replace": EXTERNAL_REPLACE,
+            "replace_enrollment": REPLACED_ENROLLMENT,
             "update": EXTERNAL_UPDATE,
             "update_enrollment": PENALTY_ENROLLMENT,
             "delete": EXTERNAL_DELETE,

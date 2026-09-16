@@ -102,7 +102,9 @@ declaration and are corrected from the staff record or bulk upsert.
 
 The resume library stores Google Drive links only. Applying copies the chosen
 URL onto the application, preserving the submitted artifact even if the library
-later changes.
+later changes. Nothing checks whether a link actually opens, so the resume and
+application forms ask the student to set the file's sharing permission to
+“Anyone with the link – Viewer.”
 
 ### Cycles — `/cycles`
 

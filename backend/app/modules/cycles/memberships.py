@@ -28,6 +28,7 @@ from app.core.errors import (
     RESUME_NOT_FOUND,
     UNMATCHED_IDENTIFIER,
 )
+from app.core.keys import BatchKey
 from app.core.plan import (
     ActorContext,
     Deferred,
@@ -116,7 +117,7 @@ class ApproveMembershipsInput(BaseModel):
 
     cycle_id: UUID
     rows: list[dict[str, str]]
-    batch_key: str
+    batch_key: BatchKey
 
     @field_validator("rows")
     @classmethod
@@ -578,6 +579,11 @@ async def _load_bulk_approve(
                 + " WHERE m.cycle_id = :cycle_id AND (m.id = ANY(:membership_ids) "
                 "OR lower(u.email) = ANY(:identifiers) "
                 "OR lower(e.roll_number) = ANY(:identifiers))"
+                # One lock order for every batch, as promised for bulk work:
+                # two coordinators approving overlapping selections take the
+                # same rows in the same sequence instead of deadlocking on the
+                # order their two pastes happened to be typed in.
+                + " ORDER BY m.id"
                 + (" FOR UPDATE OF m" if lock else "")
             ),
             {

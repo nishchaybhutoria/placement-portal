@@ -46,6 +46,7 @@ from app.modules.offers.commands import register_offer_commands
 from app.modules.offers.expiry import register_expiry_commands
 from app.modules.offers.external import register_external_offer_commands
 from app.modules.offers.screens import register_offer_screens
+from app.modules.offers.supersession import register_supersession_commands
 from app.modules.offers.termination import register_termination_commands
 from app.modules.overrides.commands import register_override_commands
 from app.modules.overrides.screens import register_override_screens
@@ -94,6 +95,7 @@ def build_registry(
     register_expiry_commands(registry)
     register_external_offer_commands(registry)
     register_termination_commands(registry)
+    register_supersession_commands(registry)
     register_offer_screens(registry)
     register_discipline_commands(registry)
     register_discipline_screens(registry)

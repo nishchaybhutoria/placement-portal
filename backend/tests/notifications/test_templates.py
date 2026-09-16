@@ -51,6 +51,7 @@ EXPECTED_NOTIFICATION_EVENT_KEYS = {
     "deadline_reminder",
     "round_reminder",
     "reinstated",
+    "placement_replaced",
 }
 ADMIN = UUID("00000000-0000-0000-0000-000000001301")
 ADMIN_ACTOR = ActorContext(
@@ -128,8 +129,10 @@ def _emitted_notification_event_keys() -> set[str]:
 def test_NTF_every_production_emitter_has_an_exact_catalog_entry() -> None:
     """An emitter added without a seeded template must fail at build time."""
     # 28 in LLD section 13, plus deadline_changed and declined_confirm
-    # (the design review section 4.27) and reinstated (section 4.28).
-    assert len(EXPECTED_NOTIFICATION_EVENT_KEYS) == 31
+    # (the design review section 4.27), reinstated (section 4.28), and
+    # placement_replaced, which says in one message what a termination notice
+    # racing an acceptance notice cannot say at all.
+    assert len(EXPECTED_NOTIFICATION_EVENT_KEYS) == 32
     assert _emitted_notification_event_keys() == EXPECTED_NOTIFICATION_EVENT_KEYS
 
 

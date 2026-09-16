@@ -8,6 +8,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base, CreatedAtMixin, UpdatedAtMixin, UUIDPrimaryKeyMixin
+from app.core.keys import MAX_STORED_KEY_LENGTH
 from app.domain.shared import FindingStatus
 
 
@@ -33,7 +34,21 @@ class AuditLog(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
 
 class IdempotencyKey(UUIDPrimaryKeyMixin, CreatedAtMixin, Base):
     __tablename__ = "idempotency_keys"
-    __table_args__ = (sa.UniqueConstraint("key", name="uq_idempotency_keys_key"),)
+    # The unique constraint is a btree, so an over-long key is not a slow write
+    # but an impossible one (revision 0020). `app/core/keys.py` bounds every
+    # caller-supplied key; this is the backstop that keeps the two in step.
+    __table_args__ = (
+        sa.UniqueConstraint("key", name="uq_idempotency_keys_key"),
+        # NOT VALID, and it stays that way (revision 0020): keys written by
+        # the old approvals screen are longer than this and were storable, so
+        # validating them would fail every upgrade but the one on an empty
+        # database. New rows are checked; the historical ones are evidence.
+        sa.CheckConstraint(
+            f"char_length(key) <= {MAX_STORED_KEY_LENGTH}",
+            name="ck_idempotency_keys_key_length",
+            postgresql_not_valid=True,
+        ),
+    )
 
     key: Mapped[str] = mapped_column(sa.Text(), nullable=False)
     command: Mapped[str] = mapped_column(sa.Text(), nullable=False)

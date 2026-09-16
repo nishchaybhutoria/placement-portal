@@ -31,6 +31,7 @@ from app.core.errors import (
     UNKNOWN_EXPORT_COLUMN,
     UNMATCHED_IDENTIFIER,
 )
+from app.core.keys import BatchKey
 from app.core.plan import (
     ActorContext,
     Deferred,
@@ -64,7 +65,7 @@ class CancelJobInput(BaseModel):
     cycle_id: UUID
     job_id: UUID
     rows: list[dict[str, str]]
-    batch_key: str
+    batch_key: BatchKey
     reason: str = "The job was cancelled"
 
     @field_validator("rows")

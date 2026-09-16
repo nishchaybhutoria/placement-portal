@@ -164,7 +164,7 @@ function ApplicationFields({
   return (
     <form className="flex flex-col gap-gap-lg" onSubmit={submit}>
       {error ? <ErrorState error={error} title="Could not save the application" /> : null}
-      <Field label="Resume" required hint="Choose a saved resume or use one Drive link just for this application.">
+      <Field label="Resume" required hint="Choose a saved resume or use one Drive link just for this application. Set the resume file sharing permission to “Anyone with the link – Viewer.”">
         {(field) => (
           <Select
             {...field}
@@ -183,7 +183,7 @@ function ApplicationFields({
         )}
       </Field>
       {resumeChoice === "__url" ? (
-        <Field label="One-off resume URL" required hint="A Google Drive or Docs file link.">
+        <Field label="One-off resume URL" required hint="A Google Drive or Docs file link. Set the resume file sharing permission to “Anyone with the link – Viewer.”">
           {(field) => (
             <Input
               {...field}

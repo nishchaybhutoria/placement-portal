@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
 import { Select } from "@/components/ui/input";
 import { StatusChip } from "@/components/ui/statusChip";
+import { batchKeyFor } from "@/lib/idempotency";
 import { humanise } from "@/lib/text";
 import { DataTable, type Column } from "@/components/ui/table";
 import { EmptyState, ErrorState, ScreenSkeleton } from "@/components/ui/states";
@@ -48,10 +49,10 @@ export function Approvals() {
   const [selected, setSelected] = useState<string[]>([]);
   // One key per selection: a retry of the same intent replays rather than
   // re-approving, and a *different* selection is a different batch (RND-2).
-  const batchKey = useMemo(
-    () => `approvals-${id}-${[...selected].sort().join(",")}`,
-    [id, selected],
-  );
+  // Digested, not concatenated -- the ids themselves overflow the unique btree
+  // on `idempotency_keys.key` at 72 ticks, which is what made "select all"
+  // fail with a 500 telling the coordinator to replay an unstorable key.
+  const batchKey = useMemo(() => batchKeyFor(`approvals-${id}`, selected), [id, selected]);
 
   if (screen.isPending) return <ScreenSkeleton variant="table" />;
   if (screen.isError) {

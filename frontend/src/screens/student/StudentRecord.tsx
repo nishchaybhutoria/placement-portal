@@ -1,11 +1,17 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import type { CommandInput } from "@/api/client";
-import { payload, type StudentRecordPayload, type TimelineEvent } from "@/api/payloads";
+import {
+  payload,
+  type PlacementRef,
+  type StudentRecordPayload,
+  type TimelineEvent,
+} from "@/api/payloads";
 import { useScreen } from "@/api/useScreen";
 import { PageHeader } from "@/components/PageHeader";
 import { EventPayload } from "@/components/EventPayload";
-import { ReinstatementPlan } from "@/components/CommandSummaryDetails";
+import { ReinstatementPlan, ReplacementPlan } from "@/components/CommandSummaryDetails";
 import { SubjectOverrides } from "@/components/SubjectOverrides";
 import { PreviewConfirm, type Choice } from "@/components/PreviewConfirm";
 import { GrantOverride, overrideChoices } from "@/components/GrantOverride";
@@ -13,8 +19,9 @@ import { MembershipExit } from "@/components/MembershipExit";
 import { OutcomeTag } from "@/components/OutcomeTag";
 import { Button } from "@/components/ui/button";
 import { Card, CardBody, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Field } from "@/components/ui/field";
-import { Select } from "@/components/ui/input";
+import { Input, Select } from "@/components/ui/input";
 import { EmptyState, ErrorState, ScreenSkeleton } from "@/components/ui/states";
 import { StatusChip } from "@/components/ui/statusChip";
 import { DataTable, type Column } from "@/components/ui/table";
@@ -115,6 +122,7 @@ export function StudentRecord() {
         </CardBody>
       </Card>
 
+      <Placement data={data} enrollmentId={enrollmentId} />
       <Memberships data={data} />
       <Applications data={data} />
       <OfferHistory data={data} />
@@ -655,6 +663,211 @@ function Timeline({ events }: { events: TimelineEvent[] }) {
       ))}
     </ol>
   );
+}
+
+/**
+ * The one placement this student holds, and the way to move it (Behavior OFR-6).
+ *
+ * This card exists on the student record rather than on a job's offer panel
+ * because that is where an admin already is when they learn the placement
+ * changed. `terminate_offer` lives per-job and refuses an archived cycle, so
+ * the two-step workaround it supports could not reach last season's placement
+ * at all -- which is the one most likely to be wrong.
+ */
+function Placement({
+  data,
+  enrollmentId,
+}: {
+  data: StudentRecordPayload;
+  enrollmentId: string;
+}) {
+  const { current, candidates, restoration_candidates: restorable } = data.placement;
+  const [restore, setRestore] = useState<string[]>([]);
+  const [deadlines, setDeadlines] = useState<Record<string, string>>({});
+  const [notify, setNotify] = useState(true);
+
+  const restorationChoices = (
+    <div className="flex flex-col gap-gap-lg rounded border border-border p-gap-lg">
+      <p className="text-label-caps uppercase text-muted-foreground">
+        Restoration choices ({restorable.length})
+      </p>
+      {restorable.length === 0 ? (
+        <p className="text-body-sm text-muted-foreground">
+          No application was moved aside by the placement being replaced.
+        </p>
+      ) : (
+        restorable.map((candidate) => {
+          const checked = restore.includes(candidate.application_id);
+          return (
+            <div key={candidate.application_id} className="flex flex-col gap-gap-md">
+              <label className="flex items-start gap-gap-md text-body-sm">
+                <Checkbox
+                  checked={checked}
+                  aria-label={`Restore ${candidate.job}`}
+                  onChange={(event) =>
+                    setRestore((live) =>
+                      event.target.checked
+                        ? [...live, candidate.application_id]
+                        : live.filter((item) => item !== candidate.application_id),
+                    )
+                  }
+                />
+                <span>
+                  <span className="block text-foreground">
+                    {candidate.job} · {candidate.company}
+                  </span>
+                  <span className="flex flex-wrap items-center gap-gap-md text-muted-foreground">
+                    <StatusChip domain="application" value={candidate.current_status} />
+                    <span aria-hidden>→</span>
+                    <StatusChip domain="application" value={candidate.restore_status} />
+                    {candidate.target_round_id ? <span>prior round restored</span> : null}
+                    {candidate.requires_fresh_offer ? <span>fresh offer row</span> : null}
+                  </span>
+                </span>
+              </label>
+              {checked && candidate.deadline_editable ? (
+                <Field
+                  label={`Fresh offer deadline for ${candidate.job} (optional)`}
+                  hint="Leave blank to create the fresh offer without a deadline."
+                >
+                  {(field) => (
+                    <Input
+                      {...field}
+                      type="datetime-local"
+                      value={deadlines[candidate.application_id] ?? ""}
+                      onChange={(event) =>
+                        setDeadlines((live) => ({
+                          ...live,
+                          [candidate.application_id]: event.target.value,
+                        }))
+                      }
+                    />
+                  )}
+                </Field>
+              ) : null}
+            </div>
+          );
+        })
+      )}
+      <label className="flex items-center gap-gap-tight text-body-sm text-muted-foreground">
+        <Checkbox checked={notify} onChange={(event) => setNotify(event.target.checked)} />
+        Notify student
+      </label>
+    </div>
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Placement</CardTitle>
+        {data.placement.actions.replace_placement ? (
+          <PreviewConfirm
+            command="replace_placement"
+            input={
+              {
+                enrollment_id: enrollmentId,
+                ...placementSide(current, "current"),
+                // Filled in by `transformInput` from the select below, which
+                // is the only place that knows which candidate was picked.
+                ...placementSide(null, "new"),
+                reason: "",
+                restore: restore.map((application_id) => ({
+                  application_id,
+                  deadline_at: instantOrNull(deadlines[application_id]),
+                })),
+                notify,
+              } as CommandInput<"replace_placement">
+            }
+            title="Replace this student's placement?"
+            description="The offer they hold ends and the one you choose becomes their placement, in a single audited change. Use Terminate on the job's offer panel instead if the point is that an offer ended."
+            confirmLabel="Replace placement"
+            destructive
+            choices={[
+              {
+                name: "__target",
+                label: "New placement",
+                kind: "select",
+                required: true,
+                options: candidates.map((item) => ({
+                  value: placementKey(item),
+                  label: `${item.job} · ${item.company}${item.cycle ? ` · ${item.cycle}` : ""}`,
+                })),
+                hint: "Only offers waiting on a response, in cycles that still accept changes.",
+              },
+              {
+                name: "reason",
+                label: "Reason",
+                kind: "textarea",
+                required: true,
+                hint: "Recorded in the audit trail and sent to the student.",
+              },
+            ]}
+            choiceContent={restorationChoices}
+            // `__target` is a control, not a field: the command takes an id
+            // pair whose shape depends on which kind of offer was picked, and
+            // this is where the one the operator chose becomes that pair.
+            transformInput={(input) => {
+              const { __target, ...rest } = input as Record<string, unknown>;
+              const chosen = candidates.find((item) => placementKey(item) === __target);
+              return { ...rest, ...placementSide(chosen, "new") } as CommandInput<"replace_placement">;
+            }}
+            renderSummary={(summary) => (
+              <ReplacementPlan summary={summary as unknown as Record<string, unknown>} />
+            )}
+            trigger={<Button variant="destructive-ghost">Replace placement</Button>}
+            onDone={() => {
+              setRestore([]);
+              setDeadlines({});
+            }}
+          />
+        ) : null}
+      </CardHeader>
+      <CardBody>
+        {current ? (
+          <div className="flex flex-col gap-gap-tight">
+            <p className="text-body-md font-medium text-foreground">
+              {current.job} · {current.company}
+            </p>
+            <p className="text-body-sm text-muted-foreground">
+              {humanise(current.kind)}
+              {current.source ? ` · ${humanise(current.source)}` : ""}
+              {current.cycle ? ` · ${current.cycle}` : " · unattached"}
+            </p>
+          </div>
+        ) : (
+          <EmptyState message="Not placed. No accepted, unterminated placement offer." />
+        )}
+        {current && candidates.length === 0 ? (
+          <p className="mt-gap-md text-body-sm text-muted-foreground">
+            No other placement offer is waiting on a response, so there is nothing to
+            move the placement to.
+          </p>
+        ) : null}
+      </CardBody>
+    </Card>
+  );
+}
+
+/** A stable select value for either kind of offer. */
+function placementKey(placement: PlacementRef): string {
+  return `${placement.kind}:${placement.offer_id ?? placement.external_offer_id}`;
+}
+
+/** The two id fields naming one side of the replacement, portal or external. */
+function placementSide(
+  placement: PlacementRef | null | undefined,
+  side: "current" | "new",
+): Record<string, string | null> {
+  const portal = placement?.kind === "portal" ? (placement.offer_id ?? null) : null;
+  const external = placement?.kind === "external" ? (placement.external_offer_id ?? null) : null;
+  return side === "current"
+    ? { current_offer_id: portal, current_external_offer_id: external }
+    : { new_offer_id: portal, new_external_offer_id: external };
+}
+
+/** A `datetime-local` value as the instant the API expects, or nothing. */
+function instantOrNull(value: string | undefined): string | null {
+  return value ? new Date(value).toISOString() : null;
 }
 
 function OfferHistory({ data }: { data: StudentRecordPayload }) {

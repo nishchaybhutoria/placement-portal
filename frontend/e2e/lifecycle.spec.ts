@@ -1851,7 +1851,9 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
     // open applications, and no intervening runsheet step records an
     // acceptance. Neither moves here: an internship accepted in a dedicated
     // cycle cascades only inside that cycle, so the placement-outcome one
-    // survives too — it is Step 42 that takes it, and Step 58 the other.
+    // survives too — and it survives Step 42's placement acceptance as well,
+    // because open cycles are exempt in both directions (ELG-3.6). Step 58's
+    // archival is what closes both of them in the end.
     for (const title of [OPEN_JOB_ONE, OPEN_JOB_THREE]) {
       const p2Open = page.getByText(title, { exact: true }).locator("xpath=ancestor::li[1]");
       await expect(p2Open.getByText("In progress", { exact: true })).toBeVisible();
@@ -2348,7 +2350,7 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
     await logout(page);
   });
 
-  test("D.41-D.42 an unattached off-campus placement gates P4, and P2's acceptance reaches the open cycle", async ({ page }) => {
+  test("D.41-D.42 an unattached off-campus placement gates P4, and P2's acceptance spares the open cycle", async ({ page }) => {
     test.setTimeout(240_000);
     page.setDefaultTimeout(8_000);
     await login(page, ADMIN);
@@ -2423,9 +2425,10 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
     await logout(page);
 
     // P2 accepts job A holding two other placement applications and the
-    // open-cycle placement job from Step 9. OFR-3 filters on outcome, not on
-    // cycle, so the open-cycle one goes with the rest — and his open-cycle
-    // *internship* stays exactly where it is.
+    // open-cycle placement job from Step 9. OFR-3 filters on outcome and on
+    // the *kind* of cycle: the two dedicated ones go, and the open-cycle one
+    // stays, because ELG-3.6 keeps a rolling board open in both directions.
+    // His open-cycle internship was never this cascade's business at all.
     await login(page, students.p2[0]);
     await page.goto("/dashboard");
     const p2Offer = page
@@ -2433,17 +2436,15 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
       .locator("xpath=ancestor::li[1]");
     await p2Offer.getByRole("button", { name: "Accept", exact: true }).click();
     dialog = page.getByRole("dialog");
-    await expect(dialog.getByText("Other applications affected (3)")).toBeVisible();
-    for (const title of [PLACEMENT_JOB_B, PLACEMENT_JOB_C, OPEN_JOB_THREE]) {
+    await expect(dialog.getByText("Other applications affected (2)")).toBeVisible();
+    for (const title of [PLACEMENT_JOB_B, PLACEMENT_JOB_C]) {
       await expect(
         dialog.getByText(title, { exact: true }).locator("xpath=ancestor::li[1]"),
       ).toContainText("in progress → auto withdrawn");
     }
-    // Named, not counted: the open-cycle row states its own cycle, which is
-    // the only thing distinguishing it from the two in this one.
-    await expect(
-      dialog.getByText(OPEN_JOB_THREE, { exact: true }).locator("xpath=ancestor::li[1]"),
-    ).toContainText(OPEN_CYCLE);
+    // Named, not counted — and the open-cycle role is absent from the list
+    // rather than quietly included in a total nobody reads.
+    await expect(dialog.getByText(OPEN_JOB_THREE, { exact: true })).toHaveCount(0);
     await dialog.getByRole("button", { name: "Accept offer" }).click();
     await expect(dialog).toBeHidden();
 
@@ -2454,11 +2455,21 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
     const status = (title: string) =>
       statuses.getByText(title, { exact: true }).locator("xpath=ancestor::li[1]");
     await expect(status(PLACEMENT_JOB_A)).toContainText("Accepted");
-    await expect(status(OPEN_JOB_THREE)).toContainText("Auto-withdrawn");
-    // Untouched, and this is the whole point of the step: the internship half
-    // of his record is not the placement cascade's business, in any cycle.
+    // The point of the step: being placed neither closes the open cycle to
+    // him nor empties what he already has there.
+    await expect(status(OPEN_JOB_THREE)).toContainText("In progress");
     await expect(status(OPEN_JOB_ONE)).toContainText("In progress");
     await expect(status(SUMMER_JOB_ONE)).toContainText("Accepted");
+
+    // And the open cycle is still open to him now that he is placed: the
+    // board shows no outcome-gate refusal on its placement role.
+    await page.goto("/cycles");
+    await page.getByRole("link", { name: OPEN_CYCLE, exact: true }).click();
+    await expect(
+      page.getByText(
+        "You have already accepted a placement offer, so placement roles are closed to you.",
+      ),
+    ).toHaveCount(0);
     await logout(page);
   });
 
@@ -3044,15 +3055,18 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
     await login(page, ADMIN);
     const openId = await staffCycleId(page, OPEN_CYCLE);
 
-    // D.58: only P2's internship application remains non-terminal. The other
-    // open placement application was swept by Step 42, while P1's two accepted
-    // applications are explicitly outside the archive cascade.
+    // D.58: both of P2's open applications remain non-terminal. Step 42's
+    // acceptance no longer sweeps the placement one -- ELG-3.6 keeps a rolling
+    // board open in both directions -- so archival is what finally closes it,
+    // which is exactly the case this step exists to prove is previewed. P1's
+    // two accepted applications are explicitly outside the archive cascade.
     await page.goto(`/staff/cycles/${openId}`);
     await page.getByRole("button", { name: "Archive", exact: true }).click();
     let dialog = page.getByRole("dialog");
-    const withdrawn = dialog.getByText("Will auto-withdraw (1)").locator("xpath=ancestor::section[1]");
+    const withdrawn = dialog.getByText("Will auto-withdraw (2)").locator("xpath=ancestor::section[1]");
     await expect(withdrawn).toContainText(students.p2[1]);
     await expect(withdrawn).toContainText(OPEN_JOB_ONE);
+    await expect(withdrawn).toContainText(OPEN_JOB_THREE);
     const untouched = dialog.getByText("Will remain untouched (2)").locator("xpath=ancestor::section[1]");
     await expect(untouched).toContainText(students.p1[1]);
     await expect(untouched).toContainText(OPEN_JOB_ONE);
@@ -3196,6 +3210,92 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
     await expect(
       page.getByText("Nothing has drifted. The last pass asserted every invariant and found no violation."),
     ).toBeVisible();
+    await logout(page);
+  });
+
+  /**
+   * The reported case, end to end: already placed, and the office has to move
+   * the placement rather than leave the student with two or with neither.
+   *
+   * It runs after the analytics, report and consistency steps deliberately.
+   * Those count placements, and a step that moved one before they read it
+   * would be asserting against a world it had just changed. The incoming side
+   * is an unattached external offer for the same reason: it belongs to no
+   * cycle, so it disturbs no cycle's figures on its way in.
+   */
+  test("D.62 a placed student's placement is moved to a later offer, in one change", async ({
+    page,
+  }) => {
+    test.setTimeout(240_000);
+    page.setDefaultTimeout(8_000);
+
+    // P2 has been placed since Step 42, in a cycle that is still live.
+    await login(page, ADMIN);
+    const p2Enrollment = await enrollmentId(page, students.p2[0]);
+
+    // The later offer: recorded, not accepted. Recording it as accepted would
+    // be the very thing the placement gate refuses, which is the point.
+    await page.goto("/staff/external");
+    await page.getByRole("button", { name: "Record external offer" }).click();
+    let dialog = page.getByRole("dialog");
+    await dialog
+      .getByRole("combobox", { name: "Student *", exact: true })
+      .selectOption({ label: `${students.p2[1]} (${ROLL.p2})` });
+    await dialog
+      .getByRole("combobox", { name: "Company *", exact: true })
+      .selectOption({ label: "Terra Nova Materials" });
+    await dialog.getByRole("combobox", { name: "Outcome *", exact: true }).selectOption("placement");
+    await dialog.getByRole("combobox", { name: "Source *", exact: true }).selectOption("ppo");
+    await dialog.getByRole("combobox", { name: "Status *", exact: true }).selectOption("offered");
+    await dialog.getByRole("spinbutton", { name: "CTC (₹ per year)" }).fill("2100000");
+    await dialog
+      .getByRole("textbox", { name: "Reason / evidence *", exact: true })
+      .fill("PPO letter received after the portal offer was accepted");
+    await dialog.getByRole("button", { name: "Record offer" }).click();
+    await expect(dialog).toBeHidden();
+
+    // The record names the one placement he holds, and offers the move.
+    await page.goto(`/staff/student/${p2Enrollment}`);
+    const placement = page
+      .getByRole("heading", { name: "Placement" })
+      .locator("xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' bg-card ')][1]");
+    await expect(placement).toContainText(PLACEMENT_JOB_A);
+    await placement.getByRole("button", { name: "Replace placement" }).click();
+    dialog = page.getByRole("dialog");
+    await dialog
+      .getByRole("combobox", { name: "New placement *", exact: true })
+      .selectOption({ index: 1 });
+    await dialog
+      .getByRole("textbox", { name: "Reason *", exact: true })
+      .fill("Student is taking the PPO; the portal offer is released");
+    // One movement, previewed as one sentence: what ends and what begins.
+    await expect(dialog.getByText(PLACEMENT_JOB_A, { exact: false })).toBeVisible();
+    await dialog.getByRole("button", { name: "Replace placement" }).click();
+    await expect(dialog).toBeHidden();
+
+    // Derived, not stored: the card re-reads the accepted rows and names the
+    // external offer, with nothing left of the offer it replaced.
+    await expect(placement).toContainText("External placement offer");
+    await expect(placement).not.toContainText(PLACEMENT_JOB_A);
+
+    // Still exactly one placement, and the checker agrees.
+    await page.goto("/admin/findings");
+    await page.getByRole("button", { name: "Run now" }).click();
+    dialog = page.getByRole("dialog");
+    await expect(dialog.getByText(/0 violations/)).toBeVisible();
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await logout(page);
+
+    // The student's own view agrees: the portal offer ended, and the PPO he
+    // now holds is read-only to him as every external offer is.
+    await login(page, students.p2[0]);
+    await page.goto("/dashboard");
+    const statuses = page
+      .getByRole("heading", { name: "Application status" })
+      .locator("xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' bg-card ')][1]");
+    await expect(
+      statuses.getByText(PLACEMENT_JOB_A, { exact: true }).locator("xpath=ancestor::li[1]"),
+    ).toContainText("Offer terminated");
     await logout(page);
   });
 

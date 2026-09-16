@@ -26,6 +26,7 @@ def migration_defaults() -> tuple[tuple[str, str, str], ...]:
         *_defaults_from_migration("0007_notification_templates.py"),
         *_defaults_from_migration("0008_notification_catalog.py"),
         *_defaults_from_migration("0009_reinstated_notification.py"),
+        *_defaults_from_migration("0021_placement_replaced_notice.py"),
     )
     keys = [event_key for event_key, _subject, _body in defaults]
     assert len(keys) == len(set(keys))

@@ -9,6 +9,7 @@ from typing import Protocol, cast, get_type_hints
 from fastapi import Depends, FastAPI, Response
 from pydantic import BaseModel, ConfigDict, create_model
 
+from app.core.keys import IdempotencyKey
 from app.core.plan import ActorContext, Preview, Result
 from app.core.rate_limit import InProcessRateLimiter
 from app.core.registry import CommandSpec, Registry, ScreenSpec
@@ -90,7 +91,7 @@ def _command_endpoint(
         __config__=ConfigDict(extra="forbid"),
         input=(spec.input_model, ...),
         dry_run=(bool, False),
-        idempotency_key=(str | None, None),
+        idempotency_key=(IdempotencyKey | None, None),
     )
     execute_model = create_model(f"{prefix}CommandResult", summary=(spec.output_model, ...))
     preview_model = create_model(

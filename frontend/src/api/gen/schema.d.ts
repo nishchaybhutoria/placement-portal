@@ -906,6 +906,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/commands/replace_placement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Command Replace Placement */
+        post: operations["command_replace_placement_api_v1_commands_replace_placement_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/commands/request_export": {
         parameters: {
             query?: never;
@@ -5131,6 +5148,85 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** ReplacePlacementCommandPreview */
+        ReplacePlacementCommandPreview: {
+            /** Events */
+            events: {
+                [key: string]: unknown;
+            }[];
+            summary: components["schemas"]["ReplacePlacementSummary"];
+        };
+        /** ReplacePlacementCommandRequest */
+        ReplacePlacementCommandRequest: {
+            /**
+             * Dry Run
+             * @default false
+             */
+            dry_run: boolean;
+            /** Idempotency Key */
+            idempotency_key?: string | null;
+            input: components["schemas"]["ReplacePlacementInput"];
+        };
+        /** ReplacePlacementCommandResult */
+        ReplacePlacementCommandResult: {
+            summary: components["schemas"]["ReplacePlacementSummary"];
+        };
+        /** ReplacePlacementInput */
+        ReplacePlacementInput: {
+            /** Current External Offer Id */
+            current_external_offer_id?: string | null;
+            /** Current Offer Id */
+            current_offer_id?: string | null;
+            /**
+             * Enrollment Id
+             * Format: uuid
+             */
+            enrollment_id: string;
+            /** New External Offer Id */
+            new_external_offer_id?: string | null;
+            /** New Offer Id */
+            new_offer_id?: string | null;
+            /**
+             * Notify
+             * @default true
+             */
+            notify: boolean;
+            /** Reason */
+            reason: string;
+            /**
+             * Restore
+             * @default []
+             */
+            restore: components["schemas"]["RestoreSelection"][];
+        };
+        /** ReplacePlacementSummary */
+        ReplacePlacementSummary: {
+            /** Cascade */
+            cascade: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Enrollment Id
+             * Format: uuid
+             */
+            enrollment_id: string;
+            /** From Placement */
+            from_placement: {
+                [key: string]: unknown;
+            };
+            /** Restoration Candidates */
+            restoration_candidates: {
+                [key: string]: unknown;
+            }[];
+            /** Restored */
+            restored: {
+                [key: string]: unknown;
+            }[];
+            /** To Placement */
+            to_placement: {
+                [key: string]: unknown;
+            };
+        };
         /** RequestExportCommandPreview */
         RequestExportCommandPreview: {
             /** Events */
@@ -8435,6 +8531,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RemoveMembershipCommandResult"] | components["schemas"]["RemoveMembershipCommandPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    command_replace_placement_api_v1_commands_replace_placement_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplacePlacementCommandRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReplacePlacementCommandResult"] | components["schemas"]["ReplacePlacementCommandPreview"];
                 };
             };
             /** @description Validation Error */

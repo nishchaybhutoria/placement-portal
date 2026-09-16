@@ -365,6 +365,103 @@ describe("student drill-down", () => {
     });
   });
 
+  it("moves a placement from the record, carrying both sides and the restorations", async () => {
+    // The card only appears for a *placed* student with somewhere to move the
+    // placement to, so the captured world -- terminated offer, declined PPO --
+    // is given the state this command exists for.
+    const body = structuredClone(staffStudent) as unknown as StudentRecordPayload;
+    const enrollmentId = body.enrollment!.id;
+    const held = "11111111-1111-4111-8111-111111111111";
+    const incoming = "22222222-2222-4222-8222-222222222222";
+    const moved = body.applications[0]!.id;
+    body.placement = {
+      current: {
+        kind: "portal",
+        offer_id: held,
+        job: "Backend Engineer",
+        company: "Northwind Systems",
+        cycle_id: body.memberships[0]!.cycle.id,
+        cycle: "Placement 2026",
+      },
+      candidates: [
+        {
+          kind: "external",
+          external_offer_id: incoming,
+          source: "ppo",
+          job: "External placement offer",
+          company: "Northwind Systems",
+          cycle_id: null,
+          cycle: null,
+        },
+      ],
+      restoration_candidates: [
+        {
+          application_id: moved,
+          job: "Data Analyst",
+          company: "Northwind Systems",
+          current_status: "auto_withdrawn",
+          restore_status: "in_progress",
+          target_round_id: null,
+          requires_fresh_offer: false,
+          deadline_editable: false,
+        },
+      ],
+      actions: { replace_placement: true },
+    };
+    const mocked = mockScreens({
+      [`screens/staff/student/${enrollmentId}`]: body,
+      "commands/replace_placement": {
+        summary: {
+          enrollment_id: enrollmentId,
+          from_placement: { kind: "portal", job: "Backend Engineer", company: "Northwind Systems" },
+          to_placement: { kind: "external", job: "External placement offer", company: "Northwind Systems" },
+          cascade: [],
+          restoration_candidates: [],
+          restored: [],
+        },
+        events: [],
+      },
+    });
+    renderScreen(<StudentRecord />, {
+      path: "/staff/student/:enrollmentId",
+      route: `/staff/student/${enrollmentId}`,
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: "Replace placement" }));
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText(/^New placement/), {
+      target: { value: `external:${incoming}` },
+    });
+    fireEvent.change(within(dialog).getByLabelText(/^Reason/), {
+      target: { value: "Took the PPO" },
+    });
+    fireEvent.click(within(dialog).getByLabelText("Restore Data Analyst"));
+
+    await waitFor(() => {
+      const posted = mocked.posted("replace_placement").at(-1);
+      // Both sides travel as the id pair the command expects, and the side the
+      // offer does not belong to stays null rather than being omitted.
+      expect(posted?.current_offer_id).toBe(held);
+      expect(posted?.current_external_offer_id).toBeNull();
+      expect(posted?.new_external_offer_id).toBe(incoming);
+      expect(posted?.new_offer_id).toBeNull();
+      expect(posted?.reason).toBe("Took the PPO");
+      expect(posted?.restore).toEqual([{ application_id: moved, deadline_at: null }]);
+    });
+  });
+
+  it("offers no replacement where the server withholds the permission", async () => {
+    const enrollmentId = staffStudent.enrollment!.id;
+    mockScreens({ [`screens/staff/student/${enrollmentId}`]: staffStudent });
+    renderScreen(<StudentRecord />, {
+      path: "/staff/student/:enrollmentId",
+      route: `/staff/student/${enrollmentId}`,
+    });
+
+    expect(await screen.findByText(/^Not placed/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Replace placement" })).toBeNull();
+  });
+
   it("tags a membership's ANA-3 outcome from the record", async () => {
     const enrollmentId = staffStudent.enrollment!.id;
     const mocked = mockScreens({

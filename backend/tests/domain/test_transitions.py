@@ -162,7 +162,15 @@ def _state(
     )
 
 
-def test_OFR3_placement_cascade_spans_three_cycles_including_open() -> None:
+def test_OFR3_placement_cascade_spans_dedicated_cycles_but_spares_open_ones() -> None:
+    """Placement cascades everywhere a season does -- and an open cycle is not one.
+
+    ELG-3.6 keeps an open cycle open to a placed student in both directions.
+    Gating one direction alone would be pointless: a rolling board a student
+    may apply to while placed cannot also be emptied the moment they are
+    placed, or the exemption only ever survives until the next acceptance.
+    Application 3 is that case, and it stays exactly where it was.
+    """
     target = ApplicationOfferState(
         TARGET_APP, S.OFFERED, Outcome.PLACEMENT, CYCLE_A, CycleKind.PLACEMENT
     )
@@ -173,14 +181,23 @@ def test_OFR3_placement_cascade_spans_three_cycles_including_open() -> None:
         _state(4, S.IN_PROGRESS, Outcome.INTERNSHIP, CYCLE_A, CycleKind.PLACEMENT),
     )
     actions = compute_acceptance_cascade(target, others, acceptance_offer_id=TARGET_OFFER)
-    assert [action.application_id.int for action in actions] == [1, 2, 3]
-    assert [action.to_status for action in actions] == [
-        S.DECLINED,
-        S.AUTO_WITHDRAWN,
-        S.AUTO_WITHDRAWN,
-    ]
+    assert [action.application_id.int for action in actions] == [1, 2]
+    assert [action.to_status for action in actions] == [S.DECLINED, S.AUTO_WITHDRAWN]
     assert actions[0].event_type is EventType.AUTO_DECLINED
     assert all(action.payload["acceptance_offer_id"] == str(TARGET_OFFER) for action in actions)
+
+
+def test_OFR3_an_open_cycle_offer_is_not_auto_declined_by_an_acceptance() -> None:
+    """The exemption covers a live open-cycle offer, not only an application."""
+    target = ApplicationOfferState(
+        TARGET_APP, S.OFFERED, Outcome.PLACEMENT, CYCLE_A, CycleKind.PLACEMENT
+    )
+    actions = compute_acceptance_cascade(
+        target,
+        (_state(1, S.OFFERED, Outcome.PLACEMENT, CYCLE_C, CycleKind.OPEN),),
+        acceptance_offer_id=TARGET_OFFER,
+    )
+    assert actions == ()
 
 
 def test_OFR3_internship_cascade_is_dedicated_same_cycle_only() -> None:

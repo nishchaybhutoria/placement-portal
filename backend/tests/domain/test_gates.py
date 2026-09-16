@@ -28,6 +28,7 @@ from app.domain.gates import (
     GateContext,
     GateOverride,
     apply_eligibility_override,
+    evaluate_acceptance_constraints,
     evaluate_cycle_join_rule,
     evaluate_cycle_registration_window,
     evaluate_edit_window,
@@ -362,6 +363,51 @@ def test_DER1_internship_gate_is_same_cycle_dedicated_only() -> None:
     ]
     assert evaluate_gates(replace(dedicated, cycle_kind=CycleKind.OPEN)).verdict is True
     assert evaluate_gates(replace(dedicated, internship_placed_in_cycle=False)).verdict is True
+
+
+def test_ELG3_an_open_cycle_stays_open_to_a_placed_student_for_applying() -> None:
+    """ELG-3.6: a rolling board is not a season anyone can be too late for.
+
+    The gate that closes placement roles to a placed student is about the
+    seasons: one dedicated cycle, one placement, and no second bite. An open
+    cycle runs all year and carries roles nobody organised a season around, so
+    being placed does not shut it -- the job's own eligibility rule still does
+    whatever it was written to do.
+    """
+    placed = replace(_passing(), placement_placed_global=True)
+
+    assert [reason.code for reason in evaluate_gates(placed).failures] == [
+        OUTCOME_GATE_PLACEMENT
+    ]
+    assert evaluate_gates(replace(placed, cycle_kind=CycleKind.OPEN)).verdict is True
+    # An internship cycle is a season too, so it is not swept along.
+    assert [
+        reason.code
+        for reason in evaluate_gates(
+            replace(placed, cycle_kind=CycleKind.INTERNSHIP)
+        ).failures
+    ] == [OUTCOME_GATE_PLACEMENT]
+
+
+def test_ELG3_an_open_cycle_offer_still_cannot_be_accepted_while_placed() -> None:
+    """Applying is free; being placed twice is not.
+
+    The exemption is deliberately one-sided. A student may go through an open
+    cycle's process while placed, and the moment the answer is "yes" the
+    portal still insists there is exactly one placement -- which is what
+    `replace_placement` exists to move.
+    """
+    constraints = evaluate_acceptance_constraints(
+        outcome=Outcome.PLACEMENT,
+        cycle_kind=CycleKind.OPEN,
+        placement_placed_global=True,
+        internship_placed_in_cycle=False,
+        max_accepted_offers=None,
+        cap_used=0,
+        overrides=(),
+    )
+
+    assert [reason.code for reason in constraints.failures] == [OUTCOME_GATE_PLACEMENT]
 
 
 def test_ELG3_penalty_gate_skips_when_cycle_policy_disables_it() -> None:

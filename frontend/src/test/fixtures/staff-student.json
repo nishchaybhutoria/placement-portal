@@ -1065,6 +1065,14 @@
    }
   }
  ],
+ "placement": {
+  "current": null,
+  "candidates": [],
+  "restoration_candidates": [],
+  "actions": {
+   "replace_placement": false
+  }
+ },
  "offers": [
   {
    "id": "3c010061-11e8-51b7-9147-efc310c41266",

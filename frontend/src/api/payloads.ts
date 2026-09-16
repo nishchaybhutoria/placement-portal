@@ -944,6 +944,19 @@ export interface AppliedOverride {
   granted_at: string | null;
 }
 
+/** One side of a placement, from either source. */
+export interface PlacementRef {
+  kind: "portal" | "external";
+  offer_id?: string;
+  application_id?: string;
+  external_offer_id?: string;
+  source?: string;
+  job: string;
+  company: string;
+  cycle_id: string | null;
+  cycle: string | null;
+}
+
 export interface StudentRecordPayload {
   enrollment: {
     id: string;
@@ -1018,6 +1031,30 @@ export interface StudentRecordPayload {
       grant_override: ActionPermission;
     };
   }[];
+  /**
+   * The one placement this student holds, and what could replace it.
+   *
+   * Placed state is derived (DER-1), so the server names the accepted,
+   * unterminated placement offer rather than leaving the client to work out
+   * which of several offers counts. `candidates` is already filtered the way
+   * `replace_placement` filters it, archived cycles included.
+   */
+  placement: {
+    current: PlacementRef | null;
+    candidates: PlacementRef[];
+    /** What the current placement's acceptance moved aside, per OFR-5. */
+    restoration_candidates: {
+      application_id: string;
+      job: string;
+      company: string;
+      current_status: string;
+      restore_status: string;
+      target_round_id: string | null;
+      requires_fresh_offer: boolean;
+      deadline_editable: boolean;
+    }[];
+    actions: { replace_placement: boolean };
+  };
   offers: StudentRecordOffer[];
   external_offers: {
     id: string;

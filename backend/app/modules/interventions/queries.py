@@ -46,10 +46,16 @@ from app.core.errors import (
 from app.core.plan import ActorContext, ScopeIds
 from app.domain.shared import (
     ApplicationStatus,
+    CycleKind,
+    EventType,
+    ExternalStatus,
     MembershipStatus,
+    OfferResponse,
+    Outcome,
     RuleDomain,
     domains_for_scope,
 )
+from app.domain.transitions import EventHistoryItem, compute_restore_candidates
 from app.modules.cycles.queries import membership_exit_permissions, outcome_tag_permission
 from app.modules.interventions.commands import REINSTATABLE
 from app.modules.overrides.service import (
@@ -114,7 +120,7 @@ _ROUNDS = """
 """
 
 _EVENTS = """
-    SELECT e.id, e.application_id, e.event_type, e.from_status, e.to_status,
+    SELECT e.id, e.event_seq, e.application_id, e.event_type, e.from_status, e.to_status,
            e.from_round_id, e.to_round_id, e.reason, e.payload, e.created_at,
            u.full_name AS actor_name, u.role AS actor_role,
            fr.name AS from_round_name, tr.name AS to_round_name
@@ -156,6 +162,7 @@ _EXTERNAL = """
            x.offered_on, x.responded_on, x.notes, x.created_at,
            x.source_application_id, x.attached_cycle_id,
            co.name AS company_name, c.name AS cycle_name,
+           c.archived_at AS cycle_archived_at,
            u.full_name AS created_by_name
     FROM external_offers x
     JOIN companies co ON co.id = x.company_id
@@ -484,6 +491,12 @@ async def staff_student_record(
                 "enrollments": [],
                 "memberships": [],
                 "applications": [],
+                "placement": {
+                    "current": None,
+                    "candidates": [],
+                    "restoration_candidates": [],
+                    "actions": {"replace_placement": False},
+                },
                 "offers": [],
                 "external_offers": [],
                 "discipline": {"strikes": [], "penalties": []},
@@ -824,6 +837,14 @@ async def staff_student_record(
             for row in memberships
         ],
         "applications": application_rows,
+        "placement": _placement_block(
+            actor=actor,
+            application_rows=application_rows,
+            applications=applications,
+            offers=offers,
+            external=external,
+            events=events,
+        ),
         "offers": [_offer(row) for row in offers],
         "external_offers": [
             {
@@ -1057,6 +1078,158 @@ def _offer(row: sa.RowMapping) -> dict[str, object]:
         "termination_reason": row["termination_reason"],
         "terminated_by": row["terminated_by_name"],
     }
+
+
+def _placement_block(
+    *,
+    actor: ActorContext,
+    application_rows: list[dict[str, object]],
+    applications: Sequence[sa.RowMapping],
+    offers: Sequence[sa.RowMapping],
+    external: Sequence[sa.RowMapping],
+    events: Sequence[sa.RowMapping],
+) -> dict[str, object]:
+    """What this student's single placement is, and what could take its place.
+
+    Placed state is derived, not stored (DER-1), so "the placement" is simply
+    the one accepted, unterminated placement-outcome offer -- from either
+    source.  The screen has to name it before an admin can move it, and it has
+    to name the alternatives, because ``replace_placement`` is the only way to
+    end one placement and begin another as a single decision.
+
+    A candidate is filtered the way the command's decider filters it, archived
+    cycle included, so the screen never offers an action the server would
+    refuse.  The permission itself stays a server answer: the command is
+    admin-only because the outgoing offer may belong to a cycle this actor does
+    not coordinate.
+    """
+    status_by_application = {
+        str(row["id"]): str(row["status"]) for row in application_rows
+    }
+    current: dict[str, object] | None = None
+    candidates: list[dict[str, object]] = []
+    for row in offers:
+        if str(row["outcome"]) != Outcome.PLACEMENT.value:
+            continue
+        if row["terminated_at"] is not None:
+            continue
+        payload: dict[str, object] = {
+            "kind": "portal",
+            "offer_id": str(cast(UUID, row["id"])),
+            "application_id": str(cast(UUID, row["application_id"])),
+            "job": str(row["job_title"]),
+            "company": str(row["company_name"]),
+            "cycle_id": str(cast(UUID, row["cycle_id"])),
+            "cycle": str(row["cycle_name"]),
+        }
+        if row["response"] == OfferResponse.ACCEPTED.value:
+            current = payload
+        elif row["response"] is None and status_by_application.get(
+            str(cast(UUID, row["application_id"]))
+        ) == ApplicationStatus.OFFERED.value:
+            candidates.append(payload)
+
+    for row in external:
+        if str(row["outcome"]) != Outcome.PLACEMENT.value:
+            continue
+        payload: dict[str, object] = {
+            "kind": "external",
+            "external_offer_id": str(cast(UUID, row["id"])),
+            "source": str(row["source"]),
+            "job": f"External {row['outcome']} offer",
+            "company": str(row["company_name"]),
+            "cycle_id": (
+                str(cast(UUID, row["attached_cycle_id"]))
+                if row["attached_cycle_id"] is not None
+                else None
+            ),
+            "cycle": row["cycle_name"],
+        }
+        if str(row["status"]) == ExternalStatus.ACCEPTED.value:
+            current = payload
+        elif (
+            str(row["status"]) == ExternalStatus.OFFERED.value
+            and row["cycle_archived_at"] is None
+        ):
+            candidates.append(payload)
+
+    # What the *current* placement's acceptance moved out of the way, so the
+    # dialog can offer those applications back the way OFR-5 does rather than
+    # leaving an admin to find them one by one afterwards.
+    restoration_candidates: list[dict[str, object]] = []
+    if current is not None:
+        acceptance_id = UUID(
+            str(current.get("offer_id") or current["external_offer_id"])
+        )
+        by_application = {
+            cast(UUID, row["id"]): row for row in applications
+        }
+        for candidate in compute_restore_candidates(
+            acceptance_offer_id=acceptance_id,
+            history=_restore_history(events),
+            current_statuses={
+                application_id: ApplicationStatus(str(row["status"]))
+                for application_id, row in by_application.items()
+            },
+        ):
+            row = by_application.get(candidate.application_id)
+            if row is None:
+                continue
+            restoration_candidates.append(
+                {
+                    "application_id": str(candidate.application_id),
+                    "job": str(row["job_title"]),
+                    "company": str(row["company_name"]),
+                    "current_status": candidate.current_status.value,
+                    "restore_status": candidate.restore_status.value,
+                    "target_round_id": (
+                        str(candidate.restore_round_id)
+                        if candidate.restore_round_id
+                        else None
+                    ),
+                    "requires_fresh_offer": candidate.requires_fresh_offer,
+                    "deadline_editable": candidate.requires_fresh_offer
+                    and str(row["cycle_kind"]) != CycleKind.OPEN.value,
+                }
+            )
+
+    return {
+        "current": current,
+        "candidates": candidates,
+        "restoration_candidates": restoration_candidates,
+        "actions": {
+            "replace_placement": actor.role == "admin"
+            and current is not None
+            and bool(candidates)
+        },
+    }
+
+
+def _restore_history(
+    events: Sequence[sa.RowMapping],
+) -> tuple[EventHistoryItem, ...]:
+    """The cascade events `compute_restore_candidates` reconstructs choices from."""
+    return tuple(
+        EventHistoryItem(
+            sequence=int(row["event_seq"]),
+            application_id=cast(UUID, row["application_id"]),
+            event_type=EventType(str(row["event_type"])),
+            from_status=(
+                ApplicationStatus(str(row["from_status"]))
+                if row["from_status"] is not None
+                else None
+            ),
+            to_status=(
+                ApplicationStatus(str(row["to_status"]))
+                if row["to_status"] is not None
+                else None
+            ),
+            from_round_id=cast("UUID | None", row["from_round_id"]),
+            to_round_id=cast("UUID | None", row["to_round_id"]),
+            payload=dict(row["payload"] or {}),
+        )
+        for row in events
+    )
 
 
 def _revocation(row: sa.RowMapping | None) -> dict[str, object] | None:

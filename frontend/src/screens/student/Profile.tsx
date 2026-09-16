@@ -322,7 +322,7 @@ function ResumeLibrary({ data }: { data: MeProfilePayload }) {
           <Field label="Label" required>
             {(field) => <Input {...field} value={label} onChange={(event) => setLabel(event.target.value)} />}
           </Field>
-          <Field label="Google Drive / Docs file link" required>
+          <Field label="Google Drive / Docs file link" required hint="Set the resume file sharing permission to “Anyone with the link – Viewer.”">
             {(field) => <Input {...field} type="url" value={url} onChange={(event) => setUrl(event.target.value)} />}
           </Field>
         </div>

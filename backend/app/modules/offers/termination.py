@@ -60,7 +60,11 @@ from app.modules.jobs.commands import JobRow, fetch_job
 from app.modules.notifications.wording import humanise
 from app.modules.offers.commands import _load_offer_applications
 from app.modules.offers.locking import AcceptanceLockRequest, lock_acceptance_state
-from app.modules.offers.planning import OfferApplication, plan_extension
+from app.modules.offers.planning import (
+    OfferApplication,
+    plan_extension,
+    plan_termination,
+)
 
 DisciplineChoice = Literal["strike", "penalty"]
 
@@ -576,44 +580,18 @@ def _decide_terminate(
             ]
         )
 
-    operations: list[StateOp] = [
-        StateOp(
-            op="update",
-            model="offers",
-            values={
-                "terminated_at": state.now,
-                "terminated_by": actor.user_id,
-                "termination_kind": input_value.termination_kind.value,
-                "termination_reason": input_value.reason,
-            },
-            where={"id": input_value.offer_id},
-        ),
-        StateOp(
-            op="update",
-            model="applications",
-            values={"status": ApplicationStatus.OFFER_TERMINATED.value},
-            where={"id": input_value.application_id},
-        ),
-    ]
-    events: list[Event] = [
-        Event(
-            application_id=input_value.application_id,
-            event_type=EventType.OFFER_TERMINATED,
-            from_status=target.status.value,
-            to_status=ApplicationStatus.OFFER_TERMINATED.value,
-            from_round=target.current_round_id,
-            to_round=target.current_round_id,
-            reason=input_value.reason,
-            payload={
-                "offer_id": str(input_value.offer_id),
-                "termination_kind": input_value.termination_kind.value,
-                "restored_application_ids": [
-                    str(item) for item in sorted(selected, key=lambda value: value.int)
-                ],
-            },
-        )
-    ]
-    deferred: list[Deferred] = []
+    termination = plan_termination(
+        target,
+        offer_id=input_value.offer_id,
+        now=state.now,
+        actor_user_id=actor.user_id,
+        termination_kind=input_value.termination_kind,
+        reason=input_value.reason,
+        restored_application_ids=tuple(selected),
+    )
+    operations: list[StateOp] = list(termination.state_ops)
+    events: list[Event] = list(termination.events)
+    deferred: list[Deferred] = list(termination.deferred)
     restored: list[dict[str, object]] = []
     for application_id in sorted(selected, key=lambda item: item.int):
         candidate = by_candidate[application_id]

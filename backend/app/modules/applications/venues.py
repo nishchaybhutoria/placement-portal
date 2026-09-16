@@ -30,6 +30,7 @@ from app.core.errors import (
     INVALID_TRANSITION,
     UNMATCHED_IDENTIFIER,
 )
+from app.core.keys import BatchKey
 from app.core.plan import (
     ActorContext,
     Deferred,
@@ -69,7 +70,7 @@ class AssignVenueTimingInput(BaseModel):
     job_id: UUID
     round_id: UUID
     rows: list[dict[str, str]]
-    batch_key: str
+    batch_key: BatchKey
 
     @field_validator("rows")
     @classmethod

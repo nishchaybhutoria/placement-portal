@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 import pytest
 import pytest_asyncio
 import sqlalchemy as sa
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.bootstrap import build_registry
@@ -23,13 +23,14 @@ from app.core.errors import (
     DomainRejection,
 )
 from app.core.executor import Executor
+from app.core.keys import MAX_IDEMPOTENCY_KEY_LENGTH, BatchKey
 from app.core.plan import ActorContext, Plan, Reason, Rejection, ScopeIds, StateOp
 from app.core.registry import Registry
 
 
 class BulkRowsInput(BaseModel):
     rows: list[dict[str, int]]
-    batch_key: str
+    batch_key: BatchKey
 
 
 class BulkRowsSummary(BaseModel):
@@ -490,3 +491,88 @@ def test_a_bulk_command_promises_only_what_run_bulk_can_return() -> None:
     }
     assert {name: fields for name, fields in offenders.items() if fields} == {}
     assert offenders, "no bulk commands found -- the check would pass vacuously"
+
+
+def test_every_bulk_command_bounds_the_batch_key_it_will_be_given() -> None:
+    """A replay key must fit the unique index that stores it.
+
+    ``run_bulk`` writes ``f"{batch_key}:{chunk_number}"`` into
+    ``idempotency_keys.key``, and that column's UNIQUE constraint is a btree,
+    which PostgreSQL will not let past 2704 bytes.  A bulk command declaring a
+    bare ``str`` therefore accepts keys its own storage cannot hold, and the
+    overflow arrives as an unreasoned 500 in the middle of a confirmed batch --
+    which is exactly how select-all approvals broke above seventy-one ticked
+    membership UUIDs -- the limit is on the compressed entry, so a pasted list
+    of institute emails slipped past it at five thousand characters and made
+    the failure look intermittent.
+
+    Checking the registry rather than each input model is what keeps the next
+    bulk command from reintroducing it without anyone remembering this file.
+    """
+    registry = build_registry()
+    unbounded = sorted(
+        name
+        for name, spec in registry.commands.items()
+        if spec.execution_mode == "bulk"
+        and not _has_max_length(spec.input_model, "batch_key")
+    )
+    assert unbounded == []
+    assert any(
+        spec.execution_mode == "bulk" for spec in registry.commands.values()
+    ), "no bulk commands found -- the check would pass vacuously"
+
+
+def _has_max_length(model: type[BaseModel], field: str) -> bool:
+    info = model.model_fields.get(field)
+    if info is None:
+        return False
+    return any(
+        getattr(item, "max_length", None) is not None for item in info.metadata
+    )
+
+
+@pytest.mark.asyncio
+async def test_an_oversized_batch_key_is_refused_before_any_row_is_touched() -> None:
+    """The bound is a rejection, not a crash half-way through a batch."""
+    registry = Registry()
+    registry.command(
+        name="bulk_rows",
+        input_model=BulkRowsInput,
+        output_model=BulkRowsSummary,
+        actor="test",
+        scope="none",
+        loader=empty_loader,
+        rule_domains=(),
+        spec_ids=("§16",),
+        execution_mode="bulk",
+    )(FailThirdChunkOnce())
+    engine = create_engine(os.environ["TEST_DATABASE_URL"])
+    factory = async_sessionmaker[AsyncSession](
+        engine, expire_on_commit=False, autobegin=False
+    )
+    executor = Executor(registry=registry, session_factory=factory)
+    rows: list[dict[str, object]] = [{"row": 1}]
+
+    try:
+        at_the_bound = await executor.run_bulk(
+            "bulk_rows",
+            rows,
+            "k" * MAX_IDEMPOTENCY_KEY_LENGTH,
+            ActorContext(principal_id="admin"),
+        )
+        with pytest.raises(ValidationError):
+            await executor.run_bulk(
+                "bulk_rows",
+                rows,
+                "k" * (MAX_IDEMPOTENCY_KEY_LENGTH + 1),
+                ActorContext(principal_id="admin"),
+            )
+    finally:
+        await engine.dispose()
+
+    assert len(cast(list[object], at_the_bound.summary["rows"])) == 1
+    # The over-long batch wrote nothing at all: no reservation, no rows, and in
+    # particular no half-applied chunk for an operator to reason about.
+    assert await _scalar("SELECT count(*) FROM idempotency_keys") == 1
+    assert await _scalar("SELECT count(*) FROM notification_log") == 1
+

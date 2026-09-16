@@ -356,6 +356,13 @@ def compute_acceptance_cascade(
             continue
         if accepted.outcome is Outcome.INTERNSHIP and other.cycle_id != accepted.cycle_id:
             continue
+        # An open cycle is exempt in both directions (ELG-3.6).  It stays open
+        # to a placed student, so an acceptance elsewhere must not empty their
+        # open-cycle pipeline on the way past: the board is a standing one, and
+        # a student who is placed today may be the right person for a rolling
+        # role tomorrow.  Withdrawing from it remains the student's own call.
+        if other.cycle_kind is CycleKind.OPEN:
+            continue
         payload: dict[str, object] = {
             "trigger": "acceptance",
             "acceptance_offer_id": str(acceptance_offer_id),

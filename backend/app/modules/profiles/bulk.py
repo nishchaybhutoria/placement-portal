@@ -26,6 +26,7 @@ from app.core.errors import (
     ROLL_NUMBER_TAKEN,
     UNKNOWN_TAXONOMY_VALUE,
 )
+from app.core.keys import BatchKey
 from app.core.plan import ActorContext, Plan, Rejection, ScopeIds, StateOp
 from app.core.registry import Registry
 from app.domain.academics import academic_standing_reasons
@@ -61,7 +62,7 @@ class BulkUpsertProfilesInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     rows: list[BulkProfileRow]
-    batch_key: str
+    batch_key: BatchKey
 
 
 class BulkUpsertProfilesSummary(BaseModel):

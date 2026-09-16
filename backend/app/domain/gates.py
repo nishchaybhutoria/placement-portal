@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from app.core.errors import (
@@ -60,6 +61,15 @@ class GateContext:
     max_accepted_offers: int | None
     cap_used: int
     applicable_overrides: tuple[GateOverride, ...] = ()
+
+
+#: Which side of the process is asking.  ELG-3.6 scopes the placement gate by
+#: phase: an open cycle is a rolling board that stays open to everyone, placed
+#: or not, so a placed student may apply there and be offered a role -- but a
+#: student is still placed in exactly one job, so the gate stands at acceptance
+#: and the admin moves the placement deliberately with ``replace_placement``.
+#: ``accept`` is the default because the gate standing is the safe answer.
+GatePhase = Literal["apply", "accept"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,6 +205,7 @@ def evaluate_gates(context: GateContext) -> GateResult:
         max_accepted_offers=context.max_accepted_offers,
         cap_used=context.cap_used,
         overrides=context.applicable_overrides,
+        phase="apply",
     )
 
     return GateResult(failures=tuple(failures), applied_override_ids=tuple(applied))
@@ -241,10 +252,15 @@ def evaluate_outcome_gate(
     placement_placed_global: bool,
     internship_placed_in_cycle: bool,
     overrides: tuple[GateOverride, ...],
+    phase: GatePhase = "accept",
 ) -> GateResult:
     """Evaluate only the portal-wide or cycle-local placed-state gate."""
+    # An open cycle runs all year and is not a season anyone can be too late
+    # for, so being placed does not close it (ELG-3.6).  Applying is free;
+    # accepting is not, because the placement itself is still singular.
+    open_cycle_applying = phase == "apply" and cycle_kind is CycleKind.OPEN
     failure: Reason | None = None
-    if outcome is Outcome.PLACEMENT and placement_placed_global:
+    if outcome is Outcome.PLACEMENT and placement_placed_global and not open_cycle_applying:
         failure = Reason(
             code=OUTCOME_GATE_PLACEMENT,
             human=(
@@ -536,6 +552,7 @@ def _append_acceptance_constraints(
     max_accepted_offers: int | None,
     cap_used: int,
     overrides: tuple[GateOverride, ...],
+    phase: GatePhase = "accept",
 ) -> None:
     outcome_gate = evaluate_outcome_gate(
         outcome=outcome,
@@ -543,6 +560,7 @@ def _append_acceptance_constraints(
         placement_placed_global=placement_placed_global,
         internship_placed_in_cycle=internship_placed_in_cycle,
         overrides=overrides,
+        phase=phase,
     )
     failures.extend(outcome_gate.failures)
     applied.extend(outcome_gate.applied_override_ids)

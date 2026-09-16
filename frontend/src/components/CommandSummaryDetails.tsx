@@ -220,6 +220,45 @@ export function TerminationPlan({ summary }: { summary: Record<string, unknown> 
   );
 }
 
+/**
+ * OFR-6: which placement ends, which begins, and everything that follows.
+ *
+ * The two halves are shown as one movement because that is what the command
+ * is. A preview that listed a termination and an acceptance as separate
+ * effects would read exactly like the two-step workaround this replaces, and
+ * the whole point is that the student is never briefly unplaced.
+ */
+export function ReplacementPlan({ summary }: { summary: Record<string, unknown> }) {
+  const candidates = rows(summary.restoration_candidates) as RestorationCandidate[];
+  const from = (summary.from_placement ?? {}) as Record<string, unknown>;
+  const to = (summary.to_placement ?? {}) as Record<string, unknown>;
+  return (
+    <div className="flex flex-col gap-gap-lg">
+      <p className="text-body-md text-foreground">
+        <strong>{words(from.job)}</strong>
+        {from.company ? ` · ${words(from.company)}` : ""} ends, and{" "}
+        <strong>{words(to.job)}</strong>
+        {to.company ? ` · ${words(to.company)}` : ""} becomes this student's placement.
+      </p>
+      <Section
+        title="Other applications affected"
+        entries={rows(summary.cascade)}
+        empty="No other applications will change."
+        render={(row) => (
+          <>
+            <span className="font-medium">{words(row.job)}</span>
+            {row.company ? ` · ${words(row.company)}` : ""}
+            {row.cycle ? ` · ${words(row.cycle)}` : ""}
+            {" · "}{words(row.from_status)} → {words(row.to_status)}
+          </>
+        )}
+      />
+      <RestorationDecisions candidates={candidates} />
+      <RestoredApplications restored={rows(summary.restored)} candidates={candidates} />
+    </div>
+  );
+}
+
 /** EXT-1's effects, acceptance cascade, and optional compensating restorations. */
 export function ExternalOfferPlan({ summary }: { summary: Record<string, unknown> }) {
   const candidates = rows(summary.restoration_candidates) as RestorationCandidate[];

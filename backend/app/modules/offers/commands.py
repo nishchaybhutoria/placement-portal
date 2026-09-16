@@ -22,6 +22,7 @@ from app.core.errors import (
     STALE_VIEW,
     UNMATCHED_IDENTIFIER,
 )
+from app.core.keys import BatchKey
 from app.core.plan import (
     ActorContext,
     Deferred,
@@ -247,7 +248,7 @@ class ExtendOffersInput(BaseModel):
     cycle_id: UUID
     job_id: UUID
     rows: list[dict[str, str]]
-    batch_key: str
+    batch_key: BatchKey
 
     _rows = field_validator("rows")(_validate_selection_rows)
 
@@ -729,7 +730,7 @@ class RecordOpenOutcomeInput(BaseModel):
     job_id: UUID
     target_status: OpenOutcome
     rows: list[dict[str, str]]
-    batch_key: str
+    batch_key: BatchKey
     reason: str | None = None
 
     _rows = field_validator("rows")(_validate_selection_rows)

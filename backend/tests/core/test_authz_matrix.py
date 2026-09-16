@@ -351,6 +351,17 @@ FIXTURES = {
         },
         frozenset({"coordinator_a", "admin"}),
     ),
+    # Admin-only, and deliberately not STAFF: the outgoing offer can belong to
+    # a cycle this coordinator does not run, or to an archived one.
+    "replace_placement": MatrixFixture(
+        {
+            "enrollment_id": str(ENROLLMENT),
+            "current_offer_id": str(OFFER),
+            "new_external_offer_id": str(OTHER_COMPANY),
+            "reason": "Matrix replacement",
+        },
+        frozenset({"admin"}),
+    ),
     "re_extend_offer": MatrixFixture(
         {
             "cycle_id": str(CYCLE_A),

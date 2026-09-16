@@ -60,7 +60,14 @@ async def _accept(
     return result
 
 
-async def test_OFR3_placement_acceptance_cascades_across_three_cycles_and_open() -> None:
+async def test_OFR3_placement_acceptance_cascades_across_cycles_but_spares_open() -> None:
+    """The cascade reaches every dedicated cycle, and stops at the open board.
+
+    ELG-3.6 keeps an open cycle open to a placed student in both directions, so
+    the rolling application here survives an acceptance that clears out the
+    three dedicated ones. The internship application is untouched for the older
+    reason: a different outcome was never in this cascade's scope.
+    """
     engine = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
     try:
         async with engine.begin() as connection:
@@ -164,7 +171,6 @@ async def test_OFR3_placement_acceptance_cascades_across_three_cycles_and_open()
     assert {UUID(cast(str, row["application_id"])) for row in cascade} == {
         offered_application,
         pending_application,
-        open_application,
     }
     assert all(
         event.payload["acceptance_offer_id"] == str(target_offer)
@@ -207,7 +213,7 @@ async def test_OFR3_placement_acceptance_cascades_across_three_cycles_and_open()
         target_application: "accepted",
         offered_application: "declined",
         pending_application: "auto_withdrawn",
-        open_application: "auto_withdrawn",
+        open_application: "in_progress",
         internship_application: "in_progress",
     }
     assert rounds[pending_application] == pending_round

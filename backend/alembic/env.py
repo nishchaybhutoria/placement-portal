@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import os
+import warnings
 from logging.config import fileConfig
 
 from sqlalchemy import pool
+from sqlalchemy.exc import SAWarning
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 import app.models  # noqa: F401 - registers every model with Base.metadata
@@ -23,6 +25,20 @@ if migration_url:
     config.set_main_option("sqlalchemy.url", migration_url.replace("%", "%%"))
 
 target_metadata = Base.metadata
+
+# `ck_idempotency_keys_key_length` is NOT VALID by design (revision 0020).
+# Reflecting it hands Alembic's check-constraint comparison two keys SQLAlchemy
+# only understands as `<dialect>_<option>`, so rebuilding the reflected
+# constraint warns twice per run about dialects named "not" and "dialect".
+# The comparison itself is unaffected -- schema drift is still detected, which
+# `alembic check` and the schema test both prove -- so this silences the two
+# exact messages rather than leaving every migration run and every CI log
+# carrying noise that means nothing.
+warnings.filterwarnings(
+    "ignore",
+    message=r"Can't validate argument '(not_valid|dialect_options)'",
+    category=SAWarning,
+)
 
 
 def include_object(

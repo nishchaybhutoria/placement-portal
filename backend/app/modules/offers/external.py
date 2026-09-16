@@ -23,6 +23,7 @@ from app.core.errors import (
     INVALID_TRANSITION,
     STALE_VIEW,
 )
+from app.core.keys import BatchKey
 from app.core.plan import (
     ActorContext,
     Deferred,
@@ -927,7 +928,7 @@ class RestorationPlan:
     restored: list[dict[str, object]]
 
 
-def _plan_restoration(
+def plan_restoration(
     *,
     acceptance_id: UUID,
     history: tuple[EventHistoryItem, ...],
@@ -936,7 +937,19 @@ def _plan_restoration(
     now: datetime,
     reason: str,
     notify: bool,
+    trigger: str = "external_offer_restoration",
+    source_field: str = "external_offer_id",
 ) -> RestorationPlan | Rejection:
+    """Undo what one acceptance cascaded, for whichever command is undoing it.
+
+    EXT-4 and OFR-5 both end an acceptance and then offer the operator its
+    consequences back one row at a time, and ``replace_placement`` does the
+    same thing on its way past.  ``trigger`` and ``source_field`` are how each
+    caller names itself in the causal event: the mechanics of restoring an
+    auto-declined offer (a fresh Offer row) or an auto-withdrawn application
+    (its prior status and round) are identical, and only the reason it is
+    happening differs.
+    """
     candidates = compute_restore_candidates(
         acceptance_offer_id=acceptance_id,
         history=history,
@@ -1042,10 +1055,7 @@ def _plan_restoration(
                     from_round=application.current_round_id,
                     to_round=candidate.restore_round_id,
                     reason=reason,
-                    payload={
-                        "trigger": "external_offer_restoration",
-                        "external_offer_id": str(acceptance_id),
-                    },
+                    payload={"trigger": trigger, source_field: str(acceptance_id)},
                 )
             )
             restored.append(
@@ -1299,7 +1309,7 @@ def _decide_update(
         deferred.extend(acceptance.deferred)
         cascade = acceptance.cascade
     elif moving_from_accepted:
-        planned = _plan_restoration(
+        planned = plan_restoration(
             acceptance_id=target.id,
             history=state.history,
             applications=state.applications,
@@ -1431,7 +1441,7 @@ def _decide_delete(
         )
     restoration = RestorationPlan([], [], [], [], [])
     if target.status is ExternalStatus.ACCEPTED:
-        planned = _plan_restoration(
+        planned = plan_restoration(
             acceptance_id=target.id,
             history=state.history,
             applications=state.applications,
@@ -1547,7 +1557,7 @@ class AttachExternalOffersInput(BaseModel):
 
     cycle_id: UUID
     rows: list[AttachRow]
-    batch_key: str
+    batch_key: BatchKey
     reason: str
 
     @field_validator("reason")

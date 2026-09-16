@@ -1,5 +1,26 @@
 # Migration Runbook
 
+## Revisions 0020-0021
+
+Both are additive, fast, and safe to run without a maintenance window.
+
+- `0020_idempotency_key_length` adds `ck_idempotency_keys_key_length` to
+  `idempotency_keys`, bounding a stored replay key at 256 characters. No
+  existing row can violate it: an over-length key could never have been
+  committed, because the insert that would have written it is the insert that
+  failed against the column's unique btree. Deploy the application together
+  with or after this revision, since `app/core/keys.py` is what keeps callers
+  inside the bound.
+- `0021_placement_replaced_notice` inserts the global `placement_replaced`
+  notification template. An operator who has customised templates should review
+  its wording afterwards in **Admin - Templates**.
+
+Postflight: confirm revision `0021_placement_replaced_notice`, that
+`notification_templates` has exactly one `placement_replaced` row with
+`cycle_id IS NULL`, and that the consistency checker reports no new findings.
+
+## Revisions 0016-0018
+
 This runbook applies to revisions 0016–0018. Production writes are never made
 with ad-hoc SQL and no local database is copied to production.
 

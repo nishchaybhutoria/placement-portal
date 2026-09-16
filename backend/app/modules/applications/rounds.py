@@ -34,6 +34,7 @@ from app.core.errors import (
     STALE_VIEW,
     UNMATCHED_IDENTIFIER,
 )
+from app.core.keys import BatchKey
 from app.core.plan import (
     ActorContext,
     Deferred,
@@ -277,7 +278,7 @@ class BulkRoundInput(BaseModel):
     cycle_id: UUID
     job_id: UUID
     rows: list[dict[str, str]]
-    batch_key: str
+    batch_key: BatchKey
     reason: str | None = None
 
     @field_validator("rows")

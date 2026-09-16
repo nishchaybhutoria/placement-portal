@@ -197,6 +197,22 @@ export const SCREEN_DEPS: Record<CommandName, readonly ScreenId[]> = {
     "staff/job/{id}/offers",
     "me/dashboard",
   ],
+  // Replacing a placement ends one accepted offer and takes up another, so it
+  // moves both cycles' boards and offer panels, the student's own view, the
+  // job cards whose gates re-derive, and the analytics that count placements.
+  replace_placement: [
+    "staff/student/{enrollment_id}",
+    "staff/job/{id}/board",
+    "staff/job/{id}/offers",
+    "staff/external",
+    "staff/cycle/{id}/external",
+    "me/applications",
+    "me/dashboard",
+    "cycle/{id}/jobs",
+    "job/{id}",
+    "staff/cycle/{id}/analytics",
+    "admin/analytics/portal",
+  ],
   re_extend_offer: [
     "staff/job/{id}/board",
     "staff/job/{id}/offers",
