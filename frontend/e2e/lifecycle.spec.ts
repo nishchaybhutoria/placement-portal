@@ -2225,7 +2225,14 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
     await login(page, ADMIN);
     const p1Enrollment = await enrollmentId(page, students.p1[0]);
     await page.goto(`/staff/student/${p1Enrollment}`);
-    const placementMembership = page
+    // The resolved cycle name also appears in the audit trail. Scope this to
+    // the membership card so the assertion names the record it is proving.
+    const memberships = page
+      .getByRole("heading", { name: "Cycle memberships" })
+      .locator(
+        "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' bg-card ')][1]",
+      );
+    const placementMembership = memberships
       .getByText(PLACEMENT_CYCLE, { exact: true })
       .locator("xpath=ancestor::li[1]");
     await expect(placementMembership).toContainText("created from an external attachment");
