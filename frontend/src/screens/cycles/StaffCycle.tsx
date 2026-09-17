@@ -19,7 +19,7 @@ import { Input, Select, Textarea } from "@/components/ui/input";
 import { StatusChip } from "@/components/ui/statusChip";
 import { EmptyState, ErrorState, ScreenSkeleton } from "@/components/ui/states";
 import { cn } from "@/lib/cn";
-import { formatDateTime } from "@/lib/date";
+import { formatDateTime, toInstant, toLocalDateTimeString } from "@/lib/date";
 import { humanise } from "@/lib/text";
 import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "@/lib/useDebouncedValue";
 import { parseRuleJson } from "@/screens/jobs/RuleEditor";
@@ -490,9 +490,7 @@ function CycleDetails({
       const value = draft[key] ?? "";
       input[key] =
         key === "registration_opens_at" || key === "registration_closes_at"
-          ? value
-            ? new Date(value).toISOString()
-            : null
+          ? toInstant(value)
           : value.trim() || null;
     }
     save.mutate({ input: input as never }, { onSuccess: () => setDraft({}) });
@@ -609,7 +607,7 @@ function stored(cycle: StaffCyclePayload["cycle"], key: CycleField): string {
   if (typeof value !== "string") return "";
   // `datetime-local` wants `YYYY-MM-DDTHH:mm`; a date input wants the day.
   if (key === "registration_opens_at" || key === "registration_closes_at") {
-    return value.slice(0, 16);
+    return toLocalDateTimeString(value);
   }
   return value;
 }

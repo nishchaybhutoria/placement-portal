@@ -25,7 +25,7 @@ import { Input, Select } from "@/components/ui/input";
 import { EmptyState, ErrorState, ScreenSkeleton } from "@/components/ui/states";
 import { StatusChip } from "@/components/ui/statusChip";
 import { DataTable, type Column } from "@/components/ui/table";
-import { formatDateTime, formatZonedDateTime } from "@/lib/date";
+import { formatDateTime, formatZonedDateTime, toInstant } from "@/lib/date";
 import type { ApplicationStatus } from "@/lib/status";
 import { counted, humanise, isUuid } from "@/lib/text";
 
@@ -806,7 +806,7 @@ function Placement({
                 reason: "",
                 restore: restore.map((application_id) => ({
                   application_id,
-                  deadline_at: instantOrNull(deadlines[application_id]),
+                  deadline_at: toInstant(deadlines[application_id]),
                 })),
                 notify,
               } as CommandInput<"replace_placement">
@@ -896,11 +896,6 @@ function placementSide(
   return side === "current"
     ? { current_offer_id: portal, current_external_offer_id: external }
     : { new_offer_id: portal, new_external_offer_id: external };
-}
-
-/** A `datetime-local` value as the instant the API expects, or nothing. */
-function instantOrNull(value: string | undefined): string | null {
-  return value ? new Date(value).toISOString() : null;
 }
 
 function OfferHistory({ data }: { data: StudentRecordPayload }) {

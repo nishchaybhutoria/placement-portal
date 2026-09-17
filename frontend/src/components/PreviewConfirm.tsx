@@ -18,6 +18,7 @@ import {
 import { Field } from "./ui/field";
 import { Input, Select, Textarea } from "./ui/input";
 import { ErrorState, Skeleton } from "./ui/states";
+import { toInstant } from "@/lib/date";
 
 /**
  * The one shared destructive-action pattern (LLD §16, the build contract F1).
@@ -61,11 +62,6 @@ export interface Choice {
  * that: the budget is a write budget, and a preview no longer spends it.
  */
 const PREVIEW_DEBOUNCE_MS = 400;
-
-/** A `datetime-local` string as the wire wants it, or null for "not set". */
-function instant(value: string): string | null {
-  return value ? new Date(value).toISOString() : null;
-}
 
 /**
  * Whether a required choice has actually been answered.
@@ -150,7 +146,7 @@ export function PreviewConfirm<N extends CommandName>({
       .map((choice) => {
         const value = choiceValue(choice);
         if (choice.coerce === "boolean") return [choice.name, value === "true"];
-        if (choice.kind === "datetime") return [choice.name, instant(value)];
+        if (choice.kind === "datetime") return [choice.name, toInstant(value)];
         return [choice.name, value];
       }),
   );

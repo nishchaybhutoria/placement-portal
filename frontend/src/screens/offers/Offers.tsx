@@ -15,7 +15,7 @@ import { Field } from "@/components/ui/field";
 import { Input, Select } from "@/components/ui/input";
 import { StatusChip } from "@/components/ui/statusChip";
 import { EmptyState, ErrorState, ScreenSkeleton } from "@/components/ui/states";
-import { formatDateTime } from "@/lib/date";
+import { formatDateTime, toInstant, toLocalDateTimeString } from "@/lib/date";
 import { newIdempotencyKey } from "@/lib/idempotency";
 import { humanise } from "@/lib/text";
 
@@ -238,7 +238,7 @@ function Termination({ row, cycleId, jobId }: { row: Row; cycleId: string; jobId
     Object.fromEntries(
       row.restoration_candidates
         .filter((candidate) => candidate.deadline_at)
-        .map((candidate) => [candidate.application_id, localDateTime(candidate.deadline_at!)]),
+        .map((candidate) => [candidate.application_id, toLocalDateTimeString(candidate.deadline_at!)]),
     ),
   );
   const [notify, setNotify] = useState(true);
@@ -246,9 +246,7 @@ function Termination({ row, cycleId, jobId }: { row: Row; cycleId: string; jobId
     .filter((candidate) => selected.includes(candidate.application_id))
     .map((candidate) => ({
       application_id: candidate.application_id,
-      deadline_at: deadlines[candidate.application_id]
-        ? new Date(deadlines[candidate.application_id]!).toISOString()
-        : null,
+      deadline_at: toInstant(deadlines[candidate.application_id]),
     }));
 
   const restorationChoices = (
@@ -372,12 +370,6 @@ function Termination({ row, cycleId, jobId }: { row: Row; cycleId: string; jobId
       trigger={<Button variant="destructive-ghost">Terminate</Button>}
     />
   );
-}
-
-function localDateTime(value: string): string {
-  const date = new Date(value);
-  const offset = date.getTimezoneOffset() * 60_000;
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
 
 function OpenOutcome({

@@ -55,3 +55,18 @@ export function formatZonedDateTime(value: string | Date | null | undefined): st
   const date = parsed(value);
   return date ? ZONED_DATE_TIME_FORMAT.format(date) : "Time unavailable";
 }
+
+/** Formats an instant or date as a local `YYYY-MM-DDTHH:mm` string for `datetime-local` inputs. */
+export function toLocalDateTimeString(value: string | Date | null | undefined): string {
+  const date = parsed(value);
+  if (!date) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Converts a `datetime-local` string to a UTC ISO string for wire commands, or null if empty. */
+export function toInstant(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}

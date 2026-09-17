@@ -16,7 +16,7 @@ import { Field } from "@/components/ui/field";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { DataTable, type Column } from "@/components/ui/table";
 import { EmptyState, ErrorState, Skeleton, TableSkeleton } from "@/components/ui/states";
-import { formatDate } from "@/lib/date";
+import { formatDate, toInstant } from "@/lib/date";
 import { counted, lakhs } from "@/lib/text";
 
 type Job = StaffCycleJobsPayload["jobs"][number];
@@ -322,12 +322,8 @@ function CreateJobCard({
                     description: description.trim(),
                     program_ctc: [],
                     ...(outcomeIsFixed ? {} : { outcome: outcome as "placement" }),
-                    application_deadline: deadline
-                      ? new Date(deadline).toISOString()
-                      : null,
-                    offer_acceptance_deadline: offerDeadline
-                      ? new Date(offerDeadline).toISOString()
-                      : null,
+                    application_deadline: toInstant(deadline),
+                    offer_acceptance_deadline: toInstant(offerDeadline),
                     stipend_month: stipend ? Number(stipend) : null,
                     ctc_breakdown: ctcBreakdown.trim() || null,
                   },

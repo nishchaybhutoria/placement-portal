@@ -25,6 +25,7 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
 import { Tabs } from "@/components/ui/tabs";
 import { RuleEditor, type Rule } from "./RuleEditor";
 import { ImpactPanel } from "./ImpactPanel";
+import { toInstant, toLocalDateTimeString } from "@/lib/date";
 import { lakhs } from "@/lib/text";
 
 type Tab = "basics" | "rounds" | "questions" | "eligibility";
@@ -297,8 +298,6 @@ function BasicsTab({
   // lets the draft change it, so the form follows the draft rather than the
   // saved row.
   const outcome = String(read("outcome", job.outcome) ?? "");
-  const local = (value: string | null) => (value ? value.slice(0, 16) : "");
-  const instant = (value: string) => (value ? new Date(value).toISOString() : null);
   const programs = taxonomies.data
     ? payload<TaxonomiesPayload>(taxonomies.data).programs
     : [];
@@ -475,10 +474,10 @@ function BasicsTab({
                 {...field}
                 type="datetime-local"
                 disabled={disabled}
-                value={deadlineLocal ?? local(job.application_deadline)}
+                value={deadlineLocal ?? toLocalDateTimeString(job.application_deadline)}
                 onChange={(event) => {
                   setDeadlineLocal(event.target.value);
-                  set("application_deadline", instant(event.target.value));
+                  set("application_deadline", toInstant(event.target.value));
                 }}
               />
             )}
@@ -491,11 +490,11 @@ function BasicsTab({
                   type="datetime-local"
                   disabled={disabled}
                   value={
-                    offerDeadlineLocal ?? local(job.offer_acceptance_deadline)
+                    offerDeadlineLocal ?? toLocalDateTimeString(job.offer_acceptance_deadline)
                   }
                   onChange={(event) => {
                     setOfferDeadlineLocal(event.target.value);
-                    set("offer_acceptance_deadline", instant(event.target.value));
+                    set("offer_acceptance_deadline", toInstant(event.target.value));
                   }}
                 />
               )}

@@ -12,6 +12,7 @@ import { Field } from "@/components/ui/field";
 import { Input, Select, Textarea } from "@/components/ui/input";
 import { DataTable, type Column } from "@/components/ui/table";
 import { EmptyState, ErrorState, TableSkeleton } from "@/components/ui/states";
+import { toInstant } from "@/lib/date";
 import { counted, humanise } from "@/lib/text";
 
 type Cycle = StaffCyclesPayload["cycles"][number];
@@ -145,9 +146,6 @@ function CreateCycleCard({ onDone }: { onDone: () => void }) {
   // without them needed a second trip to the edit screen to acquire them.
   const [startsOn, setStartsOn] = useState("");
   const [endsOn, setEndsOn] = useState("");
-
-  // datetime-local has no zone; the server stores UTC, so send an instant.
-  const toInstant = (value: string) => (value ? new Date(value).toISOString() : null);
 
   return (
     <Card>
