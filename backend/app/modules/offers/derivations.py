@@ -110,6 +110,37 @@ ACCEPTED_EXTERNAL_OFFERS_SQL = """
     WHERE eo.status = 'accepted'
 """
 
+#: A PPO at status ``offered`` is a placement the student has not yet formally
+#: accepted.  Unlike off-campus or other external offers, a PPO is inherently a
+#: pre-placement offer -- the company has decided to place the student on the
+#: strength of a prior internship -- so recording it is recording a placement.
+#: Analytics widens its placed count with this fragment; the DER-1 eligibility
+#: gates continue to use ``ACCEPTED_EXTERNAL_OFFERS_SQL`` only, because a PPO
+#: at ``offered`` should not block the student from other opportunities until
+#: they formally accept.
+#:
+#: The ``status = 'offered'`` condition already excludes PPOs at ``accepted``
+#: (which live in ``ACCEPTED_EXTERNAL_OFFERS_SQL``), so there is no double-
+#: counting risk when the two fragments are UNION ALL'd.
+PPO_OFFERED_AS_PLACED_SQL = """
+    SELECT
+        eo.enrollment_id,
+        eo.attached_cycle_id AS cycle_id,
+        eo.outcome,
+        CAST('external' AS text) AS source,
+        eo.source AS external_source,
+        eo.id AS offer_id,
+        CAST(NULL AS uuid) AS application_id,
+        CAST(NULL AS uuid) AS job_id,
+        eo.company_id,
+        COALESCE(CAST(eo.offered_on AS timestamptz), eo.created_at) AS accepted_at,
+        eo.ctc_annual,
+        eo.stipend_month,
+        CAST(NULL AS uuid) AS snapshot_program_id
+    FROM external_offers eo
+    WHERE eo.source = 'ppo' AND eo.status = 'offered'
+"""
+
 #: ANA-1 counts a student as *offered* on the strength of an offer having been
 #: extended at all -- ">=1 Offer extended", ever.  A since-declined, terminated,
 #: or expired offer still happened, so nothing here filters on response or
