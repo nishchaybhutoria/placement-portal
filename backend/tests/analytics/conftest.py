@@ -237,6 +237,7 @@ PLACED_IN_CYCLE = {
     "accepted_portal": "an accepted, unterminated portal offer on this cycle's job",
     "off_campus_external": "an accepted off-campus external attached to this cycle",
     "ppo_external": "an accepted PPO external attached to this cycle",
+    "ppo_offered": "a PPO external at status offered attached to this cycle",
     "forced_status": "accepted offer row; the cached application status was forced away",
 }
 
@@ -317,6 +318,15 @@ async def build_definition_world(connection: AsyncConnection) -> DefinitionWorld
     )
     await record_external_offer(
         connection,
+        enrollment_id=world.enrollment("ppo_offered"),
+        created_by=admin.user_id,
+        source="ppo",
+        status="offered",
+        attached_cycle_id=cycle_id,
+        ctc_annual="2000000",
+    )
+    await record_external_offer(
+        connection,
         enrollment_id=world.enrollment("off_campus_external"),
         created_by=admin.user_id,
         source="off_campus",
@@ -357,6 +367,7 @@ async def build_definition_world(connection: AsyncConnection) -> DefinitionWorld
         connection,
         enrollment_id=world.enrollment("offered_external"),
         created_by=admin.user_id,
+        source="off_campus",
         status="offered",
         attached_cycle_id=cycle_id,
         ctc_annual="1900000",
