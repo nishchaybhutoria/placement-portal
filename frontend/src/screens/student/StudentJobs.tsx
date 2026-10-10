@@ -9,6 +9,7 @@ import { StatusChip } from "@/components/ui/statusChip";
 import { EmptyState, ErrorState, ScreenSkeleton } from "@/components/ui/states";
 import { formatDate } from "@/lib/date";
 import { lakhs } from "@/lib/text";
+import { useNow } from "@/lib/useNow";
 
 type Job = StudentJobsPayload["jobs"][number];
 
@@ -21,6 +22,7 @@ type Job = StudentJobsPayload["jobs"][number];
  */
 export function StudentJobs() {
   const { id = "" } = useParams();
+  const now = useNow();
   const screen = useScreen("cycle/{id}/jobs", { params: { id } });
 
   if (screen.isPending) return <ScreenSkeleton variant="cards" />;
@@ -67,7 +69,7 @@ export function StudentJobs() {
         <ul className="flex flex-col gap-gap-lg">
           {data.jobs.map((job) => (
             <li key={job.id}>
-              <JobCard job={job} />
+              <JobCard job={job} now={now} />
             </li>
           ))}
         </ul>
@@ -76,7 +78,7 @@ export function StudentJobs() {
   );
 }
 
-function JobCard({ job }: { job: Job }) {
+function JobCard({ job, now }: { job: Job; now: number }) {
   return (
     <Card>
       <CardBody className="flex flex-col gap-gap-lg">
@@ -106,7 +108,9 @@ function JobCard({ job }: { job: Job }) {
             ) : null}
             {job.application_deadline ? (
               <span className="text-body-sm text-muted-foreground">
-                Closes {formatDate(job.application_deadline)}
+                {now >= Date.parse(job.application_deadline)
+                  ? `Applications closed ${formatDate(job.application_deadline)}`
+                  : `Closes ${formatDate(job.application_deadline)}`}
               </span>
             ) : null}
           </div>

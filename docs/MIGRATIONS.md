@@ -1,8 +1,8 @@
 # Migration Runbook
 
-## Revisions 0020-0021
+## Revisions 0020-0022
 
-Both are additive, fast, and safe to run without a maintenance window.
+These revisions are fast and safe to run without a maintenance window.
 
 - `0020_idempotency_key_length` adds `ck_idempotency_keys_key_length` to
   `idempotency_keys`, bounding a stored replay key at 256 characters. No
@@ -14,10 +14,17 @@ Both are additive, fast, and safe to run without a maintenance window.
 - `0021_placement_replaced_notice` inserts the global `placement_replaced`
   notification template. An operator who has customised templates should review
   its wording afterwards in **Admin - Templates**.
+- `0022_notification_identity` inserts the global `eligibility_removed` notice
+  and updates 16 job/external notification templates **only where the global
+  row still matches the shipped subject and body**. Customized globals and all
+  cycle-specific overrides are left intact. Review overridden or customized
+  templates in **Admin - Templates** for company/change detail and new variables
+  (`company`, `accepted_company`, `strike_note`) before deploying the new emitters.
 
-Postflight: confirm revision `0021_placement_replaced_notice`, that
-`notification_templates` has exactly one `placement_replaced` row with
-`cycle_id IS NULL`, and that the consistency checker reports no new findings.
+Postflight: confirm revision `0022_notification_identity`, exactly one global
+row for each of `placement_replaced` and `eligibility_removed`, and no new
+consistency findings. A downgrade removes the new global eligibility notice;
+back up any subsequent customization before downgrading.
 
 ## Revisions 0016-0018
 

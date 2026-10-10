@@ -111,6 +111,7 @@ async def test_JOB3_a_round_an_application_has_entered_cannot_be_deleted() -> No
             admin,
         )
         assert created.summary["added"] == 2  # type: ignore[attr-defined]
+        assert created.summary["backfilled_applications"] == 1  # type: ignore[attr-defined]
     finally:
         await engine.dispose()
 
@@ -126,11 +127,14 @@ async def test_JOB3_a_round_an_application_has_entered_cannot_be_deleted() -> No
                 )
             ).mappings().all()
             screening, technical = rows[0], rows[1]
-            await seed_round_state(
-                connection,
-                application_id=application_id,
-                round_id=cast_uuid(screening["id"]),
-            )
+            assert await connection.scalar(
+                sa.text("SELECT current_round_id FROM applications WHERE id = :id"),
+                {"id": application_id},
+            ) == screening["id"]
+            assert await connection.scalar(
+                sa.text("SELECT count(*) FROM application_round_states WHERE application_id = :id"),
+                {"id": application_id},
+            ) == 1
     finally:
         await engine.dispose()
 
@@ -467,9 +471,16 @@ async def _seed_state_in_round(application_id: UUID, round_id: UUID) -> None:
     engine = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
     try:
         async with engine.begin() as connection:
-            await seed_round_state(
-                connection, application_id=application_id, round_id=round_id
-            )
+            if not await connection.scalar(
+                sa.text(
+                    "SELECT 1 FROM application_round_states "
+                    "WHERE application_id = :id AND round_id = :round"
+                ),
+                {"id": application_id, "round": round_id},
+            ):
+                await seed_round_state(
+                    connection, application_id=application_id, round_id=round_id
+                )
     finally:
         await engine.dispose()
 

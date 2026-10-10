@@ -371,10 +371,16 @@ def _decide(
                             "student": row.full_name,
                             "round": state.round.name,
                             "job": state.job.title,
+                            "company": state.job.company_name,
                             # Absent when the cycle's strike_on_absence is off:
                             # the student is told they were marked absent, and
                             # nothing about a strike they did not earn.
                             "strike_total": totals.get(str(row.enrollment_id)),
+                            "strike_note": (
+                                f"Current strike total: {totals[str(row.enrollment_id)]}"
+                                if str(row.enrollment_id) in totals
+                                else "No strike was added"
+                            ),
                             "cycle_id": str(input_value.cycle_id),
                         },
                     },
@@ -390,6 +396,7 @@ def _decide(
                         "context": {
                             "student": row.full_name,
                             "job": state.job.title,
+                            "company": state.job.company_name,
                             "round": state.round.name,
                             "reason": "Excused from this round",
                             "cycle_id": str(input_value.cycle_id),

@@ -10,7 +10,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from uuid import UUID, uuid4
 
 import sqlalchemy as sa
@@ -69,6 +69,10 @@ def is_drive_file_url(url: str) -> bool:
     return any(pattern.match(url) for pattern in _DRIVE_URL_PATTERNS)
 
 
+if TYPE_CHECKING:
+    from app.modules.jobs.requalification import Candidate
+
+
 class DeclareProfileInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -93,6 +97,7 @@ class UpdateStudentFieldsInput(BaseModel):
 class UpdateProfileSummary(BaseModel):
     enrollment_id: UUID
     changed_fields: list[str]
+    removed_applications: list[dict[str, object]] = []
 
 
 class AdminUpdateProfileInput(BaseModel):
@@ -165,6 +170,8 @@ class ProfileState:
     program_pathways: Mapping[UUID, ProgramPathway]
     roll_conflict: bool
     academic_session: int | None = None
+    candidates: tuple[Candidate, ...] = ()
+    candidate_rule_labels: Mapping[UUID, str] | None = None
 
     @property
     def current(self) -> dict[str, object]:
@@ -310,6 +317,10 @@ async def _load_profile_state(
         )
         roll_conflict = conflict is not None
 
+    from app.modules.jobs.requalification import candidate_labels, load_candidates
+
+    candidates = await load_candidates(tx, enrollment_id=enrollment_id, lock=lock)
+    labels = await candidate_labels(tx, candidates)
     return ProfileState(
         scope_ids=ScopeIds(enrollment_id=enrollment_id),
         now=now,
@@ -327,6 +338,8 @@ async def _load_profile_state(
         program_pathways=pathways,
         roll_conflict=roll_conflict,
         academic_session=await load_academic_session(tx, lock=lock),
+        candidates=candidates,
+        candidate_rule_labels=labels,
     )
 
 
@@ -689,7 +702,20 @@ def _decide_field_update(
         before[key] = jsonable(existing)
         after[key] = jsonable(value)
 
+    from app.modules.jobs.requalification import removal_plan, revocations
+
+    removed = revocations(
+        state.candidates,
+        profile_changes={key: value for key, value in changes.items() if key in PROFILE_COLUMNS},
+        current_session=state.academic_session,
+        labels=state.candidate_rule_labels or {},
+        program_pathways=state.program_pathways,
+    ) if changes else ()
+    removal_ops, removal_events, removal_notices = removal_plan(
+        removed, source="profile_changed"
+    )
     operations = _profile_ops(state, changes, declared_at=None)
+    operations.extend(removal_ops)
     if "roll_number" in changes:
         operations.append(
             StateOp(
@@ -710,18 +736,25 @@ def _decide_field_update(
         )
     return Plan(
         state_ops=operations,
-        events=[],
-        deferred=[],
+        events=removal_events,
+        deferred=removal_notices,
         audit={
             "subject_type": "enrollment",
             "subject_id": enrollment_id,
-            "details": {"before": before, "after": after},
+            "details": {
+                "before": before, "after": after,
+                "removed_application_ids": [str(item.id) for item in removed],
+            },
         }
         if changes
         else None,
         summary={
             "enrollment_id": str(enrollment_id),
             "changed_fields": sorted(changes),
+            "removed_applications": [
+                {"application_id": str(item.id), "job": item.job, "company": item.company}
+                for item in removed
+            ],
         },
     )
 

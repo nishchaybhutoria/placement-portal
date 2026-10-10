@@ -222,6 +222,11 @@ function jobCard(page: Page, title: string) {
   return page.getByRole("link", { name: title, exact: true }).locator("xpath=ancestor::li[1]");
 }
 
+function awaitingOffersCard(page: Page) {
+  return page.getByRole("heading", { name: /Offers awaiting your response/ })
+    .locator("xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' bg-card ')][1]");
+}
+
 /** Create one job in a cycle and return the builder id it lands on. */
 async function createJob(
   page: Page,
@@ -1948,7 +1953,10 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
         .locator("xpath=ancestor::li[1]")
         .innerText();
     }, { timeout: 120_000 }).toContain("DECLINED");
-    await expect(page.getByRole("link", { name: SUMMER_JOB_TWO, exact: true })).toHaveCount(0);
+    // The expired offer is no longer actionable, but the declined application
+    // remains linked in the student's history on the dashboard.
+    await expect(awaitingOffersCard(page).getByRole("link", { name: SUMMER_JOB_TWO, exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: SUMMER_JOB_TWO, exact: true })).toBeVisible();
     await logout(page);
 
     // Step 32 also closes job 1's Round 1, which nothing else resolves
@@ -2815,7 +2823,10 @@ test.describe.serial("Part D — named four-cycle lifecycle", () => {
     await expect(
       page.getByText(PLACEMENT_JOB_C, { exact: true }).locator("xpath=ancestor::li[1]"),
     ).toContainText("Rejected");
-    await expect(page.getByRole("link", { name: PLACEMENT_JOB_C, exact: true })).toHaveCount(0);
+    // Cancellation removes the pending offer, not the rejected application
+    // or its link in the student's history.
+    await expect(awaitingOffersCard(page).getByRole("link", { name: PLACEMENT_JOB_C, exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: PLACEMENT_JOB_C, exact: true })).toBeVisible();
     await logout(page);
 
     await login(page, students.p8[0]);

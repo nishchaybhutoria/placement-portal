@@ -19,6 +19,7 @@ from app.core.errors import (
 from app.core.executor import Executor
 from app.core.plan import ActorContext, Preview, Result
 from app.modules.profiles.bulk import ROW_AUDIT_ACTION
+from tests.cycles.conftest import seed_application, seed_cycle, seed_job
 from tests.profiles.conftest import (
     add_enrollment,
     build_test_executor,
@@ -55,6 +56,59 @@ def _outcomes(rows: list[dict[str, object]]) -> list[tuple[int, str]]:
 
 def _codes(row: dict[str, object]) -> list[str]:
     return [cast(str, reason["code"]) for reason in cast(list[dict[str, object]], row["reasons"])]
+
+
+@pytest.mark.asyncio
+async def test_PRO2_bulk_cpi_edit_requalifies_and_notifies_active_applicants() -> None:
+    executor, engine = build_test_executor()
+    migration = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
+    try:
+        async with migration.begin() as connection:
+            admin = await seed_admin(connection)
+            student = await seed_student(connection, "applicant@example.edu")
+            await connection.execute(
+                sa.text("INSERT INTO profiles (enrollment_id, cpi) VALUES (:id, 9.2)"),
+                {"id": student.enrollment_id},
+            )
+            cycle_id = await seed_cycle(connection, kind="placement")
+            job_id = await seed_job(connection, cycle_id=cycle_id, is_published=True)
+            await connection.execute(
+                sa.text("UPDATE jobs SET eligibility_rule = CAST(:rule AS jsonb) WHERE id = :id"),
+                {"id": job_id, "rule": '{"field":"cpi","op":"gte","value":8.0}'},
+            )
+            application_id, _ = await seed_application(
+                connection, cycle_id=cycle_id, enrollment_id=student.enrollment_id,
+                job_id=job_id,
+            )
+        rows = [_row(1, "applicant@example.edu", cpi="7.00")]
+        notice_count = sa.text(
+            "SELECT count(*) FROM procrastinate_jobs "
+            "WHERE args->>'event_key' = :key AND args->>'recipient' = :email"
+        )
+        notice_args = {"key": "eligibility_removed", "email": "applicant@example.edu"}
+        async with migration.connect() as connection:
+            prior_notices = int(await connection.scalar(notice_count, notice_args) or 0)
+        preview = await _upsert(executor, admin, rows, "eligibility-batch", dry_run=True)
+        assert cast(list[dict[str, object]], preview[0]["removed_applications"])[0][
+            "application_id"
+        ] == str(application_id)
+        async with migration.connect() as connection:
+            assert await connection.scalar(notice_count, notice_args) == prior_notices
+        applied = await _upsert(executor, admin, rows, "eligibility-batch")
+        assert applied[0]["result"] == "updated"
+        async with migration.connect() as connection:
+            assert await connection.scalar(
+                sa.text("SELECT status FROM applications WHERE id = :id"),
+                {"id": application_id},
+            ) == "rejected"
+            assert await connection.scalar(
+                sa.text("SELECT count(*) FROM application_events WHERE application_id = :id"),
+                {"id": application_id},
+            ) == 1
+            assert await connection.scalar(notice_count, notice_args) == prior_notices + 1
+    finally:
+        await engine.dispose()
+        await migration.dispose()
 
 
 @pytest.mark.asyncio

@@ -66,6 +66,7 @@ export function ImpactPanel({
         member_count: number;
         members: Impact["members"];
         eligibility_summary: string;
+        removed_applications: { application_id: string; full_name: string; company: string; job: string }[];
       }
     | undefined;
   const live: Impact | undefined = edited
@@ -123,6 +124,16 @@ export function ImpactPanel({
                 it, so the number still answers "who does my rule describe"
                 and the author is not left wondering why a placed student is
                 on the list. */}
+            {edited && dry && dry.removed_applications.length > 0 ? (
+              <div className="rounded border border-warning-border bg-warning-subtle p-gap-lg text-body-sm">
+                <strong>{dry.removed_applications.length} active application(s) will be rejected and their students emailed:</strong>
+                <ul className="mt-gap-sm list-inside list-disc">
+                  {dry.removed_applications.map((item) => (
+                    <li key={item.application_id}>{item.full_name} · {item.job} at {item.company}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             {live.placed_count > 0 ? (
               <p className="text-body-sm text-muted-foreground">
                 {live.placed_count} of them already hold an accepted offer of this kind,

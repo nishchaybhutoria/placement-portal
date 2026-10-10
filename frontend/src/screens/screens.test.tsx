@@ -1392,7 +1392,7 @@ describe("staff job list", () => {
     expect(await screen.findByRole("link", { name: "Backend Engineer" })).toBeInTheDocument();
     // The seed keeps one job unpublished so this state is visible at all.
     expect(await screen.findByText("Draft")).toBeInTheDocument();
-    expect((await screen.findAllByText("Published")).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/Accepting applications|Applications closed/)).length).toBeGreaterThan(0);
   });
 });
 

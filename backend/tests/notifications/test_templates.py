@@ -14,7 +14,7 @@ import sqlalchemy as sa
 from app.core.db import create_engine
 from app.core.executor import Executor
 from app.core.plan import ActorContext
-from app.modules.notifications.catalog import EVENT_KEYS
+from app.modules.notifications.catalog import EVENT_KEYS, TEMPLATE_VARIABLES
 from app.modules.notifications.commands import UpdateTemplateInput
 from app.modules.notifications.queries import resolve_template
 from app.modules.notifications.render import render_text
@@ -39,6 +39,7 @@ EXPECTED_NOTIFICATION_EVENT_KEYS = {
     "penalty_revoked",
     "venue_timing",
     "process_changed",
+    "eligibility_removed",
     "deadline_changed",
     "job_cancelled",
     "membership_pending",
@@ -132,7 +133,7 @@ def test_NTF_every_production_emitter_has_an_exact_catalog_entry() -> None:
     # (the design review section 4.27), reinstated (section 4.28), and
     # placement_replaced, which says in one message what a termination notice
     # racing an acceptance notice cannot say at all.
-    assert len(EXPECTED_NOTIFICATION_EVENT_KEYS) == 32
+    assert len(EXPECTED_NOTIFICATION_EVENT_KEYS) == 33
     assert _emitted_notification_event_keys() == EXPECTED_NOTIFICATION_EVENT_KEYS
 
 
@@ -215,6 +216,30 @@ async def test_NTF_template_resolution_is_cycle_override_then_global(
     assert other is not None and other.cycle_id is None and other.enabled is True
 
 
+@pytest.mark.asyncio
+async def test_NTF_process_and_eligibility_emails_identify_the_company() -> None:
+    engine = create_engine(os.environ["TEST_DATABASE_URL"])
+    try:
+        async with engine.connect() as connection:
+            process = await resolve_template(connection, "process_changed", None)
+            removal = await resolve_template(connection, "eligibility_removed", None)
+    finally:
+        await engine.dispose()
+    assert process is not None and removal is not None
+    context = {
+        "student": "Anuja", "job": "SDE 1", "company": "Example Ltd",
+        "change_summary": "added Technical Interview",
+    }
+    subject = render_text(process.subject, context, event_key="process_changed", part="subject")
+    body = render_text(process.body, context, event_key="process_changed", part="body")
+    assert subject.text == "Recruitment process updated: SDE 1 at Example Ltd"
+    assert "added Technical Interview" in body.text
+    assert subject.missing == body.missing == ()
+    removed = render_text(removal.body, context, event_key="eligibility_removed", part="body")
+    assert "SDE 1 at Example Ltd" in removed.text
+    assert removed.missing == ()
+
+
 def test_NTF_missing_render_variable_is_blank_warns_and_never_raises(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -228,6 +253,41 @@ def test_NTF_missing_render_variable_is_blank_warns_and_never_raises(
     assert rendered.text == "Hello Asha; venue: ; time: "
     assert rendered.missing == ("venue",)
     assert "rendering it blank" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_NTF_every_shipped_email_renders_without_missing_variables() -> None:
+    """Audit all 33 defaults, not just the offer and process-change examples."""
+    sample = {
+        "student": "Asha Mehta", "job": "SDE 1", "company": "Northwind Systems",
+        "to_job": "SDE 1", "to_company": "Northwind Systems",
+        "from_job": "Old role", "from_company": "Other Company",
+        "accepted_job": "Engineer", "accepted_company": "Example Ltd",
+        "strike_total": 1, "strike_note": "Current strike total: 1",
+    }
+    engine = create_engine(os.environ["TEST_DATABASE_URL"])
+    try:
+        async with engine.connect() as connection:
+            for event_key, variables in TEMPLATE_VARIABLES.items():
+                template = await resolve_template(connection, event_key, None)
+                assert template is not None, event_key
+                context = {name: sample.get(name, "Example") for name in variables}
+                subject = render_text(
+                    template.subject, context, event_key=event_key, part="subject"
+                )
+                body = render_text(
+                    template.body, context, event_key=event_key, part="body"
+                )
+                assert subject.missing == body.missing == (), event_key
+                assert "{" not in subject.text + body.text, event_key
+                if event_key in {
+                    "advanced", "rejected", "absent_marked", "venue_timing",
+                    "round_reminder", "auto_withdrawn", "auto_declined",
+                    "process_changed", "deadline_changed", "job_cancelled",
+                }:
+                    assert "Northwind Systems" in subject.text + body.text, event_key
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.asyncio

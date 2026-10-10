@@ -394,6 +394,7 @@ def _decide(
                         "time": format_time(scheduled_at),
                         "is_update": schedule_note(planned.is_update),
                         "job": state.job.title,
+                        "company": state.job.company_name,
                         "cycle_id": str(input_value.cycle_id),
                     },
                 },

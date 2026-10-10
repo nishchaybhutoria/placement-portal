@@ -4233,6 +4233,10 @@ export interface components {
             }[];
             /** Placed Count */
             placed_count: number;
+            /** Removed Applications */
+            removed_applications: {
+                [key: string]: unknown;
+            }[];
         };
         /** JobQuestionRow */
         JobQuestionRow: {
@@ -4297,6 +4301,8 @@ export interface components {
         JobRoundsSummary: {
             /** Added */
             added: number;
+            /** Backfilled Applications */
+            backfilled_applications: number;
             /** Changed */
             changed: boolean;
             /**
@@ -6388,6 +6394,13 @@ export interface components {
              * Format: uuid
              */
             enrollment_id: string;
+            /**
+             * Removed Applications
+             * @default []
+             */
+            removed_applications: {
+                [key: string]: unknown;
+            }[];
         };
         /** UpdateResumeCommandPreview */
         UpdateResumeCommandPreview: {

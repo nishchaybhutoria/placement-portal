@@ -256,7 +256,7 @@ function EditProfile({
       command="admin_update_profile"
       input={{ enrollment_id: enrollmentId, fields: {} }}
       title={`Edit ${data.enrollment?.full_name ?? "this"} profile?`}
-      description="Admin-managed fields on this enrollment. Emptying a field clears it; the student may then supply it themselves until it holds a value again."
+      description="Changing eligibility fields can reject active applications; the preview names them. Emptying an admin field lets the student supply it again."
       confirmLabel="Save profile"
       choices={choices}
       transformInput={(input) => {
@@ -275,17 +275,14 @@ function EditProfile({
         // The generic panel would flatten `changed_fields` to its length, and
         // "1" is the one thing the operator already knows. Name them.
         const labels = new Map(data.profile.fields.map((f) => [f.key, f.label]));
-        return summary.changed_fields.length === 0 ? (
-          <p className="text-body-md text-muted-foreground">
-            Nothing changes. Every field already holds this value.
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-gap-tight text-body-md text-foreground">
-            {summary.changed_fields.map((key) => (
-              <li key={key}>{labels.get(key) ?? key} changes</li>
-            ))}
-          </ul>
-        );
+        const removed = (summary as unknown as { removed_applications?: { application_id: string; job: string; company: string }[] }).removed_applications ?? [];
+        return <div className="text-body-md">
+          {summary.changed_fields.length === 0 ? <p>Nothing changes.</p> : (
+            <ul className="list-inside list-disc">{summary.changed_fields.map((key) => <li key={key}>{labels.get(key) ?? key} changes</li>)}</ul>
+          )}
+          {removed.length > 0 ? <><p className="mt-gap-md">These applications will be rejected and the student emailed:</p>
+            <ul className="list-inside list-disc">{removed.map((item) => <li key={item.application_id}>{item.job} at {item.company}</li>)}</ul></> : null}
+        </div>;
       }}
       trigger={<Button variant="secondary">Edit profile</Button>}
     />

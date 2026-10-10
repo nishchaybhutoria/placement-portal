@@ -211,7 +211,7 @@ async def test_JOB2_the_preview_says_which_matches_are_already_placed() -> None:
 
 
 @pytest.mark.asyncio
-async def test_ELG4_an_eligibility_edit_leaves_an_existing_application_untouched() -> None:
+async def test_ELG4_an_eligibility_edit_removes_a_newly_ineligible_application() -> None:
     admin, cycle_id, job_id, members, _program, _branch = await _cycle_with_members(
         ("7.00",)
     )
@@ -224,6 +224,10 @@ async def test_ELG4_an_eligibility_edit_leaves_an_existing_application_untouched
                 enrollment_id=members[0],
                 job_id=job_id,
             )
+            await connection.execute(
+                sa.text("UPDATE jobs SET is_published = true, published_at = now() WHERE id = :id"),
+                {"id": job_id},
+            )
     finally:
         await engine.dispose()
 
@@ -235,8 +239,8 @@ async def test_ELG4_an_eligibility_edit_leaves_an_existing_application_untouched
                 {
                     "cycle_id": str(cycle_id),
                     "job_id": str(job_id),
-                    # A floor this student cannot meet: whoever got in validly
-                    # stays in (ELG-4), so nothing about them may move.
+                    # A floor this student cannot meet removes them from the
+                    # active process, retaining the submission and event.
                     "eligibility_rule": {"field": "cpi", "op": "gte", "value": 9.5},
                 }
             ),
@@ -246,7 +250,9 @@ async def test_ELG4_an_eligibility_edit_leaves_an_existing_application_untouched
         await engine.dispose()
 
     assert result.summary["eligible_count"] == 0
-    assert result.events == []
+    removed = cast("list[dict[str, object]]", result.summary["removed_applications"])
+    assert removed[0]["application_id"] == str(application_id)
+    assert len(result.events) == 1
 
     check = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
     try:
@@ -265,8 +271,57 @@ async def test_ELG4_an_eligibility_edit_leaves_an_existing_application_untouched
     finally:
         await check.dispose()
 
-    assert status == "in_progress"
-    assert events == 0
+    assert status == "rejected"
+    assert events == 1
+
+
+@pytest.mark.asyncio
+async def test_ELG4_a_profile_change_removes_an_ineligible_active_application() -> None:
+    admin, cycle_id, job_id, members, _program, _branch = await _cycle_with_members(
+        ("9.20",)
+    )
+    engine = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
+    try:
+        async with engine.begin() as connection:
+            application_id, _ = await seed_application(
+                connection, cycle_id=cycle_id, enrollment_id=members[0], job_id=job_id,
+            )
+            await connection.execute(
+                sa.text(
+                    "UPDATE jobs SET is_published = true, published_at = now(), "
+                    "eligibility_rule = CAST(:rule AS jsonb) WHERE id = :id"
+                ),
+                {"id": job_id, "rule": '{"field":"cpi","op":"gte","value":8.0}'},
+            )
+    finally:
+        await engine.dispose()
+
+    executor, engine = build_test_executor()
+    try:
+        result = await executor.run(
+            "admin_update_profile",
+            executor.registry.commands["admin_update_profile"].input_model.model_validate(
+                {"enrollment_id": str(members[0]), "fields": {"cpi": "7.00"}}
+            ),
+            admin.actor,
+        )
+    finally:
+        await engine.dispose()
+    removed = cast("list[dict[str, object]]", result.summary["removed_applications"])
+    assert removed[0]["application_id"] == str(application_id)
+    check = create_engine(os.environ["TEST_MIGRATION_DATABASE_URL"])
+    try:
+        async with check.connect() as connection:
+            assert await connection.scalar(
+                sa.text("SELECT status FROM applications WHERE id = :id"),
+                {"id": application_id},
+            ) == "rejected"
+            assert await connection.scalar(
+                sa.text("SELECT count(*) FROM application_events WHERE application_id = :id"),
+                {"id": application_id},
+            ) == 1
+    finally:
+        await check.dispose()
 
 
 @pytest.mark.asyncio

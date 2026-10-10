@@ -197,13 +197,15 @@ async def _load_round_reminders(
     query = """
         SELECT s.id AS round_state_id, s.application_id, s.round_id,
                a.enrollment_id, j.id AS job_id, j.cycle_id,
-               u.email, u.full_name, j.title AS job_title, r.name AS round_name,
+               u.email, u.full_name, j.title AS job_title,
+               co.name AS company_name, r.name AS round_name,
                COALESCE(s.venue_override, r.venue) AS effective_venue,
                COALESCE(s.scheduled_at_override, r.scheduled_at) AS effective_schedule
         FROM application_round_states s
         JOIN applications a ON a.id = s.application_id
         JOIN job_rounds r ON r.id = s.round_id
         JOIN jobs j ON j.id = a.job_id
+        JOIN companies co ON co.id = j.company_id
         JOIN cycle_memberships m
           ON m.cycle_id = j.cycle_id AND m.enrollment_id = a.enrollment_id
         JOIN enrollments e ON e.id = a.enrollment_id
@@ -259,6 +261,7 @@ async def _load_round_reminders(
                 context={
                     "student": str(row["full_name"]),
                     "job": str(row["job_title"]),
+                    "company": str(row["company_name"]),
                     "round": str(row["round_name"]),
                     "venue": or_absent(row["effective_venue"]),
                     "time": format_time(schedule),

@@ -261,6 +261,7 @@ class JobRow:
     eligibility_rule: dict[str, object] | None
     eligibility_rule_version: int
     eligibility_summary: str | None
+    company_name: str | None = None
 
     def snapshot(self) -> dict[str, object]:
         return {
@@ -312,6 +313,7 @@ def job_row(row: sa.RowMapping) -> JobRow:
         eligibility_rule=row["eligibility_rule"],
         eligibility_rule_version=int(row["eligibility_rule_version"]),
         eligibility_summary=row["eligibility_summary"],
+        company_name=row.get("company_name"),
     )
 
 
@@ -327,7 +329,9 @@ async def fetch_job(
     row = (
         await tx.execute(
             sa.text(
-                f"SELECT {JOB_COLUMNS} FROM jobs "  # noqa: S608
+                f"SELECT {JOB_COLUMNS}, "  # noqa: S608
+                "(SELECT name FROM companies WHERE id = company_id) AS company_name "
+                "FROM jobs "
                 "WHERE id = :job_id AND cycle_id = :cycle_id"
                 + (" FOR UPDATE" if lock else "")
             ),
@@ -978,6 +982,7 @@ def _decide_update_job_basics(
                     "context": {
                         "student": applicant.full_name,
                         "job": after.title,
+                        "company": after.company_name or state.job.company_name or "the company",
                         "job_id": str(after.id),
                         "cycle_id": str(after.cycle_id),
                         "application_deadline": format_deadline(
