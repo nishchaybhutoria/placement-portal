@@ -375,6 +375,7 @@ def _decide_cancel_job(
                     "context": {
                         "student": application.full_name,
                         "job": state.job.title,
+                        "company": state.job.company_name or "the company",
                         "job_id": str(state.job.id),
                         "cycle": state.cycle.name,
                         "reason": input_value.reason,

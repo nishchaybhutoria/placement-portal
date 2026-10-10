@@ -480,6 +480,10 @@ export interface DashboardPayload {
     company: string;
     cycle: string;
     status: string;
+    job_id: string;
+    cycle_id: string;
+    application_deadline: string | null;
+    next_step: string;
   }[];
   upcoming_rounds: {
     application_id: string;

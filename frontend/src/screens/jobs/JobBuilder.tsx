@@ -1233,8 +1233,12 @@ function EligibilityTab({
               command="update_job_eligibility"
               input={{ cycle_id: cycleId, job_id: jobId, eligibility_rule: rule }}
               title="Save this eligibility rule?"
-              description="Students who already applied under the old rule keep their applications — an eligibility edit never reaches back."
+              description="The preview lists active applicants who will no longer qualify. Confirming rejects their applications, retains the submission history, and emails them. Settled applications are not changed."
               confirmLabel="Save rule"
+              renderSummary={(summary) => {
+                const removed = (summary as unknown as { removed_applications?: { application_id: string; full_name: string; company: string }[] }).removed_applications ?? [];
+                return <div><p>{removed.length} active application(s) will be rejected and notified.</p><ul className="list-inside list-disc">{removed.map((item) => <li key={item.application_id}>{item.full_name} · {item.company}</li>)}</ul></div>;
+              }}
               trigger={
                 <Button variant="primary" size="sm" disabled={disabled || !ruleValid}>
                   Save rule

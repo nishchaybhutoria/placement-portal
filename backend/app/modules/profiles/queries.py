@@ -181,8 +181,15 @@ async def me_profile(engine: AsyncEngine, enrollment_id: UUID) -> dict[str, obje
 
 
 def _preview_url(drive_url: str) -> str:
-    """PRO-3: the student's own visual check embeds Drive's /preview view."""
-    base = drive_url.split("?", 1)[0].rstrip("/")
+    """PRO-3: normalize supported Drive file links to an embeddable preview."""
+    from urllib.parse import parse_qs, urlsplit
+
+    parsed = urlsplit(drive_url)
+    if parsed.netloc == "drive.google.com" and parsed.path == "/open":
+        file_ids = parse_qs(parsed.query).get("id", [])
+        if file_ids:
+            return f"https://drive.google.com/file/d/{file_ids[0]}/preview"
+    base = drive_url.split("?", 1)[0].split("#", 1)[0].rstrip("/")
     for suffix in ("/view", "/edit", "/preview"):
         if base.endswith(suffix):
             base = base[: -len(suffix)]

@@ -142,13 +142,23 @@ function ProfileFields({ data }: { data: MeProfilePayload }) {
             ))}
         </div>
         <div>
-          <Button
-            loading={mutation.isPending}
-            disabled={declared && Object.keys(draft).length === 0}
-            onClick={save}
-          >
-            {declared ? "Save profile" : "Declare profile"}
-          </Button>
+          {declared ? (
+            <PreviewConfirm
+              command="update_student_fields"
+              input={{ enrollment_id: data.enrollment.id, fields: draft }}
+              title="Save profile changes?"
+              description="Your active applications will be checked against the new profile. Applications that no longer meet a job’s eligibility rule will be removed from the process and you will be notified by email."
+              confirmLabel="Save profile"
+              renderSummary={(summary) => {
+                const removed = (summary as unknown as { removed_applications?: { application_id: string; job: string; company: string }[] }).removed_applications ?? [];
+                return <div><p>{removed.length ? "These applications will be rejected and you will be emailed:" : "No active applications will be affected."}</p><ul className="list-inside list-disc">{removed.map((item) => <li key={item.application_id}>{item.job} at {item.company}</li>)}</ul></div>;
+              }}
+              onDone={() => setDraft({})}
+              trigger={<Button disabled={Object.keys(draft).length === 0}>Save profile</Button>}
+            />
+          ) : (
+            <Button loading={mutation.isPending} onClick={save}>Declare profile</Button>
+          )}
         </div>
       </CardBody>
     </Card>
@@ -372,11 +382,17 @@ function ResumeLibrary({ data }: { data: MeProfilePayload }) {
           </ul>
         )}
         {selectedPreview ? (
-          <iframe
-            title={`Preview of ${selectedPreview.label}`}
-            src={selectedPreview.preview_url}
-            className="h-[520px] w-full rounded border border-border bg-card"
-          />
+          <div>
+            <p className="mb-gap-sm text-body-sm text-muted-foreground">
+              Preview unavailable? <a href={selectedPreview.drive_url} target="_blank" rel="noreferrer" className="text-accent hover:underline">Open this resume in Drive</a> and check its sharing permissions.
+            </p>
+            <iframe
+              key={selectedPreview.id}
+              title={`Preview of ${selectedPreview.label}`}
+              src={selectedPreview.preview_url}
+              className="h-[520px] w-full rounded border border-border bg-card"
+            />
+          </div>
         ) : null}
       </CardBody>
     </Card>

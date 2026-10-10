@@ -1,22 +1,10 @@
-"""Job eligibility rules and their live impact preview (Behavior JOB-2.2, ELG-2).
-
-Editing a rule never re-judges anyone: ELG-1 says a rule runs against the live
-profile at the instant it is consulted, and ELG-4 says whoever got in validly
-stays in.  So this command writes two columns and nothing else -- there is
-deliberately no re-evaluation pass over existing applications, and a test
-asserts that an application survives an edit that would have excluded it.
-
-The impact preview answers the only question a rule author actually has:
-"who does this let in right now?"  It evaluates the tree against every active
-member's live profile, in the same code path the student's card will use, so
-the count staff see and the verdict a student gets cannot disagree.
-"""
+"""Job eligibility rules, live impact preview, and applicant requalification."""
 
 from __future__ import annotations
 
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import asdict, dataclass
-from typing import cast
+from typing import TYPE_CHECKING, cast
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -50,6 +38,9 @@ from app.modules.offers.derivations import (
 from app.modules.profiles.academics import load_academic_session
 from app.modules.profiles.fields import PROFILE_COLUMNS
 from app.modules.taxonomies.labels import resolve_labels
+
+if TYPE_CHECKING:
+    from app.modules.jobs.requalification import Candidate
 
 # Every column an ELG-2 leaf can read.  All of them are `profiles` columns,
 # which is what LLD section 9.1 says a rule field is: `is_dual_major` used to
@@ -106,6 +97,7 @@ class JobEligibilitySummary(BaseModel):
     # unanimity problem the preview exists to expose: a coordinator raising a
     # CPI floor needs to see which students it costs them, before saving.
     members: list[dict[str, object]]
+    removed_applications: list[dict[str, object]]
     changed: bool
 
 
@@ -132,6 +124,8 @@ class JobEligibilityState:
     members: tuple[dict[str, object], ...]
     labels: dict[UUID, str]
     current_academic_session: int | None
+    candidates: tuple[Candidate, ...]
+    candidate_rule_labels: dict[UUID, str]
 
 
 def member_profiles_with_placement(
@@ -186,6 +180,14 @@ async def _load_eligibility(
         if cycle_kind is CycleKind.INTERNSHIP
         else frozenset()
     )
+    # Imported locally: the shared requalification loader uses the public
+    # MEMBER_PROFILE_SELECT in this module for its profile projection.
+    from app.modules.jobs.requalification import candidate_labels, load_candidates
+
+    candidates = await load_candidates(tx, job_id=input_value.job_id, lock=lock)
+    candidate_rule_labels = await candidate_labels(
+        tx, candidates, rule=input_value.eligibility_rule
+    )
     await now(tx)
     return JobEligibilityState(
         scope_ids=ScopeIds(cycle_id=input_value.cycle_id, job_id=input_value.job_id),
@@ -196,6 +198,8 @@ async def _load_eligibility(
         members=member_profiles_with_placement(members, placed, internship_placed),
         labels=await resolve_labels(tx, taxonomy_ids(input_value.eligibility_rule)),
         current_academic_session=await load_academic_session(tx, lock=lock),
+        candidates=candidates,
+        candidate_rule_labels=candidate_rule_labels,
     )
 
 
@@ -325,6 +329,19 @@ def _decide_update_job_eligibility(
         or summary_text != state.job.eligibility_summary
     )
 
+    from app.modules.jobs.requalification import removal_plan, revocations
+
+    removed = (
+        revocations(
+            state.candidates, rule=rule, rule_changed=True,
+            labels=state.candidate_rule_labels,
+            current_session=state.current_academic_session,
+        )
+        if changed and state.job.published_at is not None else ()
+    )
+    removed_ops, removed_events, removed_notices = removal_plan(
+        removed, source="job_rule_changed"
+    )
     return Plan(
         state_ops=(
             [
@@ -341,9 +358,9 @@ def _decide_update_job_eligibility(
             ]
             if changed
             else []
-        ),
-        events=[],
-        deferred=[],
+        ) + removed_ops,
+        events=removed_events,
+        deferred=removed_notices,
         audit={
             "subject_type": "job",
             "subject_id": state.job.id,
@@ -358,9 +375,7 @@ def _decide_update_job_eligibility(
                     "eligibility_rule_version": int(RuleSemantics.CURRENT),
                     "eligibility_summary": summary_text,
                 },
-                # Recorded because a rule edit is invisible in its effects: it
-                # changes nobody's existing application (ELG-4), so the impact
-                # at the moment of the edit is the only trace of what it meant.
+                "removed_application_ids": [str(item.id) for item in removed],
                 "eligible_count": len(eligible),
                 "member_count": len(verdicts),
             },
@@ -383,6 +398,13 @@ def _decide_update_job_eligibility(
                     "reasons": [asdict(reason) for reason in verdict.reasons],
                 }
                 for verdict in verdicts
+            ],
+            "removed_applications": [
+                {
+                    "application_id": str(item.id), "full_name": item.name,
+                    "job": item.job, "company": item.company,
+                }
+                for item in removed
             ],
             "changed": changed,
         },

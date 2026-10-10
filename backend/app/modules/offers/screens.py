@@ -443,9 +443,12 @@ async def student_dashboard(engine: AsyncEngine, enrollment_id: UUID) -> dict[st
             (
                 await tx.execute(
                     sa.text(
-                        "SELECT c.id, c.archived_at, j.id AS job_id, j.cancelled_at "
+                        "SELECT c.id, c.archived_at, j.id AS job_id, j.cancelled_at, "
+                        "j.application_deadline, a.id AS application_id, "
+                        "r.name AS current_round_name "
                         "FROM jobs j JOIN cycles c ON c.id = j.cycle_id "
                         "JOIN applications a ON a.job_id = j.id "
+                        "LEFT JOIN job_rounds r ON r.id = a.current_round_id "
                         "WHERE a.enrollment_id = :id"
                     ),
                     {"id": enrollment_id},
@@ -460,6 +463,9 @@ async def student_dashboard(engine: AsyncEngine, enrollment_id: UUID) -> dict[st
                 row["cancelled_at"] is not None,
             )
             for row in cycle_rows
+        }
+        application_context = {
+            cast(UUID, row["application_id"]): row for row in cycle_rows
         }
         offer_rows: list[dict[str, object]] = []
         for application in applications:
@@ -590,6 +596,25 @@ async def student_dashboard(engine: AsyncEngine, enrollment_id: UUID) -> dict[st
                     "company": row.company_name,
                     "cycle": row.cycle_name,
                     "status": row.status.value,
+                    "job_id": str(row.job_id),
+                    "cycle_id": str(row.cycle_id),
+                    "application_deadline": (
+                        context["application_deadline"].isoformat()
+                        if (context := application_context.get(row.application_id)) is not None
+                        and context["application_deadline"] is not None else None
+                    ),
+                    "next_step": (
+                        "Respond to your offer"
+                        if row.status is ApplicationStatus.OFFERED
+                        and row.current_offer_response is None
+                        and not row.current_offer_terminated
+                        else f"Current round: {context['current_round_name']}"
+                        if context is not None and context["current_round_name"] is not None
+                        and row.status is ApplicationStatus.IN_PROGRESS
+                        else "Awaiting round details"
+                        if row.status is ApplicationStatus.IN_PROGRESS
+                        else "No action pending"
+                    ),
                 }
                 for row in applications
             ],

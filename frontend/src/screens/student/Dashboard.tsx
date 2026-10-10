@@ -12,8 +12,10 @@ import { StatusChip } from "@/components/ui/statusChip";
 import { EmptyState, ErrorState, ScreenSkeleton } from "@/components/ui/states";
 import { formatDateTime, formatZonedDateTime } from "@/lib/date";
 import { counted, humanise, lakhs } from "@/lib/text";
+import { useNow } from "@/lib/useNow";
 
 export function Dashboard() {
+  const now = useNow();
   const screen = useScreen("me/dashboard");
   if (screen.isPending) return <ScreenSkeleton variant="cards" />;
   if (screen.isError) {
@@ -25,7 +27,7 @@ export function Dashboard() {
       <PageHeader title="Dashboard" subtitle="Offers, upcoming rounds, and your current record." />
       <AcademicStandingNotice standing={data.academic_standing} />
       <OfferCards data={data} />
-      <ApplicationStatuses applications={data.applications} />
+      <ApplicationStatuses applications={data.applications} now={now} />
       <Card>
         <CardHeader><CardTitle>External offers (read only)</CardTitle></CardHeader>
         <CardBody>
@@ -95,8 +97,10 @@ export function Dashboard() {
 
 function ApplicationStatuses({
   applications,
+  now,
 }: {
   applications: DashboardPayload["applications"];
+  now: number;
 }) {
   return (
     <Card>
@@ -112,10 +116,13 @@ function ApplicationStatuses({
                 className="flex flex-wrap items-center gap-gap-md rounded border border-border p-gap-lg"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-body-md font-medium text-foreground">{application.job}</p>
+                  <Link to={`/jobs/${application.job_id}`} className="text-body-md font-medium text-accent hover:underline">{application.job}</Link>
                   <p className="text-body-sm text-muted-foreground">
                     {application.company} · {application.cycle}
+                    {application.application_deadline && now >= Date.parse(application.application_deadline)
+                      ? " · Applications closed" : ""}
                   </p>
+                  <p className="text-body-sm text-muted-foreground">{application.next_step}</p>
                 </div>
                 <StatusChip domain="application" value={application.status} />
               </li>

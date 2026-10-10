@@ -38,7 +38,7 @@ from app.core.plan import (
     StateOp,
 )
 from app.core.registry import Registry
-from app.domain.shared import CycleKind, QuestionType
+from app.domain.shared import Attendance, CycleKind, QuestionType, RoundResult
 from app.modules.cycles.commands import CycleRow, fetch_cycle
 from app.modules.jobs.commands import (
     JobRow,
@@ -155,6 +155,7 @@ class JobRoundsSummary(BaseModel):
     removed: int
     reordered: bool
     notified_applicants: int
+    backfilled_applications: int
     #: Students told their slot moved because a round's own default did
     #: (the design review 4.46). Separate from notified_applicants, which counts the
     #: JOB-3 process-change notice: the two answer different questions.
@@ -281,6 +282,7 @@ def _reschedule_notices(
                         "time": format_time(now_time),
                         "is_update": schedule_note(occupant.notified_at is not None),
                         "job": state.job.title,
+                        "company": state.job.company_name or "the company",
                         "cycle_id": str(cycle_id),
                     },
                 },
@@ -319,6 +321,7 @@ class JobRoundsState:
     unknown_round_types: tuple[UUID, ...]
     applicants: tuple[Applicant, ...]
     occupants: tuple[RoundOccupant, ...]
+    unrouted_application_ids: tuple[UUID, ...]
     now: datetime
 
     @property
@@ -381,6 +384,16 @@ async def _load_rounds(
     # Who is sitting in each round, and whether their own override already
     # masks the round's default. A student who has one hears nothing when the
     # default moves, because nothing they can see moved.
+    unrouted = (
+        await tx.execute(
+            sa.text(
+                "SELECT id FROM applications WHERE job_id = :job_id "
+                "AND status = 'in_progress' AND current_round_id IS NULL "
+                "ORDER BY id" + (" FOR UPDATE" if lock else "")
+            ),
+            {"job_id": input_value.job_id},
+        )
+    ).scalars().all()
     occupants = (
         await tx.execute(
             sa.text(
@@ -442,6 +455,7 @@ async def _load_rounds(
             Applicant(email=str(row["email"]), full_name=str(row["full_name"]))
             for row in applicants
         ),
+        unrouted_application_ids=tuple(cast(UUID, item) for item in unrouted),
     )
 
 
@@ -578,6 +592,7 @@ def _decide_upsert_job_rounds(
     reordered = False
     changed_process = False
     rescheduled: dict[UUID, RescheduledRound] = {}
+    first_round_id: UUID | None = None
     for round_ in state.rounds:
         if round_.id not in kept:
             removed += 1
@@ -614,11 +629,14 @@ def _decide_upsert_job_rounds(
         }
         if row.round_id is None:
             added += 1
+            new_id = uuid4()
+            if position == 1:
+                first_round_id = new_id
             operations.append(
                 StateOp(
                     op="insert",
                     model="job_rounds",
-                    values={"id": uuid4(), "job_id": state.job.id, **values},
+                    values={"id": new_id, "job_id": state.job.id, **values},
                 )
             )
             continue
@@ -652,10 +670,45 @@ def _decide_upsert_job_rounds(
                 )
             )
 
+    # Applications submitted before any rounds existed must enter the first
+    # newly created round in the same transaction; no historical status moves.
+    backfilled = state.unrouted_application_ids if not state.rounds and first_round_id else ()
+    for application_id in backfilled:
+        operations.append(
+            StateOp(
+                op="insert",
+                model="application_round_states",
+                values={
+                    "id": uuid4(), "application_id": application_id,
+                    "round_id": first_round_id,
+                    "result": RoundResult.PENDING.value,
+                    "attendance": Attendance.PENDING.value,
+                },
+            )
+        )
+        operations.append(
+            StateOp(
+                op="update", model="applications",
+                values={"current_round_id": first_round_id},
+                where={"id": application_id},
+            )
+        )
+
     # JOB-3: inserting, removing, or reordering changes the process someone is
     # already in the middle of, so they hear about it.  A rename does not,
     # which is why the flags above are tracked separately.
     process_changed = added > 0 or removed > 0 or reordered or changed_process
+    changes = []
+    if added:
+        changes.append(
+            "added " + ", ".join(row.name for row in input_value.rounds if row.round_id is None)
+        )
+    if removed:
+        changes.append(
+            "removed " + ", ".join(row.name for row in state.rounds if row.id not in kept)
+        )
+    if reordered or changed_process:
+        changes.append("updated the round order or type")
     deferred: list[Deferred] = (
         [
             Deferred(
@@ -666,6 +719,8 @@ def _decide_upsert_job_rounds(
                     "context": {
                         "student": applicant.full_name,
                         "job": state.job.title,
+                        "company": state.job.company_name or "the company",
+                        "change_summary": "; ".join(changes),
                         "job_id": str(state.job.id),
                         "round_count": len(input_value.rounds),
                         "cycle_id": str(input_value.cycle_id),
@@ -709,6 +764,7 @@ def _decide_upsert_job_rounds(
                     for position, row in enumerate(input_value.rounds, start=1)
                 ],
                 "notified_applicants": notified_applicants,
+                "backfilled_applications": len(backfilled),
                 "rescheduled_applicants": len(rescheduled_notices),
                 "rescheduled_rounds": [
                     {"id": str(moved.round_id), "name": moved.name}
@@ -724,6 +780,7 @@ def _decide_upsert_job_rounds(
             "removed": removed,
             "reordered": reordered,
             "notified_applicants": notified_applicants,
+            "backfilled_applications": len(backfilled),
             "rescheduled_applicants": len(rescheduled_notices),
             "changed": bool(operations),
         },

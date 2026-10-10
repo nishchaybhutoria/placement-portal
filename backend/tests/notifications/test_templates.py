@@ -39,6 +39,7 @@ EXPECTED_NOTIFICATION_EVENT_KEYS = {
     "penalty_revoked",
     "venue_timing",
     "process_changed",
+    "eligibility_removed",
     "deadline_changed",
     "job_cancelled",
     "membership_pending",
@@ -132,7 +133,7 @@ def test_NTF_every_production_emitter_has_an_exact_catalog_entry() -> None:
     # (the design review section 4.27), reinstated (section 4.28), and
     # placement_replaced, which says in one message what a termination notice
     # racing an acceptance notice cannot say at all.
-    assert len(EXPECTED_NOTIFICATION_EVENT_KEYS) == 32
+    assert len(EXPECTED_NOTIFICATION_EVENT_KEYS) == 33
     assert _emitted_notification_event_keys() == EXPECTED_NOTIFICATION_EVENT_KEYS
 
 
@@ -213,6 +214,30 @@ async def test_NTF_template_resolution_is_cycle_override_then_global(
     # to an enabled global row and accidentally send the event.
     assert resolved.enabled is False
     assert other is not None and other.cycle_id is None and other.enabled is True
+
+
+@pytest.mark.asyncio
+async def test_NTF_process_and_eligibility_emails_identify_the_company() -> None:
+    engine = create_engine(os.environ["TEST_DATABASE_URL"])
+    try:
+        async with engine.connect() as connection:
+            process = await resolve_template(connection, "process_changed", None)
+            removal = await resolve_template(connection, "eligibility_removed", None)
+    finally:
+        await engine.dispose()
+    assert process is not None and removal is not None
+    context = {
+        "student": "Anuja", "job": "SDE 1", "company": "Example Ltd",
+        "change_summary": "added Technical Interview",
+    }
+    subject = render_text(process.subject, context, event_key="process_changed", part="subject")
+    body = render_text(process.body, context, event_key="process_changed", part="body")
+    assert subject.text == "Recruitment process updated: SDE 1 at Example Ltd"
+    assert "added Technical Interview" in body.text
+    assert subject.missing == body.missing == ()
+    removed = render_text(removal.body, context, event_key="eligibility_removed", part="body")
+    assert "SDE 1 at Example Ltd" in removed.text
+    assert removed.missing == ()
 
 
 def test_NTF_missing_render_variable_is_blank_warns_and_never_raises(

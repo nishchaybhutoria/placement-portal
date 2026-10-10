@@ -19,6 +19,7 @@ from app.core.errors import (
 from app.core.executor import Executor
 from app.core.plan import Result
 from app.modules.profiles.commands import is_drive_file_url
+from app.modules.profiles.queries import _preview_url
 from tests.profiles.conftest import (
     DRIVE_URL,
     OTHER_DRIVE_URL,
@@ -60,6 +61,20 @@ def test_PRO3_drive_file_links_are_accepted(url: str) -> None:
 )
 def test_PRO3_arbitrary_links_are_rejected(url: str) -> None:
     assert not is_drive_file_url(url)
+
+
+def test_PRO3_each_saved_link_can_be_embedded_independently() -> None:
+    first = "1AbCdEfGhIjKlMnOpQrStUvWxYz012345"
+    second = "1BcDeFgHiJkLmNoPqRsTuVwXyZ123456"
+    assert _preview_url(f"https://drive.google.com/file/d/{first}/view?usp=sharing") == (
+        f"https://drive.google.com/file/d/{first}/preview"
+    )
+    assert _preview_url(f"https://drive.google.com/open?id={second}") == (
+        f"https://drive.google.com/file/d/{second}/preview"
+    )
+    assert _preview_url(f"https://docs.google.com/document/d/{second}/edit#heading=x") == (
+        f"https://docs.google.com/document/d/{second}/preview"
+    )
 
 
 async def _add(

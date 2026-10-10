@@ -18,6 +18,7 @@ import { DataTable, type Column } from "@/components/ui/table";
 import { EmptyState, ErrorState, Skeleton, TableSkeleton } from "@/components/ui/states";
 import { formatDate, toInstant } from "@/lib/date";
 import { counted, lakhs } from "@/lib/text";
+import { useNow } from "@/lib/useNow";
 
 type Job = StaffCycleJobsPayload["jobs"][number];
 
@@ -26,6 +27,7 @@ export function CycleJobs() {
   const { id = "" } = useParams();
   const [includeCancelled, setIncludeCancelled] = useState(true);
   const [creating, setCreating] = useState(false);
+  const now = useNow();
   const screen = useScreen("staff/cycle/{id}/jobs", {
     params: { id },
     query: { include_cancelled: includeCancelled },
@@ -62,8 +64,10 @@ export function CycleJobs() {
       cell: (job) =>
         job.cancelled_at ? (
           <span className="text-danger">Cancelled</span>
+        ) : job.is_published && job.application_deadline && now >= Date.parse(job.application_deadline) ? (
+          "Applications closed"
         ) : job.is_published ? (
-          "Published"
+          "Accepting applications"
         ) : (
           <span className="text-muted-foreground">Draft</span>
         ),
