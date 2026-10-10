@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 EVENT_KEYS: tuple[str, ...] = (
     "application_submitted",
     "advanced",
@@ -89,3 +91,14 @@ TEMPLATE_VARIABLES: dict[str, tuple[str, ...]] = {
     "round_reminder": ("student", "job", "round", "venue", "time"),
     "reinstated": ("student", "job", "company", "round", "reason"),
 }
+
+#: The one context entry the worker reads rather than a template renders: the
+#: instant after which a notice is pointless -- the deadline a reminder is
+#: about, the round whose slot it announces.  A send that is still failing then
+#: is given up instead of retried into the past, and cannot be resent.
+EXPIRES_AT = "expires_at"
+
+
+def expires_at(value: datetime | None) -> dict[str, str]:
+    """The context entry that stops delivery once ``value`` has passed."""
+    return {} if value is None else {EXPIRES_AT: value.isoformat()}

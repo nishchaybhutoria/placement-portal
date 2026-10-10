@@ -192,7 +192,10 @@ async def test_NTF_deadline_cron_twice_sends_exactly_once_per_student_job(
     assert (sends, queued) == (1, 1)
     assert jobs[0]["recipient"] == "eligible.student@example.edu"
     assert jobs[0]["event_key"] == "deadline_reminder"
-    assert cast(dict[str, object], jobs[0]["context"])["hours_left"] == 6
+    context = cast(dict[str, object], jobs[0]["context"])
+    assert context["hours_left"] == 6
+    # A reminder to apply is pointless once applications have closed.
+    assert datetime.fromisoformat(str(context["expires_at"])) == run_at + timedelta(hours=6)
 
 
 @pytest.mark.asyncio
@@ -402,3 +405,5 @@ async def test_RND4_NTF_round_cron_twice_sends_once_and_rejected_gets_nothing(
     context = cast(dict[str, object], jobs[0]["context"])
     assert context["venue"] == "Student Hall"
     assert context["round"] == "Technical Interview"
+    # It expires at the student's own slot, the override, not the round default.
+    assert datetime.fromisoformat(str(context["expires_at"])) == run_at + timedelta(hours=24)

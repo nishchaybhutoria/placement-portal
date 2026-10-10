@@ -444,7 +444,7 @@ Interventions surface inside the relevant screens (student drill-down, ATS board
 
 | Task | Trigger | Behavior |
 |---|---|---|
-| `deliver_notification` | deferred | render template (cycle override → global; missing var ⇒ blank + warn), SES send, notification_log upsert; retry backoff ×5 then status=dead (admin re-send) |
+| `deliver_notification` | deferred | render template (cycle override → global; missing var ⇒ blank + warn), SES send, notification_log upsert; one attempt per job, each failure defers the next as a scheduled job (1 min → 12 h, ~2.4 days, 11 attempts) then status=dead (admin re-send); a context `expires_at` (deadline/round reminders, venue/timing) ends retries early and blocks re-send |
 | `enforce_offer_expiry` | scheduled at deadline | **fire-time re-validation**: offer is the application's latest, response NULL, unterminated, **application still `offered`**, and `offers.deadline_at` (the authority; job-deadline edits propagate here per JOB-3) unchanged vs the fire argument (moved ⇒ reschedule, else no-op); then run `decline` or `accept` transition as system per cycle policy (spec OFR-4) |
 | `send_deadline_reminders` | cron hourly | jobs w/ deadline in [now+offset−30m, now+offset+30m]; active members, currently eligible (live gates+rule), not applied; dedup via reminder_sends |
 | `send_round_reminders` | cron every 6h | round_states with effective schedule in [offset window], relevance re-check (app still in_progress at that round); dedup |

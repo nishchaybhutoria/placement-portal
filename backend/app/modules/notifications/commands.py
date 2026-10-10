@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from typing import cast
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -16,16 +16,37 @@ from app.core.errors import INVALID_REQUEST
 from app.core.plan import ActorContext, Deferred, Plan, Reason, Rejection, ScopeIds, StateOp
 from app.core.registry import Registry
 from app.domain.shared import NotificationStatus
-from app.modules.notifications.catalog import EVENT_KEY_SET
+from app.modules.notifications.catalog import EVENT_KEY_SET, EXPIRES_AT
 from app.modules.notifications.queries import ResolvedTemplate, resolve_template
 from app.modules.notifications.render import named_variables, render_text
+from app.modules.notifications.wording import format_time
 
 LOGGER = logging.getLogger(__name__)
-MAX_DELIVERY_ATTEMPTS = 5
+
+#: The wait before each retry of a failed send.  A short outage on the path to
+#: SES (a campus firewall intercepting TLS for a few seconds, a provider blip)
+#: must not become a dead letter, so the schedule backs off over about two and
+#: a half days before giving up.  Each retry is its own scheduled job, deferred
+#: in the same transaction that records the failure, so a worker restart or a
+#: deploy inside that window loses nothing.
+RETRY_DELAYS: tuple[timedelta, ...] = (
+    timedelta(minutes=1),
+    timedelta(minutes=5),
+    timedelta(minutes=15),
+    timedelta(hours=1),
+    timedelta(hours=3),
+    timedelta(hours=6),
+    timedelta(hours=12),
+    timedelta(hours=12),
+    timedelta(hours=12),
+    timedelta(hours=12),
+)
+MAX_DELIVERY_ATTEMPTS = len(RETRY_DELAYS) + 1
 
 TEMPLATE_NOT_FOUND = "template_not_found"
 NOTIFICATION_NOT_FOUND = "notification_not_found"
 NOTIFICATION_NOT_DEAD = "notification_not_dead"
+NOTIFICATION_EXPIRED = "notification_expired"
 
 
 class UpdateTemplateInput(BaseModel):
@@ -218,6 +239,22 @@ def _context_cycle_id(context: dict[str, object]) -> UUID | None:
     return None
 
 
+def _context_expires_at(context: dict[str, object]) -> datetime | None:
+    raw = context.get(EXPIRES_AT)
+    if not isinstance(raw, str):
+        return None
+    try:
+        moment = datetime.fromisoformat(raw)
+    except ValueError:
+        # Never expiring is the safe reading: it only means retrying longer.
+        LOGGER.warning(
+            "Notification context has an invalid expires_at; retrying without a limit",
+            extra={"expires_at": raw},
+        )
+        return None
+    return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
+
+
 async def _load_delivery(tx: AsyncSession, input_value: BaseModel, *, lock: bool) -> DeliveryState:
     if not isinstance(input_value, DeliverNotificationInput):
         raise TypeError("deliver_notification requires DeliverNotificationInput")
@@ -294,13 +331,49 @@ def _decide_delivery(
                 )
             ]
         )
-    should_send = (
+    pending = (
         state.template is not None
         and state.template.enabled
         and state.status not in {NotificationStatus.SENT, NotificationStatus.DEAD}
         and state.attempts < MAX_DELIVERY_ATTEMPTS
     )
+    expires_at = _context_expires_at(input_value.context)
+    expired = pending and expires_at is not None and state.now >= expires_at
+    should_send = pending and not expired
     operations: list[StateOp] = []
+    if expired:
+        # Too late to be of use: a worker backlog, or a retry that ran out of
+        # time.  Dead rather than dropped, so staff can see it never went out.
+        assert expires_at is not None
+        values: dict[str, object] = {
+            "status": NotificationStatus.DEAD.value,
+            "last_error": f"Expired at {format_time(expires_at)} before it could be delivered",
+        }
+        if state.status is None:
+            operations.append(
+                StateOp(
+                    op="insert",
+                    model="notification_log",
+                    values={
+                        "id": input_value.notification_id,
+                        "recipient": input_value.recipient,
+                        "event_key": input_value.event_key,
+                        "subject": state.subject,
+                        "attempts": 0,
+                        "context": input_value.context,
+                        **values,
+                    },
+                )
+            )
+        else:
+            operations.append(
+                StateOp(
+                    op="update",
+                    model="notification_log",
+                    values=values,
+                    where={"id": input_value.notification_id},
+                )
+            )
     if should_send:
         if state.status is None:
             operations.append(
@@ -366,12 +439,18 @@ class AttemptState:
     status: NotificationStatus
     attempts: int
     now: datetime
+    event_key: str | None = None
+    recipient: str | None = None
+    context: dict[str, object] = field(default_factory=dict)
 
 
 async def _load_attempt(tx: AsyncSession, input_value: BaseModel, *, lock: bool) -> AttemptState:
     if not isinstance(input_value, RecordNotificationAttemptInput):
         raise TypeError("record_notification_attempt requires RecordNotificationAttemptInput")
-    statement = "SELECT status, attempts FROM notification_log WHERE id = :id"
+    statement = (
+        "SELECT status, attempts, event_key, recipient, context "
+        "FROM notification_log WHERE id = :id"
+    )
     if lock:
         statement += " FOR UPDATE"
     row = (
@@ -379,12 +458,24 @@ async def _load_attempt(tx: AsyncSession, input_value: BaseModel, *, lock: bool)
         .mappings()
         .one_or_none()
     )
+    now = cast(datetime, await tx.scalar(sa.select(sa.func.now())))
+    if row is None:
+        return AttemptState(
+            scope_ids=ScopeIds(),
+            exists=False,
+            status=NotificationStatus.DEAD,
+            attempts=0,
+            now=now,
+        )
     return AttemptState(
         scope_ids=ScopeIds(),
-        exists=row is not None,
-        status=(NotificationStatus(row["status"]) if row is not None else NotificationStatus.DEAD),
-        attempts=int(row["attempts"]) if row is not None else 0,
-        now=cast(datetime, await tx.scalar(sa.select(sa.func.now()))),
+        exists=True,
+        status=NotificationStatus(row["status"]),
+        attempts=int(row["attempts"]),
+        now=now,
+        event_key=str(row["event_key"]),
+        recipient=str(row["recipient"]),
+        context=dict(row["context"] or {}),
     )
 
 
@@ -395,7 +486,7 @@ def _decide_attempt(
     _overrides: object,
     _actor: ActorContext,
 ) -> Plan | Rejection:
-    """NTF: record exactly one external send attempt through the executor."""
+    """NTF: record exactly one external send attempt; a failure schedules the next."""
     if not isinstance(input_value, RecordNotificationAttemptInput) or not isinstance(
         state, AttemptState
     ):
@@ -426,6 +517,27 @@ def _decide_attempt(
             else NotificationStatus.FAILED
         )
     )
+    deferred: list[Deferred] = []
+    if status is NotificationStatus.FAILED:
+        retry_at = state.now + RETRY_DELAYS[attempts - 1]
+        expires_at = _context_expires_at(state.context)
+        if expires_at is not None and retry_at >= expires_at:
+            # The next attempt would land after the reminder stopped mattering.
+            status = NotificationStatus.DEAD
+        else:
+            assert state.event_key is not None and state.recipient is not None
+            deferred.append(
+                Deferred(
+                    task="deliver_notification",
+                    args={
+                        "notification_id": str(input_value.notification_id),
+                        "event_key": state.event_key,
+                        "recipient": state.recipient,
+                        "context": state.context,
+                    },
+                    schedule_at=retry_at,
+                )
+            )
     return Plan(
         state_ops=[
             StateOp(
@@ -441,7 +553,7 @@ def _decide_attempt(
             )
         ],
         events=[],
-        deferred=[],
+        deferred=deferred,
         audit=None,
         summary={
             "notification_id": str(input_value.notification_id),
@@ -471,6 +583,7 @@ class ResendState:
     recipient: str | None
     context: dict[str, object]
     template_enabled: bool
+    now: datetime | None = None
 
 
 async def _load_resend(tx: AsyncSession, input_value: BaseModel, *, lock: bool) -> ResendState:
@@ -496,6 +609,7 @@ async def _load_resend(tx: AsyncSession, input_value: BaseModel, *, lock: bool) 
         recipient=str(row["recipient"]),
         context=context,
         template_enabled=template is not None and template.enabled,
+        now=cast(datetime, await tx.scalar(sa.select(sa.func.now()))),
     )
 
 
@@ -528,6 +642,19 @@ def _decide_resend(
                 Reason(
                     code=TEMPLATE_NOT_FOUND,
                     human="The resolved template is missing or disabled",
+                )
+            ]
+        )
+    expires_at = _context_expires_at(state.context)
+    if expires_at is not None and state.now is not None and state.now >= expires_at:
+        return Rejection(
+            reasons=[
+                Reason(
+                    code=NOTIFICATION_EXPIRED,
+                    human=(
+                        "This notification was only useful until "
+                        f"{format_time(expires_at)}, so it can no longer be resent"
+                    ),
                 )
             ]
         )
