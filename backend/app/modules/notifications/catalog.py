@@ -45,14 +45,14 @@ EVENT_KEY_SET = frozenset(EVENT_KEYS)
 # template can actually use rather than only the event-specific suffix.
 TEMPLATE_VARIABLES: dict[str, tuple[str, ...]] = {
     "application_submitted": ("student", "job", "company"),
-    "advanced": ("student", "job", "next_round", "venue", "time"),
-    "rejected": ("student", "job", "round", "reason"),
-    "absent_marked": ("student", "job", "round", "strike_total"),
+    "advanced": ("student", "job", "company", "next_round", "venue", "time"),
+    "rejected": ("student", "job", "company", "round", "reason"),
+    "absent_marked": ("student", "job", "company", "round", "strike_total", "strike_note"),
     "offer_extended": ("student", "job", "company", "deadline"),
     "offer_accepted": ("student", "job", "company"),
     "declined_confirm": ("student", "job", "company"),
-    "auto_declined": ("student", "job", "company", "accepted_job"),
-    "auto_withdrawn": ("student", "job", "trigger"),
+    "auto_declined": ("student", "job", "company", "accepted_job", "accepted_company"),
+    "auto_withdrawn": ("student", "job", "company", "trigger"),
     "offer_terminated": ("student", "job", "company", "kind", "reason"),
     "placement_replaced": (
         "student",
@@ -69,7 +69,7 @@ TEMPLATE_VARIABLES: dict[str, tuple[str, ...]] = {
     "strike_revoked": ("student", "total"),
     "penalty_added": ("student", "reasons"),
     "penalty_revoked": ("student",),
-    "venue_timing": ("student", "job", "round", "venue", "time", "is_update"),
+    "venue_timing": ("student", "job", "company", "round", "venue", "time", "is_update"),
     "process_changed": ("student", "job", "company", "change_summary"),
     "eligibility_removed": ("student", "job", "company"),
     "deadline_changed": (
@@ -89,6 +89,6 @@ TEMPLATE_VARIABLES: dict[str, tuple[str, ...]] = {
     "coordinator_assigned": ("cycle",),
     "coordinator_removed": ("cycle",),
     "deadline_reminder": ("student", "job", "company", "hours_left"),
-    "round_reminder": ("student", "job", "round", "venue", "time"),
+    "round_reminder": ("student", "job", "company", "round", "venue", "time"),
     "reinstated": ("student", "job", "company", "round", "reason"),
 }

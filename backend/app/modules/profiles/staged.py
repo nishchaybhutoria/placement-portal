@@ -9,7 +9,7 @@ future login (the design review 4.15 ruling 9).  Rows for one address apply in
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import cast
 from uuid import UUID
@@ -31,9 +31,18 @@ from app.domain.shared import ProgramStructure
 from app.modules.identity.commands import (
     LoginInput,
     LoginState,
+    PostLoginEffects,
     PostLoginHooks,
     post_login_hooks,
 )
+from app.modules.jobs.requalification import (
+    Candidate,
+    candidate_labels,
+    load_candidates,
+    removal_plan,
+    revocations,
+)
+from app.modules.profiles.academics import load_academic_session
 from app.modules.profiles.commands import (
     load_program_pathways,
     program_branch_reasons,
@@ -80,6 +89,9 @@ class StagedLoginState:
     program_branch_pairs: frozenset[tuple[UUID, UUID]]
     program_pathways: Mapping[UUID, ProgramPathway]
     roll_conflicts: frozenset[str]
+    candidates: tuple[Candidate, ...] = ()
+    candidate_rule_labels: Mapping[UUID, str] = field(default_factory=dict)
+    academic_session: int | None = None
 
 
 async def load_staged_rows(
@@ -196,6 +208,11 @@ async def load_staged_rows(
             ).scalars()
             roll_conflicts = {str(value).casefold() for value in conflicts}
 
+    candidates = (
+        await load_candidates(tx, enrollment_id=enrollment["id"], lock=lock)
+        if enrollment is not None and rows else ()
+    )
+    labels = await candidate_labels(tx, candidates)
     return StagedLoginState(
         now=now,
         email=email,
@@ -212,6 +229,9 @@ async def load_staged_rows(
         program_branch_pairs=frozenset(pairs),
         program_pathways=await load_program_pathways(tx),
         roll_conflicts=frozenset(roll_conflicts),
+        candidates=candidates,
+        candidate_rule_labels=labels,
+        academic_session=await load_academic_session(tx, lock=lock) if candidates else None,
     )
 
 
@@ -481,10 +501,42 @@ def plan_staged_rows(
     return operations
 
 
-def register_staged_login_hook(hooks: PostLoginHooks | None = None) -> None:
-    (hooks or post_login_hooks).register(
-        plan_staged_rows, name=HOOK_NAME, loader=load_staged_rows
+def plan_staged_requalification(
+    _input_value: LoginInput, state: LoginState, _actor: ActorContext,
+) -> PostLoginEffects:
+    """Requalify against the final profile after valid staged rows are applied."""
+    staged = state.hook(HOOK_NAME)
+    if not isinstance(staged, StagedLoginState) or not staged.candidates:
+        return PostLoginEffects([], [], [])
+    effective = dict(staged.values)
+    roll = staged.roll_number
+    for row in staged.rows:
+        resolved, error, next_roll = _row_problems(row, staged, effective, roll)
+        if error is None:
+            effective.update(
+                {key: value for key, value in resolved.items() if key in PROFILE_COLUMNS}
+            )
+            roll = next_roll
+    changes = {
+        key: value for key, value in effective.items()
+        if staged.values.get(key) != value
+    }
+    if not changes:
+        return PostLoginEffects([], [], [])
+    removed = revocations(
+        staged.candidates, profile_changes=changes,
+        current_session=staged.academic_session,
+        labels=staged.candidate_rule_labels,
+        program_pathways=staged.program_pathways,
     )
+    operations, events, deferred = removal_plan(removed, source="staged_profile_changed")
+    return PostLoginEffects(operations, events, deferred)
+
+
+def register_staged_login_hook(hooks: PostLoginHooks | None = None) -> None:
+    registry = hooks or post_login_hooks
+    registry.register(plan_staged_rows, name=HOOK_NAME, loader=load_staged_rows)
+    registry.register(plan_staged_requalification, name="staged_requalification")
 
 
 class DeleteStagedRowInput(BaseModel):

@@ -23,6 +23,8 @@ from app.core.errors import (
 )
 from app.core.plan import (
     ActorContext,
+    Deferred,
+    Event,
     Plan,
     Reason,
     Rejection,
@@ -171,7 +173,16 @@ class LoginInput(Protocol):
     _allowed_domain: str
 
 
-PostLoginPlanner = Callable[[LoginInput, LoginState, ActorContext], list[StateOp]]
+@dataclass(frozen=True, slots=True)
+class PostLoginEffects:
+    state_ops: list[StateOp]
+    events: list[Event]
+    deferred: list[Deferred]
+
+
+PostLoginPlanner = Callable[
+    [LoginInput, LoginState, ActorContext], list[StateOp] | PostLoginEffects
+]
 PostLoginLoader = Callable[..., Awaitable[object]]
 
 
@@ -217,13 +228,27 @@ class PostLoginHooks:
             loaded.append((hook.name, await hook.loader(tx, email, lock=lock)))
         return tuple(loaded)
 
+    def plan_effects(
+        self, input_value: LoginInput, state: LoginState, actor: ActorContext
+    ) -> PostLoginEffects:
+        operations: list[StateOp] = []
+        events: list[Event] = []
+        deferred: list[Deferred] = []
+        for hook in self._hooks:
+            planned = hook.planner(input_value, state, actor)
+            if isinstance(planned, PostLoginEffects):
+                operations.extend(planned.state_ops)
+                events.extend(planned.events)
+                deferred.extend(planned.deferred)
+            else:
+                operations.extend(planned)
+        return PostLoginEffects(operations, events, deferred)
+
     def plan(
         self, input_value: LoginInput, state: LoginState, actor: ActorContext
     ) -> list[StateOp]:
-        operations: list[StateOp] = []
-        for hook in self._hooks:
-            operations.extend(hook.planner(input_value, state, actor))
-        return operations
+        """Keep the state-op-only hook inspection API for existing callers."""
+        return self.plan_effects(input_value, state, actor).state_ops
 
 
 post_login_hooks = PostLoginHooks()
@@ -447,11 +472,12 @@ def _decide_login_with_hooks(
                 },
             )
         )
-        operations.extend(hooks.plan(input_value, loaded_state, actor))
+        hook_effects = hooks.plan_effects(input_value, loaded_state, actor)
+        operations.extend(hook_effects.state_ops)
         return Plan(
             state_ops=operations,
-            events=[],
-            deferred=[],
+            events=hook_effects.events,
+            deferred=hook_effects.deferred,
             audit={
                 "subject_type": "user",
                 "subject_id": user_id,

@@ -987,6 +987,7 @@ def _decide_open_outcome(
                             # round line has to say so rather than sit blank.
                             "round": NOT_APPLICABLE,
                             "job": target.job_title,
+                            "company": target.company_name,
                             "reason": input_value.reason,
                         },
                     },

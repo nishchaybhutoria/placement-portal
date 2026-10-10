@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { mockScreens, renderScreen } from "@/test/harness";
@@ -46,6 +46,12 @@ describe("F2/F4 gap screens", () => {
           drive_url: "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/view",
           preview_url: "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/preview",
           is_default: true,
+        }, {
+          id: "20000000-0000-4000-8000-000000000002",
+          label: "Alternate",
+          drive_url: "https://drive.google.com/file/d/1ZyXwVuTsRqPoNmLkJiHgFeDcBa987654/view",
+          preview_url: "https://drive.google.com/file/d/1ZyXwVuTsRqPoNmLkJiHgFeDcBa987654/preview",
+          is_default: false,
         }],
         taxonomies: { programs: [], branches: [], minors: [] },
         program_branches: [],
@@ -63,7 +69,17 @@ describe("F2/F4 gap screens", () => {
     expect(
       await screen.findByText("Set the resume file sharing permission to “Anyone with the link – Viewer.”"),
     ).toBeInTheDocument();
-    expect(await screen.findByTitle("Preview of Placements")).toHaveAttribute("src", expect.stringContaining("/preview"));
+    expect(await screen.findByTitle("Preview of Placements")).toHaveAttribute(
+      "src", "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/preview",
+    );
+    fireEvent.click(within(screen.getByText("Alternate").closest("li")!).getByRole("button", { name: "Preview" }));
+    expect(await screen.findByTitle("Preview of Alternate")).toHaveAttribute(
+      "src", "https://drive.google.com/file/d/1ZyXwVuTsRqPoNmLkJiHgFeDcBa987654/preview",
+    );
+    fireEvent.click(within(screen.getByText(/Placements · Default/).closest("li")!).getByRole("button", { name: "Preview" }));
+    expect(await screen.findByTitle("Preview of Placements")).toHaveAttribute(
+      "src", "https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/preview",
+    );
   });
 
   it("renders staged bulk rows with their compensating delete control", async () => {

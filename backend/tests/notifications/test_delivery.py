@@ -89,12 +89,13 @@ async def test_NTF_SES_adapter_sends_utf8_subject_and_body() -> None:
             {
                 "student": "Asha Mehta",
                 "job": "Backend Engineer",
+                "company": "Northwind Systems",
                 "application_deadline": "18 September 2026, 5:00 PM IST",
                 "offer_acceptance_deadline": "20 September 2026, 5:00 PM IST",
                 "shortened": True,
             },
-            "Deadline updated: Backend Engineer",
-            "A deadline for Backend Engineer has been updated.",
+            "Deadline updated: Backend Engineer at Northwind Systems",
+            "A deadline for Backend Engineer at Northwind Systems has been updated.",
         ),
         (
             "declined_confirm",

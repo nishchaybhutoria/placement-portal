@@ -6,7 +6,7 @@ membership gates are admission-time facts, not reasons to expel a candidate.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import cast
 from uuid import UUID
@@ -48,11 +48,18 @@ class Candidate:
 
 async def load_candidates(
     tx: AsyncSession, *, job_id: UUID | None = None,
-    enrollment_id: UUID | None = None, lock: bool,
+    enrollment_id: UUID | None = None,
+    enrollment_ids: Sequence[UUID] | None = None,
+    lock: bool,
 ) -> tuple[Candidate, ...]:
     """Load only applications that can be withdrawn from the active pipeline."""
-    if (job_id is None) == (enrollment_id is None):
+    if sum(item is not None for item in (job_id, enrollment_id, enrollment_ids)) != 1:
         raise ValueError("Exactly one requalification scope is required")
+    condition = (
+        "a.job_id = :id" if job_id is not None
+        else "a.enrollment_id = ANY(CAST(:ids AS uuid[]))" if enrollment_ids is not None
+        else "a.enrollment_id = :id"
+    )
     rows = (
         await tx.execute(
             sa.text(
@@ -75,10 +82,9 @@ async def load_candidates(
                 "ON ars.application_id = a.id AND ars.round_id = a.current_round_id "
                 "WHERE a.status = 'in_progress' AND j.cancelled_at IS NULL "
                 "AND j.published_at IS NOT NULL AND "
-                + ("a.job_id = :id" if job_id else "a.enrollment_id = :id")
-                + " ORDER BY a.id" + (" FOR UPDATE OF a" if lock else "")
+                + condition + " ORDER BY a.id" + (" FOR UPDATE OF a" if lock else "")
             ),
-            {"id": job_id or enrollment_id},
+            {"id": job_id or enrollment_id, "ids": list(enrollment_ids or ())},
         )
     ).mappings().all()
     if not rows:

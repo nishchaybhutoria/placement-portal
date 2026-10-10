@@ -340,6 +340,7 @@ def plan_acceptance(
                         "job": target.job_title,
                         "company": target.company_name,
                         "accepted_job": accepted.job_title,
+                        "accepted_company": accepted.company_name,
                         "trigger": withdrawal_trigger("accepted_another_offer"),
                         "cycle_id": str(target.cycle_id),
                     },

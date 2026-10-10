@@ -27,10 +27,19 @@ from app.core.errors import (
     UNKNOWN_TAXONOMY_VALUE,
 )
 from app.core.keys import BatchKey
-from app.core.plan import ActorContext, Plan, Rejection, ScopeIds, StateOp
+from app.core.plan import ActorContext, Deferred, Event, Plan, Rejection, ScopeIds, StateOp
 from app.core.registry import Registry
 from app.domain.academics import academic_standing_reasons
 from app.domain.pathways import ProgramPathway
+from app.domain.shared import RuleDomain
+from app.modules.jobs.requalification import (
+    Candidate,
+    candidate_labels,
+    load_candidates,
+    removal_plan,
+    revocations,
+)
+from app.modules.profiles.academics import load_academic_session
 from app.modules.profiles.commands import (
     load_program_pathways,
     program_branch_reasons,
@@ -91,6 +100,9 @@ class BulkState:
     program_branch_pairs: frozenset[tuple[UUID, UUID]] = frozenset()
     program_pathways: Mapping[UUID, ProgramPathway] = field(default_factory=dict)
     roll_conflicts: frozenset[str] = frozenset()
+    candidates: Mapping[UUID, tuple[Candidate, ...]] = field(default_factory=dict)
+    candidate_rule_labels: Mapping[UUID, str] = field(default_factory=dict)
+    academic_session: int | None = None
 
 
 def _normalize_email(value: str) -> str:
@@ -235,6 +247,12 @@ async def _load_bulk(tx: AsyncSession, input_value: BaseModel, *, lock: bool) ->
         ).scalars()
         roll_conflicts = {str(value).casefold() for value in conflict_rows}
 
+    candidates = await load_candidates(tx, enrollment_ids=enrollment_ids, lock=lock)
+    labels = await candidate_labels(tx, candidates)
+    by_enrollment: dict[UUID, list[Candidate]] = {}
+    for candidate in candidates:
+        by_enrollment.setdefault(candidate.enrollment_id, []).append(candidate)
+
     return BulkState(
         scope_ids=ScopeIds(),
         now=now,
@@ -248,6 +266,9 @@ async def _load_bulk(tx: AsyncSession, input_value: BaseModel, *, lock: bool) ->
         ),
         program_pathways=await load_program_pathways(tx),
         roll_conflicts=frozenset(roll_conflicts),
+        candidates={key: tuple(value) for key, value in by_enrollment.items()},
+        candidate_rule_labels=labels,
+        academic_session=await load_academic_session(tx, lock=lock),
     )
 
 
@@ -350,6 +371,8 @@ def _decide_bulk(
         counts[key] = counts.get(key, 0) + 1
 
     operations: list[StateOp] = []
+    events: list[Event] = []
+    deferred: list[Deferred] = []
     results: list[dict[str, object]] = []
     for row in input_value.rows:
         email = _normalize_email(row.institute_email)
@@ -490,6 +513,26 @@ def _decide_bulk(
             results.append(result)
             continue
 
+        removed = (
+            revocations(
+                state.candidates.get(target.enrollment_id, ())
+                if target.enrollment_id is not None else (),
+                profile_changes=profile_changes,
+                current_session=state.academic_session,
+                labels=state.candidate_rule_labels,
+                program_pathways=state.program_pathways,
+            ) if profile_changes else ()
+        )
+        removal_ops, removal_events, removal_notices = removal_plan(
+            removed, source="bulk_profile_changed"
+        )
+        operations.extend(removal_ops)
+        events.extend(removal_events)
+        deferred.extend(removal_notices)
+        result["removed_applications"] = [
+            {"application_id": str(item.id), "job": item.job, "company": item.company}
+            for item in removed
+        ]
         if profile_changes:
             if target.profile_exists:
                 operations.append(
@@ -551,8 +594,8 @@ def _decide_bulk(
 
     return Plan(
         state_ops=operations,
-        events=[],
-        deferred=[],
+        events=events,
+        deferred=deferred,
         audit=None,
         summary={"rows": results},
     )
@@ -566,7 +609,7 @@ def register_bulk_commands(registry: Registry) -> None:
         actor="admin",
         scope="none",
         loader=_load_bulk,
-        rule_domains=(),
+        rule_domains=(RuleDomain.ELIGIBILITY,),
         spec_ids=("PRO-2",),
         rate_limit="10/min",
         execution_mode="bulk",

@@ -14,7 +14,7 @@ import sqlalchemy as sa
 from app.core.db import create_engine
 from app.core.executor import Executor
 from app.core.plan import ActorContext
-from app.modules.notifications.catalog import EVENT_KEYS
+from app.modules.notifications.catalog import EVENT_KEYS, TEMPLATE_VARIABLES
 from app.modules.notifications.commands import UpdateTemplateInput
 from app.modules.notifications.queries import resolve_template
 from app.modules.notifications.render import render_text
@@ -253,6 +253,41 @@ def test_NTF_missing_render_variable_is_blank_warns_and_never_raises(
     assert rendered.text == "Hello Asha; venue: ; time: "
     assert rendered.missing == ("venue",)
     assert "rendering it blank" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_NTF_every_shipped_email_renders_without_missing_variables() -> None:
+    """Audit all 33 defaults, not just the offer and process-change examples."""
+    sample = {
+        "student": "Asha Mehta", "job": "SDE 1", "company": "Northwind Systems",
+        "to_job": "SDE 1", "to_company": "Northwind Systems",
+        "from_job": "Old role", "from_company": "Other Company",
+        "accepted_job": "Engineer", "accepted_company": "Example Ltd",
+        "strike_total": 1, "strike_note": "Current strike total: 1",
+    }
+    engine = create_engine(os.environ["TEST_DATABASE_URL"])
+    try:
+        async with engine.connect() as connection:
+            for event_key, variables in TEMPLATE_VARIABLES.items():
+                template = await resolve_template(connection, event_key, None)
+                assert template is not None, event_key
+                context = {name: sample.get(name, "Example") for name in variables}
+                subject = render_text(
+                    template.subject, context, event_key=event_key, part="subject"
+                )
+                body = render_text(
+                    template.body, context, event_key=event_key, part="body"
+                )
+                assert subject.missing == body.missing == (), event_key
+                assert "{" not in subject.text + body.text, event_key
+                if event_key in {
+                    "advanced", "rejected", "absent_marked", "venue_timing",
+                    "round_reminder", "auto_withdrawn", "auto_declined",
+                    "process_changed", "deadline_changed", "job_cancelled",
+                }:
+                    assert "Northwind Systems" in subject.text + body.text, event_key
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.asyncio

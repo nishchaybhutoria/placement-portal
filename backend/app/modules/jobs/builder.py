@@ -591,6 +591,7 @@ def _decide_upsert_job_rounds(
     removed = 0
     reordered = False
     changed_process = False
+    renamed: list[str] = []
     rescheduled: dict[UUID, RescheduledRound] = {}
     first_round_id: UUID | None = None
     for round_ in state.rounds:
@@ -643,6 +644,8 @@ def _decide_upsert_job_rounds(
         assert before is not None
         if before.ord != position:
             reordered = True
+        if before.name != row.name:
+            renamed.append(f"renamed {before.name} to {row.name}")
         if before.round_type_id != row.round_type_id:
             changed_process = True
         if before.venue != row.venue or before.scheduled_at != scheduled_at:
@@ -694,11 +697,10 @@ def _decide_upsert_job_rounds(
             )
         )
 
-    # JOB-3: inserting, removing, or reordering changes the process someone is
-    # already in the middle of, so they hear about it.  A rename does not,
-    # which is why the flags above are tracked separately.
-    process_changed = added > 0 or removed > 0 or reordered or changed_process
-    changes = []
+    # JOB-3: any change to the named stages of an active process is visible to
+    # applicants, including a rename that changes the label they see.
+    process_changed = added > 0 or removed > 0 or reordered or changed_process or bool(renamed)
+    changes = list(renamed)
     if added:
         changes.append(
             "added " + ", ".join(row.name for row in input_value.rounds if row.round_id is None)

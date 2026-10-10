@@ -1104,6 +1104,7 @@ class ExitApplicationRow:
     email: str
     full_name: str
     job_title: str
+    company_name: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -1117,9 +1118,11 @@ class MembershipExitState:
 
 
 CYCLE_APPLICATIONS_SELECT = """
-    SELECT a.id, a.status, a.current_round_id, u.email, u.full_name, j.title
+    SELECT a.id, a.status, a.current_round_id, u.email, u.full_name,
+           j.title, co.name AS company_name
     FROM applications a
     JOIN jobs j ON j.id = a.job_id
+    JOIN companies co ON co.id = j.company_id
     JOIN enrollments e ON e.id = a.enrollment_id
     JOIN users u ON u.id = e.user_id
     WHERE j.cycle_id = :cycle_id
@@ -1134,6 +1137,7 @@ def exit_application_row(row: sa.RowMapping) -> ExitApplicationRow:
         email=str(row["email"]),
         full_name=str(row["full_name"]),
         job_title=str(row["title"]),
+        company_name=str(row["company_name"]),
     )
 
 
@@ -1218,6 +1222,7 @@ def cascade_plan_parts(
                         "trigger": withdrawal_trigger(trigger.value),
                         "cycle": cycle.name,
                         "job": row.job_title,
+                        "company": row.company_name,
                         "cycle_id": str(cycle.id),
                     },
                 },
