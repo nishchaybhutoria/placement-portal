@@ -22,7 +22,6 @@ from app.modules.analytics.exports import CompleteExportInput, build_table, rend
 from app.modules.notifications.delivery import (
     EmailBackend,
     NotificationDeliveryService,
-    Sleep,
     email_backend_from_env,
 )
 from app.modules.notifications.dev_email import dev_email_output_enabled
@@ -51,7 +50,6 @@ def create_procrastinate_app(
     executor: Executor | None = None,
     engine: AsyncEngine | None = None,
     email_backend: EmailBackend | None = None,
-    sleep: Sleep | None = None,
 ) -> procrastinate.App:
     dev_email_output_enabled()
     app = procrastinate.App(
@@ -65,9 +63,7 @@ def create_procrastinate_app(
     # its own; every other task here writes only through the executor.
     read_engine = engine or create_engine()
     delivery = NotificationDeliveryService(
-        command_executor,
-        email_backend or email_backend_from_env(),
-        **({"sleep": sleep} if sleep is not None else {}),
+        command_executor, email_backend or email_backend_from_env()
     )
     system = ActorContext(principal_id="system", is_system=True)
 

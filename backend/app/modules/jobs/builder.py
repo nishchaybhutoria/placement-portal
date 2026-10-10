@@ -46,6 +46,7 @@ from app.modules.jobs.commands import (
     job_cancelled_reason,
     job_not_found,
 )
+from app.modules.notifications.catalog import expires_at
 from app.modules.notifications.wording import format_time, or_absent, schedule_note
 
 # A question type whose answers are a set of chosen options, so the option list
@@ -284,6 +285,7 @@ def _reschedule_notices(
                         "job": state.job.title,
                         "company": state.job.company_name or "the company",
                         "cycle_id": str(cycle_id),
+                        **expires_at(now_time),
                     },
                 },
             )

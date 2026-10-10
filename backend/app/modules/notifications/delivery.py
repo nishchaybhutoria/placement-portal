@@ -1,11 +1,10 @@
-"""Email backends and the five-attempt notification delivery loop."""
+"""Email backends and the one-attempt-per-job notification delivery service."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
 import os
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Protocol, cast
 from uuid import NAMESPACE_URL, UUID, uuid5
@@ -19,7 +18,6 @@ from app.modules.notifications.commands import (
 from app.modules.notifications.dev_email import dev_email_logger, dev_email_output_enabled
 
 LOGGER = logging.getLogger(__name__)
-MAX_DELIVERY_ATTEMPTS = 5
 CONTACT_FOOTER = (
     "Contact your placement office if you have questions about this notification."
 )
@@ -136,22 +134,18 @@ def email_backend_from_env() -> EmailBackend:
     raise ValueError("NOTIFICATION_BACKEND must be 'console' or 'ses'")
 
 
-Sleep = Callable[[float], Awaitable[None]]
-
-
 class NotificationDeliveryService:
-    """Prepare, send, and record one notification without direct database writes."""
+    """Prepare, send, and record one notification without direct database writes.
 
-    def __init__(
-        self,
-        executor: Executor,
-        backend: EmailBackend,
-        *,
-        sleep: Sleep = asyncio.sleep,
-    ) -> None:
+    Each job makes a single attempt.  A failure is recorded by
+    ``record_notification_attempt``, which defers the next attempt as a new
+    scheduled job, so the retry window can span days without a worker holding
+    a job open or losing it to a restart.
+    """
+
+    def __init__(self, executor: Executor, backend: EmailBackend) -> None:
         self._executor = executor
         self._backend = backend
-        self._sleep = sleep
         self._system = ActorContext(principal_id="system", is_system=True)
 
     async def deliver(
@@ -178,7 +172,6 @@ class NotificationDeliveryService:
         if not bool(prepared.summary["should_send"]):
             return
 
-        attempts = cast(int, prepared.summary["attempts"])
         message = EmailMessage(
             recipient=recipient,
             sender=str(prepared.summary["sender"] or os.environ.get("SES_SENDER", "")),
@@ -187,29 +180,23 @@ class NotificationDeliveryService:
             notification_id=log_id,
             event_key=event_key,
         )
-        while attempts < MAX_DELIVERY_ATTEMPTS:
-            error_text: str | None = None
-            delivered = False
-            try:
-                await self._backend.send(message)
-                delivered = True
-            except Exception as error:
-                # External delivery errors are data for the attempt command;
-                # command/database failures below still propagate to the queue.
-                error_text = f"{type(error).__name__}: {error}"
+        error_text: str | None = None
+        delivered = False
+        try:
+            await self._backend.send(message)
+            delivered = True
+        except Exception as error:
+            # External delivery errors are data for the attempt command;
+            # command/database failures below still propagate to the queue.
+            error_text = f"{type(error).__name__}: {error}"
 
-            recorded = await self._executor.run(
-                "record_notification_attempt",
-                RecordNotificationAttemptInput(
-                    notification_id=log_id,
-                    delivered=delivered,
-                    error=error_text,
-                ),
-                self._system,
-            )
-            assert isinstance(recorded, Result)
-            attempts = cast(int, recorded.summary["attempts"])
-            status = str(recorded.summary["status"])
-            if delivered or status == "dead":
-                return
-            await self._sleep(float(2 ** (attempts - 1)))
+        recorded = await self._executor.run(
+            "record_notification_attempt",
+            RecordNotificationAttemptInput(
+                notification_id=log_id,
+                delivered=delivered,
+                error=error_text,
+            ),
+            self._system,
+        )
+        assert isinstance(recorded, Result)

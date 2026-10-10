@@ -434,6 +434,10 @@ async def test_RND4_a_time_only_row_mails_the_rounds_default_venue() -> None:
     notifications = await _venue_notifications()
     assert notifications[0]["context"]["venue"] == "LT 1"
     assert [item["venue"] for item in _reported(outcome)] == ["LT 1"]
+    # The notice stops mattering when the slot starts: 09:30 IST.
+    assert datetime.fromisoformat(notifications[0]["context"]["expires_at"]) == datetime(
+        2027, 7, 1, 4, 0, tzinfo=UTC
+    )
 
 
 async def test_RND2_the_preview_reports_unchanged_exactly_as_execution_does() -> None:

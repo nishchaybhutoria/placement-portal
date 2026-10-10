@@ -53,6 +53,7 @@ from app.modules.applications.rounds import (
 from app.modules.applications.slots import parse_slot_time
 from app.modules.cycles.commands import CycleRow, fetch_cycle
 from app.modules.jobs.commands import JobRow, fetch_job, job_not_found
+from app.modules.notifications.catalog import expires_at
 from app.modules.notifications.wording import format_time, or_absent, schedule_note
 
 _ROUND = """
@@ -396,6 +397,7 @@ def _decide(
                         "job": state.job.title,
                         "company": state.job.company_name,
                         "cycle_id": str(input_value.cycle_id),
+                        **expires_at(scheduled_at),
                     },
                 },
             )

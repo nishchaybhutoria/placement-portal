@@ -260,6 +260,19 @@ Delivery is at least once. A deterministic notification identity suppresses
 ordinary retries after a recorded success, but an external-provider success
 followed by a database failure can still produce a duplicate message.
 
+Each worker job makes one send attempt. A failure is recorded in the same
+transaction that defers the next attempt as a scheduled job, backing off from a
+minute to twelve hours over about two and a half days, so an outage on the path
+to the provider delays mail rather than dead-lettering it. Only after the last
+attempt is the notification dead and left for staff to resend.
+
+A notice that is pointless after a known instant carries it in its context:
+deadline reminders expire at the application deadline, and round reminders and
+venue/timing notices at the round's start. A retry that would land after that
+instant is not scheduled, a job that fires after it sends nothing, and either
+way the notification is marked dead with the reason, so staff can see it never
+went out. An expired notification cannot be resent.
+
 Scheduled offer expiry and reminders revalidate authoritative state at fire
 time. They never assume that the state present when scheduled still holds.
 

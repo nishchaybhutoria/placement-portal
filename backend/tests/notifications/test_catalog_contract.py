@@ -33,6 +33,8 @@ EMITTER_CALLS = {"Deferred", "ReminderIntent"}
 PASS_THROUGH = {
     # resend_notification replays a notification_log row as it was stored.
     "_decide_resend",
+    # A failed attempt schedules its retry from the same stored row.
+    "_decide_attempt",
     # The reminder scans build their contexts as ReminderIntent, which is
     # checked at those construction sites; this fans them out.
     "_decide_reminders",

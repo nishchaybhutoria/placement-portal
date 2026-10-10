@@ -22,6 +22,7 @@ from app.modules.applications.verdict import (
     load_student_context,
     student_job_query,
 )
+from app.modules.notifications.catalog import expires_at
 from app.modules.notifications.wording import format_time, or_absent
 
 _DEADLINE_WINDOW = timedelta(minutes=30)
@@ -88,7 +89,8 @@ async def _load_deadline_reminders(
         raise TypeError("send_deadline_reminders requires SendDeadlineRemindersInput")
     run_at = await _clock(tx, input_value.run_at)
     query = """
-        SELECT j.id AS job_id, j.cycle_id, cp.deadline_reminder_hours,
+        SELECT j.id AS job_id, j.cycle_id, j.application_deadline,
+               cp.deadline_reminder_hours,
                e.id AS enrollment_id, u.email, u.full_name,
                j.title AS job_title, company.name AS company_name
         FROM jobs j
@@ -182,6 +184,7 @@ async def _load_deadline_reminders(
                     "cycle_id": str(cycle_id),
                     "job_id": str(job_id),
                     "enrollment_id": str(enrollment_id),
+                    **expires_at(cast(datetime, candidate["application_deadline"])),
                 },
             )
         )
@@ -270,6 +273,7 @@ async def _load_round_reminders(
                     "enrollment_id": str(enrollment_id),
                     "application_id": str(cast(UUID, row["application_id"])),
                     "round_id": str(round_id),
+                    **expires_at(schedule),
                 },
             )
         )
