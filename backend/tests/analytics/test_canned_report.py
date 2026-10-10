@@ -113,14 +113,14 @@ async def test_ANA3_outcome_tags_build_the_seeking_denominator(
     report = await _report(world)
 
     total = cast("dict[str, Any]", report["total"])
-    assert total["registered"] == 10
-    assert total["registered_seeking"] == 8
+    assert total["registered"] == 11
+    assert total["registered_seeking"] == 9
     assert total["higher_studies"] == 1
     assert total["not_seeking"] == 1
     assert total["entrepreneurship"] == 0
     # The headline rate keeps ANA-1's denominator whatever the tags say.
-    assert total["placement_rate"]["denominator"] == 10
-    assert total["placement_rate_seeking"]["denominator"] == 8
+    assert total["placement_rate"]["denominator"] == 11
+    assert total["placement_rate_seeking"]["denominator"] == 9
 
 
 async def test_ANA3_the_rows_sum_to_the_total_and_to_the_cycle_dashboard(
@@ -157,10 +157,10 @@ async def test_ANA3_compensation_carries_its_coverage_into_the_report(
     report = await _report(world)
     total = cast("dict[str, Any]", report["total"])
 
-    assert total["median_ctc_lpa"] == "22.75"
-    assert total["mean_ctc_lpa"] == "21.88"
-    assert total["compensation_covered"] == 4
-    assert int(total["placed_total"]) == 4
+    assert total["median_ctc_lpa"] == "21.50"
+    assert total["mean_ctc_lpa"] == "21.50"
+    assert total["compensation_covered"] == 5
+    assert int(total["placed_total"]) == 5
 
 
 async def test_ANA3_a_doubly_placed_student_is_attributed_once_in_the_filing(
@@ -202,13 +202,14 @@ async def test_ANA3_a_doubly_placed_student_is_attributed_once_in_the_filing(
             )
         )
         assert source_total == int(row["placed_total"])
-        assert int(row["placed_total"]) == 4
+        assert int(row["placed_total"]) == 5
 
     total = rows[-1]
     assert total["placed_on_campus"] == 1
+    assert total["placed_ppo"] == 2
     assert total["placed_off_campus"] == 2
-    assert total["compensation_covered"] == 4
-    assert total["mean_ctc_lpa"] == "18.75"
+    assert total["compensation_covered"] == 5
+    assert total["mean_ctc_lpa"] == "19.00"
 
 
 async def test_ANA3_the_export_shape_is_the_screen_shape(clean_cycles: None) -> None:
@@ -224,4 +225,4 @@ async def test_ANA3_the_export_shape_is_the_screen_shape(clean_cycles: None) -> 
     )
     # A rate exports as its ratio rather than as the object the screen renders.
     rate_column = header.index("Placement rate")
-    assert table[-1][rate_column] == "0.4000"
+    assert table[-1][rate_column] == "0.4545"
