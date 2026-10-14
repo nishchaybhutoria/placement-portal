@@ -11,7 +11,7 @@ ARG VITE_BASE_PATH=/portal/
 ENV VITE_BASE_PATH=${VITE_BASE_PATH}
 RUN pnpm build
 
-FROM caddy:2.11.4-alpine
+FROM caddy:2.11.7-alpine
 
 COPY Caddyfile /etc/caddy/Caddyfile
 COPY common/ /srv/common/
