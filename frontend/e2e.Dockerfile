@@ -1,6 +1,6 @@
 # The browsers ship inside this image, so its tag has to move with
 # @playwright/test in package.json — a mismatch fails as a missing executable.
-FROM mcr.microsoft.com/playwright:v1.63.0-noble
+FROM mcr.microsoft.com/playwright:v1.64.1-noble
 
 RUN npm install --global pnpm@11.22.0
 
