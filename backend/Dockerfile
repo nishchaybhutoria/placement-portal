@@ -1,6 +1,6 @@
 FROM ghcr.io/astral-sh/uv:0.13.4 AS uv
 
-FROM python:3.14-slim AS build
+FROM python:3.15-slim AS build
 
 ENV UV_PROJECT_ENVIRONMENT=/opt/venv
 
@@ -9,7 +9,7 @@ WORKDIR /workspace/backend
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
