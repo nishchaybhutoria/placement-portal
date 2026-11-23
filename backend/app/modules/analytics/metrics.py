@@ -41,6 +41,7 @@ from app.modules.offers.derivations import (
     ACCEPTED_PORTAL_OFFERS_SQL,
     EXTENDED_PORTAL_OFFERS_SQL,
     OFFERED_EXTERNAL_OFFERS_SQL,
+    PPO_OFFERED_AS_PLACED_SQL,
 )
 
 Executor = AsyncConnection | AsyncSession
@@ -255,6 +256,16 @@ _ACCEPTED_ROWS = f"""
         SELECT {_ACCEPTED_COLUMNS} FROM ({ACCEPTED_PORTAL_OFFERS_SQL}) portal_accepted
         UNION ALL
         SELECT {_ACCEPTED_COLUMNS} FROM ({ACCEPTED_EXTERNAL_OFFERS_SQL}) ext_accepted
+    )
+"""
+
+_ACCEPTED_ROWS_WITH_PPO = f"""
+    accepted_rows AS (
+        SELECT {_ACCEPTED_COLUMNS} FROM ({ACCEPTED_PORTAL_OFFERS_SQL}) portal_accepted
+        UNION ALL
+        SELECT {_ACCEPTED_COLUMNS} FROM ({ACCEPTED_EXTERNAL_OFFERS_SQL}) ext_accepted
+        UNION ALL
+        SELECT {_ACCEPTED_COLUMNS} FROM ({PPO_OFFERED_AS_PLACED_SQL}) ppo_offered
     )
 """
 
@@ -500,7 +511,7 @@ async def placed(executor: Executor, filters: MetricFilters) -> PlacedCohort:
     )
     params.update(subject_params)
     sql = _PLACED_SQL_TEMPLATE.format(
-        accepted_rows=_ACCEPTED_ROWS,
+        accepted_rows=_ACCEPTED_ROWS_WITH_PPO,
         split_source=_SPLIT_SOURCE,
         sector_join=_SECTOR_JOIN,
         cycle_clause=cycle_clause,
@@ -601,7 +612,7 @@ async def compensation(
     )
     params.update(subject_params)
     sql = _COMPENSATION_SQL_TEMPLATE.format(
-        accepted_rows=_ACCEPTED_ROWS,
+        accepted_rows=_ACCEPTED_ROWS_WITH_PPO,
         sector_join=_SECTOR_JOIN,
         cycle_clause=cycle_clause,
         sector_clause=sector_clause,
@@ -881,7 +892,7 @@ async def top_companies(
     )
     params.update(subject_params)
     sql = _TOP_COMPANIES_SQL_TEMPLATE.format(
-        accepted_rows=_ACCEPTED_ROWS,
+        accepted_rows=_ACCEPTED_ROWS_WITH_PPO,
         cycle_clause=cycle_clause,
         outcome_clause=outcome_clause,
         subject_clause=subject_clause,
@@ -951,7 +962,7 @@ async def timeline(executor: Executor, filters: MetricFilters) -> list[dict[str,
     offered_clause, _ = _cycle_predicate(filters, "r.cycle_id")
     accepted_clause, _ = _cycle_predicate(filters, "r.cycle_id")
     sql = _TIMELINE_SQL_TEMPLATE.format(
-        accepted_rows=_ACCEPTED_ROWS,
+        accepted_rows=_ACCEPTED_ROWS_WITH_PPO,
         offered_rows=_OFFERED_ROWS,
         applications_cycle_clause=applications_clause,
         offered_cycle_clause=offered_clause,
@@ -1149,7 +1160,7 @@ async def offer_counts(executor: Executor, filters: MetricFilters) -> dict[str, 
     params.update(subject_params)
     sql = _OFFER_COUNTS_SQL_TEMPLATE.format(
         offered_rows=_OFFERED_ROWS,
-        accepted_rows=_ACCEPTED_ROWS,
+        accepted_rows=_ACCEPTED_ROWS_WITH_PPO,
         offered_cycle_clause=cycle_clause,
         offered_subject_clause=subject_clause,
         accepted_cycle_clause=cycle_clause,

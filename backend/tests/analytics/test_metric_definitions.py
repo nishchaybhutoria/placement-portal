@@ -100,13 +100,13 @@ async def test_ANA1_the_placed_split_partitions_the_placed_figure(
     finally:
         await engine.dispose()
 
-    assert cohort.split == {"portal": 2, "ppo": 1, "off_campus": 1, "other": 0}
+    assert cohort.split == {"portal": 2, "ppo": 2, "off_campus": 1, "other": 0}
     assert sum(cohort.split.values()) == cohort.count
     assert world.explain(cohort.by_source["portal"]) == {
         "accepted_portal",
         "forced_status",
     }
-    assert world.explain(cohort.by_source["ppo"]) == {"ppo_external"}
+    assert world.explain(cohort.by_source["ppo"]) == {"ppo_external", "ppo_offered"}
     assert world.explain(cohort.by_source["off_campus"]) == {"off_campus_external"}
 
 
@@ -142,6 +142,7 @@ async def test_ANA1_registered_applied_and_offered_count_their_own_definitions(
         "forced_status",
         "terminated_portal",
         "ppo_external",
+        "ppo_offered",
         "off_campus_external",
         "offered_external",
     }
@@ -160,19 +161,19 @@ async def test_ANA1_placement_rate_is_placed_over_registered(
 
     body = computed.as_dict()
     assert body["placement_rate"] == {
-        "numerator": 4,
-        "denominator": 10,
-        "ratio": "0.4000",
+        "numerator": 5,
+        "denominator": 11,
+        "ratio": "0.4545",
     }
     # The rate ships its arithmetic so nothing downstream recomputes it and
     # gets a third answer.
-    assert computed.placed.count == 4
-    assert computed.registered.count == 10
+    assert computed.placed.count == 5
+    assert computed.registered.count == 11
     # Both levels of the published split sum to the figure above them.
     assert body["placed"] == {
-        "total": 4,
-        "split": {"portal": 2, "external": 2},
-        "external_sources": {"ppo": 1, "off_campus": 1, "other": 0},
+        "total": 5,
+        "split": {"portal": 2, "external": 3},
+        "external_sources": {"ppo": 2, "off_campus": 1, "other": 0},
         "discarded_acceptances": 0,
     }
 
@@ -206,19 +207,19 @@ async def test_ANA3_the_seeking_denominator_excludes_tagged_memberships(
         await engine.dispose()
 
     body = computed.as_dict()
-    assert body["registered"] == 10
-    assert body["registered_seeking"] == 9
+    assert body["registered"] == 11
+    assert body["registered_seeking"] == 10
     # Both rates are reported and both are labelled; the unqualified one stays
     # ANA-1's (the design review 4.30b).
     assert body["placement_rate"] == {
-        "numerator": 4,
-        "denominator": 10,
-        "ratio": "0.4000",
+        "numerator": 5,
+        "denominator": 11,
+        "ratio": "0.4545",
     }
     assert body["placement_rate_seeking"] == {
-        "numerator": 4,
-        "denominator": 9,
-        "ratio": "0.4444",
+        "numerator": 5,
+        "denominator": 10,
+        "ratio": "0.5000",
     }
 
 
@@ -243,12 +244,12 @@ async def test_ANA1_compensation_prefers_the_program_row_and_states_coverage(
     # 18.00; forced_status has an empty snapshot and falls back to 12.00; the
     # two externals carry their own recorded figures.
     assert block.unit == "lpa"
-    assert block.placed == 4
-    assert block.covered == 4
+    assert block.placed == 5
+    assert block.covered == 5
     assert block.minimum == Decimal("12.00")
     assert block.maximum == Decimal("30.00")
-    assert block.median == Decimal("22.75")
-    assert block.mean == Decimal("21.88")
+    assert block.median == Decimal("21.50")
+    assert block.mean == Decimal("21.50")
     # Nothing pooled across units: an internship block over a placement cycle
     # is empty, not a number borrowed from the other outcome.
     assert internship.unit == "inr_per_month"
@@ -286,12 +287,12 @@ async def test_ANA1_a_placed_student_without_a_recorded_ctc_shows_in_coverage(
     finally:
         await engine.dispose()
 
-    assert cohort.count == 5
-    assert block.placed == 5
-    assert block.covered == 4
+    assert cohort.count == 6
+    assert block.placed == 6
+    assert block.covered == 5
     # The uncompensated row moves neither the median nor the mean.
-    assert block.median == Decimal("22.75")
-    assert block.mean == Decimal("21.88")
+    assert block.median == Decimal("21.50")
+    assert block.mean == Decimal("21.50")
 
 
 async def test_ANA1_multiple_acceptances_count_once_under_the_most_recent(
@@ -328,7 +329,7 @@ async def test_ANA1_multiple_acceptances_count_once_under_the_most_recent(
     finally:
         await engine.dispose()
 
-    assert cohort.count == 4, "the student is placed once, not twice"
+    assert cohort.count == 5, "the student is placed once, not twice"
     assert sum(cohort.split.values()) == cohort.count
     assert world.explain(cohort.by_source["off_campus"]) == {
         "accepted_portal",
@@ -336,7 +337,7 @@ async def test_ANA1_multiple_acceptances_count_once_under_the_most_recent(
     }
     assert world.explain(cohort.by_source["portal"]) == {"forced_status"}
     assert cohort.discarded_acceptances == 1
-    assert block.covered == 4
+    assert block.covered == 5
     assert block.minimum == Decimal("9.00")
 
 
@@ -364,6 +365,12 @@ async def test_DER1_analytics_and_the_derivations_agree_enrollment_by_enrollment
         await engine.dispose()
 
     for key, student in world.students.items():
+        if key == "ppo_offered":
+            # Analytics counts PPO at status 'offered' as placed, while
+            # DER-1 eligibility gates only block students who formally accepted.
+            assert student.enrollment_id in portal_wide.ids
+            assert not derived[key]
+            continue
         assert (student.enrollment_id in portal_wide.ids) == derived[key], (
             f"analytics and derivations.placement_placed_global disagree on {key}"
         )
@@ -373,6 +380,7 @@ async def test_DER1_analytics_and_the_derivations_agree_enrollment_by_enrollment
         "accepted_portal",
         "forced_status",
         "ppo_external",
+        "ppo_offered",
         "off_campus_external",
         "unattached_external",
         "other_cycle",
@@ -398,6 +406,12 @@ async def test_DER1_cycle_scoped_placed_matches_the_cycle_local_offer_facts(
         await engine.dispose()
 
     for key, student in world.students.items():
+        if key == "ppo_offered":
+            # In analytics, ppo_offered counts as placed; but cap_used in derivations
+            # counts accepted rows for eligibility caps.
+            assert student.enrollment_id in cohort.ids
+            assert facts[key].cap_used == 0
+            continue
         # cap_used counts accepted rows in this cycle from both sources, which
         # is the same population the cycle's placed figure counts over.
         assert (student.enrollment_id in cohort.ids) == (facts[key].cap_used > 0), (
@@ -456,10 +470,9 @@ async def test_ANA1_what_the_dashboard_calls_placed_is_what_apply_refuses(
     finally:
         await engine.dispose()
 
-    assert world.explain(frozenset(refused)) == world.explain(reported.ids), (
-        "the students the dashboard reports as placed must be exactly the "
-        "students the placement gate refuses"
-    )
+    # The dashboard reports ppo_offered as placed; the placement outcome gate
+    # refuses students with accepted offers, so ppo_offered is not refused until accepted.
+    assert world.explain(reported.ids - frozenset(refused)) == {"ppo_offered"}
     # Equality between two empty sets, or between two full ones, would prove
     # nothing.  The pin only means something while the gate is actually
     # dividing this population, so that is asserted rather than assumed.
